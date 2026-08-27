@@ -1,0 +1,6 @@
+{
+  "name": "AIM - Life Operating System",
+  "description": "AI-powered Life Operating System with specialized guidance coaches, live local weather & time, daily planning, habit tracking, and goal manifestation with Google Drive sync.",
+  "requestFramePermissions": ["microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
