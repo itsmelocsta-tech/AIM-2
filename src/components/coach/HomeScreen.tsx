@@ -19,6 +19,8 @@ import {
   PlayCircle,
   PauseCircle,
   FastForward,
+  Mic,
+  Send,
 } from 'lucide-react';
 import {
   ScheduleItem,
@@ -26,12 +28,18 @@ import {
   UserProfile,
   DailyPlan,
   Goal,
+  MemoryItem,
+  WellnessLog,
+  LifeUpdate,
   VoiceState,
   SpeakerState,
+  CoachResponse,
 } from '../../types';
 import { CoachOrb } from './CoachOrb';
 import { scheduleRepository } from '../../services/repositories/scheduleRepository';
 import { voiceEngine } from '../../services/voiceService';
+import { api } from '../../services/api';
+import { actionExecutionEngine } from '../../services/actionExecutionEngine';
 import {
   getEffectiveTimeZone,
   groupScheduleItems,
@@ -45,7 +53,15 @@ interface HomeScreenProps {
   userProfile: UserProfile;
   dailyPlan: DailyPlan;
   goals: Goal[];
+  memories?: MemoryItem[];
+  wellnessLogs?: WellnessLog[];
+  lifeUpdates?: LifeUpdate[];
   compactContext?: CompactOrbContext | null;
+  onUpdateDailyPlan?: (plan: DailyPlan) => void;
+  onUpdateGoals?: (goals: Goal[]) => void;
+  onUpdateMemories?: (memories: MemoryItem[]) => void;
+  onUpdateLifeUpdates?: (updates: LifeUpdate[]) => void;
+  onUpdateProfile?: (profile: UserProfile) => void;
   onNavigateToTab: (tab: string) => void;
   onOpenCalendar: () => void;
   onOpenVoiceSettings: () => void;
@@ -57,7 +73,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   userProfile,
   dailyPlan,
   goals,
+  memories = [],
+  wellnessLogs = [],
+  lifeUpdates = [],
   compactContext,
+  onUpdateDailyPlan,
+  onUpdateGoals,
+  onUpdateMemories,
+  onUpdateLifeUpdates,
+  onUpdateProfile,
   onNavigateToTab,
   onOpenCalendar,
   onOpenVoiceSettings,
@@ -69,6 +93,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEarlierExpanded, setIsEarlierExpanded] = useState(false);
+
+  // Guidance Interactive Chat state
+  const [guidanceInput, setGuidanceInput] = useState('');
+  const [isSubmittingGuidance, setIsSubmittingGuidance] = useState(false);
+  const [guidanceResponse, setGuidanceResponse] = useState<CoachResponse | null>(null);
 
   // Voice States
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
@@ -117,9 +146,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     if (scheduleItems.length === 0) {
       contextualSentence = 'Your schedule is clear. Let’s build today’s plan.';
     } else if (current && current.status === 'in_progress') {
-      contextualSentence = 'You have one activity in progress.';
+      contextualSentence = `You are currently in "${current.title}".`;
     } else if (isDayComplete) {
       contextualSentence = 'Today’s main schedule is complete. Rest and reflect.';
+    } else if (next) {
+      contextualSentence = `Next up is "${next.title}".`;
     }
 
     const fullGreeting = `Good day. Let’s see where we are today. ${contextualSentence}`;
@@ -140,6 +171,70 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       return () => clearTimeout(timer);
     }
   }, [isLoading, scheduleItems, isMuted]);
+
+  // Direct Guidance interaction handler (stays on Guidance tab!)
+  const handleAskGuidance = async (queryText: string) => {
+    const text = queryText.trim();
+    if (!text || isSubmittingGuidance) return;
+
+    voiceEngine.stopSpeaking(true);
+    setIsSubmittingGuidance(true);
+    setVoiceState('processing');
+
+    try {
+      const response = await api.interactWithCoach({
+        coachId: 'guidance',
+        message: text,
+        userProfile,
+        goals,
+        memories,
+        dailyPlan,
+        wellnessLogs,
+        lifeUpdates,
+        currentSchedule: scheduleItems,
+        currentTime: new Date().toISOString(),
+        timeZone: effectiveTz,
+        compactContext: compactContext || undefined,
+      });
+
+      setGuidanceResponse(response);
+      setGreetingText(response.displayText);
+      setGuidanceInput('');
+
+      // Execute actions returned by Guidance
+      if (response.actions && response.actions.length > 0) {
+        await actionExecutionEngine.executeActions(response.actions, {
+          userProfile,
+          dailyPlan,
+          goals,
+          memories,
+          lifeUpdates,
+          onUpdateDailyPlan,
+          onUpdateGoals,
+          onUpdateMemories,
+          onUpdateLifeUpdates,
+          onUpdateProfile,
+          onToast,
+        });
+        await loadSchedule();
+      }
+
+      // Voice response
+      const textToSpeak = response.spokenText || response.displayText;
+      voiceEngine.speak(textToSpeak, {
+        onStateChange: (s) => setSpeakerState(s),
+        onStart: () => setVoiceState('speaking'),
+        onEnd: () => setVoiceState('idle'),
+        onError: () => setVoiceState('idle'),
+      });
+    } catch (err) {
+      console.error('Guidance interaction error:', err);
+      onToast('Error consulting Guidance.');
+    } finally {
+      setIsSubmittingGuidance(false);
+      setVoiceState('idle');
+    }
+  };
 
   // Scroll to active or next item once
   useEffect(() => {
@@ -223,7 +318,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     } else {
       voiceEngine.startListening(
         (text) => {
-          onOpenLifeUpdate(text);
+          if (text.trim()) {
+            handleAskGuidance(text);
+          }
         },
         (isListening) => {
           setVoiceState(isListening ? 'listening' : 'idle');
@@ -248,11 +345,86 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           />
         </div>
 
-        {/* Spoken Greeting Card */}
+        {/* Spoken Greeting / Guidance Dialogue Card */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 max-w-lg w-full shadow-lg backdrop-blur-sm space-y-3">
           <p className="text-sm sm:text-base font-medium text-slate-100 leading-relaxed">
             {greetingText}
           </p>
+
+          {/* Follow-up question if any */}
+          {guidanceResponse?.followUpQuestion && (
+            <p className="text-xs font-semibold text-indigo-300 italic pt-1 border-t border-slate-800">
+              "{guidanceResponse.followUpQuestion}"
+            </p>
+          )}
+
+          {/* Recommended actions from Guidance */}
+          {guidanceResponse?.recommendedActions && guidanceResponse.recommendedActions.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+              {guidanceResponse.recommendedActions.map((action, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => handleAskGuidance(action.label)}
+                  className="px-2.5 py-1 rounded-lg bg-indigo-950/60 border border-indigo-800/60 hover:bg-indigo-900/80 text-indigo-200 text-xs font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <Sparkles className="w-3 h-3 text-indigo-400" />
+                  <span>{action.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Direct Guidance Quick Input Bar */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAskGuidance(guidanceInput);
+            }}
+            className="pt-2 flex items-center gap-1.5"
+          >
+            <input
+              type="text"
+              value={guidanceInput}
+              onChange={(e) => setGuidanceInput(e.target.value)}
+              placeholder="Ask Guidance: 'What should I do now?' or 'Move meeting to 3pm'..."
+              className="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            />
+            <button
+              type="submit"
+              disabled={isSubmittingGuidance || !guidanceInput.trim()}
+              className="p-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white transition-colors"
+              title="Ask Guidance"
+            >
+              <Send className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleOrbClick}
+              className={`p-1.5 rounded-xl border text-xs ${
+                voiceState === 'listening'
+                  ? 'bg-rose-600 text-white animate-pulse border-rose-500'
+                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+              }`}
+              title="Speak to Guidance"
+            >
+              <Mic className="w-3.5 h-3.5" />
+            </button>
+          </form>
+
+          {/* Quick Prompts */}
+          <div className="flex flex-wrap items-center justify-center gap-1 pt-1">
+            {['What should I do now?', 'I have 2 free hours', 'Move my afternoon around'].map((prompt, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleAskGuidance(prompt)}
+                className="text-[11px] px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
 
           {/* Greeting Voice Controls */}
           <div className="flex items-center justify-center gap-2 pt-1 border-t border-slate-800/80">

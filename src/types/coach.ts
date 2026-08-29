@@ -122,6 +122,32 @@ export interface CoachSafetyNotice {
   message?: string;
 }
 
+export type AIMActionType =
+  | 'createTask'
+  | 'updateTask'
+  | 'completeTask'
+  | 'rescheduleTask'
+  | 'removeTask'
+  | 'createScheduleBlock'
+  | 'updateScheduleBlock'
+  | 'rescheduleScheduleBlock'
+  | 'removeScheduleBlock'
+  | 'createAppointment'
+  | 'updateGoal'
+  | 'saveLifeUpdate'
+  | 'updatePriority'
+  | 'saveRelevantMemory'
+  | 'updateProfile';
+
+export interface AIMAction {
+  id?: string;
+  type: AIMActionType;
+  payload: any;
+  executed?: boolean;
+  status?: 'pending' | 'success' | 'failed';
+  description?: string;
+}
+
 export interface CoachResponse {
   coachId: CoachId;
   displayText: string;
@@ -139,6 +165,7 @@ export interface CoachResponse {
   followUpQuestion?: string;
   recommendedActions: CoachRecommendedAction[];
   scheduleChangeProposal?: ScheduleChangeProposal;
+  actions?: AIMAction[];
   safety?: CoachSafetyNotice;
 }
 
@@ -155,38 +182,51 @@ export interface CoachMessage {
 
 export type GenderPresentation = 'masculine' | 'feminine';
 
-export type USAccentStyle =
-  | 'general_american'
-  | 'texas'
+export type AIMAccentStyle =
+  | 'new_york'
   | 'southern'
-  | 'new_york_city'
   | 'midwestern'
-  | 'california_west_coast'
-  | 'boston_new_england'
-  | 'philadelphia_mid_atlantic'
-  | 'appalachian'
-  | 'louisiana_gulf_south';
+  | 'texan'
+  | 'african';
+
+export type USAccentStyle = AIMAccentStyle | string;
+
+export interface CentralVoiceConfig {
+  id: string; // e.g. 'masculine_texan', 'feminine_new_york'
+  label: string; // 'Texan', 'New York', 'Southern', 'Midwestern', 'African'
+  accentKey: AIMAccentStyle;
+  gender: GenderPresentation;
+  provider: 'gemini-tts' | 'google';
+  voiceName: string; // Real Gemini TTS voice: 'Charon', 'Puck', 'Fenrir', 'Kore', 'Zephyr', 'Aoede'
+  locale: string;
+  speakingRate: number;
+  pitch: number;
+  style: string;
+  description: string;
+  cadenceDescription: string;
+}
 
 export interface VoiceProfile {
-  id: string; // e.g. 'masculine_texas', 'feminine_new_york_city'
+  id: string; // e.g. 'masculine_texan', 'feminine_new_york'
   displayName: string;
-  accentStyle: USAccentStyle;
+  accentStyle: AIMAccentStyle;
   accentTitle: string;
   accentDescription: string;
   genderPresentation: GenderPresentation;
   provider: 'gemini-tts' | 'webspeech' | 'browser';
   providerVoiceId: string;
-  geminiVoiceName?: string;
+  geminiVoiceName: string;
+  locale: string;
   speakingRate: number;
   pitch: number;
   cadenceDescription: string;
-  preferredVoiceNames: string[];
+  preferredVoiceNames?: string[];
   styleInstructions: string;
 }
 
 export interface VoicePreference {
   gender: GenderPresentation;
-  accentStyle: USAccentStyle;
+  accentStyle: AIMAccentStyle;
   voiceProfileId: string;
   voiceName: string;
   rate: number;

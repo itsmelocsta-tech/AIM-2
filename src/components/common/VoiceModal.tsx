@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { AimOrbCanvas } from './AimOrbCanvas';
 import { AudioWaveform } from './AudioWaveform';
-import { UserProfile, ChatMessage } from '../../types';
+import { UserProfile, ChatMessage, Goal, MemoryItem, DailyPlan, WellnessLog, LifeUpdate } from '../../types';
 import { api } from '../../services/api';
 import { voiceEngine } from '../../services/voiceService';
 import { PREVIEW_SENTENCE } from '../../services/voiceProfiles';
@@ -21,6 +21,12 @@ interface VoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
   userProfile: UserProfile;
+  chatMessages?: ChatMessage[];
+  goals?: Goal[];
+  memories?: MemoryItem[];
+  dailyPlan?: DailyPlan;
+  wellnessLogs?: WellnessLog[];
+  lifeUpdates?: LifeUpdate[];
   onAddChatMessage: (msg: ChatMessage) => void;
   onToast: (msg: string) => void;
 }
@@ -29,6 +35,12 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
   isOpen,
   onClose,
   userProfile,
+  chatMessages = [],
+  goals = [],
+  memories = [],
+  dailyPlan,
+  wellnessLogs = [],
+  lifeUpdates = [],
   onAddChatMessage,
   onToast,
 }) => {
@@ -38,7 +50,9 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
   const [isThinking, setIsThinking] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [lastAIMReply, setLastAIMReply] = useState(
-    'I am listening. Share what is on your mind, what obstacle you are facing, or what offer you want to monetize today.'
+    userProfile?.name
+      ? `I'm here with you, ${userProfile.name}. What is on your mind or in front of you today?`
+      : `I'm listening. What is on your mind or in front of you today?`
   );
 
   useEffect(() => {
@@ -49,8 +63,14 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
       setIsSpeaking(false);
       setIsPreviewing(false);
       setIsThinking(false);
+    } else {
+      setLastAIMReply(
+        userProfile?.name
+          ? `I'm here with you, ${userProfile.name}. What is on your mind or in front of you today?`
+          : `I'm listening. What is on your mind or in front of you today?`
+      );
     }
-  }, [isOpen]);
+  }, [isOpen, userProfile?.name]);
 
   if (!isOpen) return null;
 
@@ -133,10 +153,20 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
     onAddChatMessage(userMsg);
 
     try {
+      const historyForChat = (chatMessages || []).slice(-8).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
       const response = await api.chatWithAIM({
         message: userInput,
-        history: [],
+        history: historyForChat,
         userProfile,
+        goals,
+        memories,
+        dailyPlan,
+        wellnessLogs,
+        lifeUpdates,
       });
 
       setLastAIMReply(response.reply);

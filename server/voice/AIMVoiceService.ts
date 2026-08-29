@@ -184,58 +184,40 @@ export class AIMVoiceService {
    */
   public getGeminiVoiceMapping(
     gender: 'masculine' | 'feminine' = 'masculine',
-    accentStyle: string = 'general_american',
+    accentStyle: string = 'texan',
     emotion: string = 'casual'
-  ): { voiceName: string; stylePrompt: string } {
+  ): { voiceName: string; stylePrompt: string; locale: string } {
     // Gemini 3.1 Flash TTS Prebuilt Voices:
-    // Masculine: 'Puck' (energetic/warm/modern), 'Charon' (deep/resonant/unhurried), 'Fenrir' (confident/textured/grounded)
-    // Feminine: 'Kore' (warm/expressive/natural), 'Zephyr' (bright/airy/contemporary), 'Aoede' (melodic/composed)
+    // Masculine: 'Charon' (deep, resonant, grounded), 'Puck' (energetic, crisp), 'Fenrir' (confident, articulate)
+    // Feminine: 'Kore' (warm, natural, composed), 'Zephyr' (bright, melodic, expressive), 'Aoede' (lyrical, resonant)
 
-    let voiceName = gender === 'feminine' ? 'Kore' : 'Puck';
-    let regionalCadence = 'natural conversational American tone';
+    let voiceName = gender === 'feminine' ? 'Kore' : 'Charon';
+    let regionalCadence = 'unhurried, grounded Texas Southwestern warmth with natural pacing and chest resonance';
+    let locale = 'en-US';
 
-    switch (accentStyle) {
-      case 'texas':
-        voiceName = gender === 'feminine' ? 'Kore' : 'Charon';
-        regionalCadence = 'unhurried, grounded Texas Southwestern warmth with natural pacing';
-        break;
-      case 'southern':
-        voiceName = gender === 'feminine' ? 'Zephyr' : 'Charon';
-        regionalCadence = 'warm, gentle Southeastern melodic rhythm with relaxed phrasing';
-        break;
-      case 'new_york_city':
-        voiceName = gender === 'feminine' ? 'Zephyr' : 'Puck';
-        regionalCadence = 'energetic, dynamic, crisp metropolitan conversational rhythm';
-        break;
-      case 'midwestern':
-        voiceName = gender === 'feminine' ? 'Kore' : 'Fenrir';
-        regionalCadence = 'calm, steady, open-hearted Midwestern authenticity';
-        break;
-      case 'california_west_coast':
-        voiceName = gender === 'feminine' ? 'Zephyr' : 'Puck';
-        regionalCadence = 'relaxed, modern, airy West Coast contemporary flow';
-        break;
-      case 'boston_new_england':
-        voiceName = gender === 'feminine' ? 'Zephyr' : 'Fenrir';
-        regionalCadence = 'concise, direct, brisk New England conversational cadence';
-        break;
-      case 'philadelphia_mid_atlantic':
-        voiceName = gender === 'feminine' ? 'Kore' : 'Puck';
-        regionalCadence = 'grounded, focused urban Mid-Atlantic rhythm';
-        break;
-      case 'appalachian':
-        voiceName = gender === 'feminine' ? 'Kore' : 'Charon';
-        regionalCadence = 'measured, resonant mountain folk warmth with thoughtful pauses';
-        break;
-      case 'louisiana_gulf_south':
-        voiceName = gender === 'feminine' ? 'Zephyr' : 'Charon';
-        regionalCadence = 'lyrical, rhythmic Gulf South rolling warmth';
-        break;
-      case 'general_american':
-      default:
-        voiceName = gender === 'feminine' ? 'Kore' : 'Puck';
-        regionalCadence = 'clear, warm, conversational mainstream American delivery';
-        break;
+    const normalizedAccent = accentStyle.toLowerCase().trim();
+
+    if (normalizedAccent === 'new_york' || normalizedAccent === 'new_york_city' || normalizedAccent.includes('york')) {
+      voiceName = gender === 'feminine' ? 'Zephyr' : 'Puck';
+      regionalCadence = 'energetic, dynamic, crisp New York metropolitan conversational rhythm with sharp articulation and lively flow';
+      locale = 'en-US';
+    } else if (normalizedAccent === 'southern' || normalizedAccent.includes('south') || normalizedAccent === 'louisiana_gulf_south' || normalizedAccent === 'appalachian') {
+      voiceName = gender === 'feminine' ? 'Zephyr' : 'Charon';
+      regionalCadence = 'warm, gentle Southeastern melodic rhythm with relaxed phrasing, hospitable warmth, and subtle elongation';
+      locale = 'en-US';
+    } else if (normalizedAccent === 'midwestern' || normalizedAccent === 'general_american' || normalizedAccent.includes('west_coast') || normalizedAccent.includes('new_england')) {
+      voiceName = gender === 'feminine' ? 'Kore' : 'Fenrir';
+      regionalCadence = 'calm, steady, open-hearted Midwestern American authenticity with balanced, sincere clarity and level pacing';
+      locale = 'en-US';
+    } else if (normalizedAccent === 'african' || normalizedAccent.includes('africa')) {
+      voiceName = gender === 'feminine' ? 'Aoede' : 'Fenrir';
+      regionalCadence = 'resonant, articulate Pan-African English inflection with rhythmic warmth, deliberate phrasing, and confident, inspiring delivery';
+      locale = 'en-NG';
+    } else {
+      // Texan / Default
+      voiceName = gender === 'feminine' ? 'Kore' : 'Charon';
+      regionalCadence = 'unhurried, grounded Texas Southwestern warmth with natural pacing, deep resonance, and reassuring presence';
+      locale = 'en-US';
     }
 
     let emotionalInstruction = '';
@@ -257,13 +239,13 @@ export class AIMVoiceService {
         break;
       case 'casual':
       default:
-        emotionalInstruction = 'Deliver in a relaxed, friendly, completely natural conversational voice like talking with a close friend.';
+        emotionalInstruction = 'Deliver in a relaxed, friendly, completely natural conversational voice like a calm, intelligent human teammate.';
         break;
     }
 
-    const stylePrompt = `Speak in a ${regionalCadence}. ${emotionalInstruction} Use natural human breathing rhythm, contractions, and authentic pauses. Avoid robotic stiffness.`;
+    const stylePrompt = `Speak in a ${regionalCadence}. ${emotionalInstruction} Use natural human breathing rhythm, contractions, and authentic pauses. Speak as a calm human teammate with no robotic stiffness.`;
 
-    return { voiceName, stylePrompt };
+    return { voiceName, stylePrompt, locale };
   }
 
   /**

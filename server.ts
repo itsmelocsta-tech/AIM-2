@@ -116,15 +116,111 @@ const AIM_SYSTEM_INSTRUCTION = `You are AIM (Artificial Intelligence for Manifes
 
 Your purpose is not simply to answer questions. Your purpose is to help the user organize their thoughts, understand their patterns, solve real-world problems, and take meaningful action toward the person they want to become.
 
-Guiding Principles:
-1. Don't just remember what the user said—remember who they are trying to become.
-2. Identify what may be standing in the way (root cause analysis) without shaming. Always recalculate the path forward with empathy and practical clarity.
-3. Be conversational, encouraging, and intellectually honest. Avoid generic motivational fluff.
-4. Support whole-person wellbeing (sleep, energy, stress, focus, relationships, work, creativity, and life vision).
-5. Only introduce business, monetization, or financial frameworks when the user explicitly brings up business, income, or career topics. Never force sales or dollar metrics on general life reflections.
-6. Ask ONE thoughtful, helpful follow-up question at a time to help the user unpack their thought or plan their next step naturally.
+CRITICAL CONVERSATIONAL DIRECTIVES:
+1. GENUINE & REAL OVER QUOTES: NEVER recite cliché motivational quotes, proverbs, famous sayings, or canned aphorisms (e.g. do NOT say "As the ancient proverb goes...", "Remember that a journey of a thousand miles...", "Believe in yourself...", etc.). Speak in your own authentic, intelligent, grounded voice.
+2. GROUNDED IN SAVED USER INFORMATION: You have access to the user's saved profile, active goals, memories, today's schedule, wellness status, and recent life updates below. Tailor your responses specifically and genuinely to THIS person's actual situation, goals, obstacles, and context.
+3. CONVERSATIONAL & HUMAN: Speak naturally, warmly, like an insightful, empathetic thinking partner and trusted mentor sitting across the table. Be direct, clear, articulate, and supportive without being robotic or patronizing.
+4. NO UNSOLICITED MONETIZATION / SALES TALK: Only bring up business frameworks, sales tactics, or monetization if the user explicitly asks about business, finances, income, or career monetization. Never force sales pitches on general life, spiritual, relationship, or wellness reflections.
+5. ONE THOUGHTFUL FOLLOW-UP: End your response with ONE thoughtful, practical, reflective follow-up question or immediate next action to help the user move forward naturally.
 
 Keep your response articulate, warm, and concise (typically 2-4 short paragraphs, ending with one clear, reflective follow-up question).`;
+
+function buildUserSavedInformationPrompt(params: {
+  userProfile?: any;
+  goals?: any[];
+  memories?: any[];
+  dailyPlan?: any;
+  wellnessLogs?: any[];
+  lifeUpdates?: any[];
+  currentSchedule?: any[];
+}): string {
+  const sections: string[] = [];
+
+  // User Profile
+  if (params.userProfile) {
+    const p = params.userProfile;
+    const profileParts: string[] = [];
+    if (p.name) profileParts.push(`- Name: ${p.name}`);
+    if (p.desiredIdentity) profileParts.push(`- Desired Identity / Trajectory: ${p.desiredIdentity}`);
+    if (p.coreMission) profileParts.push(`- Core Life Mission: ${p.coreMission}`);
+    if (p.primaryObstacle || p.currentObstacle) profileParts.push(`- Stated Primary Obstacle: ${p.primaryObstacle || p.currentObstacle}`);
+    if (p.ninetyDayTrajectory) profileParts.push(`- 90-Day Trajectory: ${p.ninetyDayTrajectory}`);
+    if (Array.isArray(p.coreValues) && p.coreValues.length > 0) profileParts.push(`- Core Values: ${p.coreValues.join(', ')}`);
+    if (Array.isArray(p.topSkills) && p.topSkills.length > 0) profileParts.push(`- Top Skills: ${p.topSkills.join(', ')}`);
+    if (p.targetMonthlyIncome) profileParts.push(`- Monthly Income Goal: $${p.targetMonthlyIncome.toLocaleString()}/mo (Current: $${(p.currentMonthlyIncome || 0).toLocaleString()}/mo)`);
+    if (profileParts.length > 0) {
+      sections.push(`USER'S SAVED PROFILE & IDENTITY:\n${profileParts.join('\n')}`);
+    }
+  }
+
+  // Active Goals
+  if (Array.isArray(params.goals) && params.goals.length > 0) {
+    const goalLines = params.goals.slice(0, 8).map((g: any) => {
+      const whyPart = g.why ? ` (Why: "${g.why}")` : '';
+      const progPart = typeof g.currentProgress === 'number' ? ` [${g.currentProgress}% complete]` : '';
+      const obstaclePart = Array.isArray(g.obstacles) && g.obstacles.length > 0 ? ` | Obstacles: ${g.obstacles.join(', ')}` : '';
+      return `- [${g.category || 'Goal'}] "${g.title}"${progPart}${whyPart}${obstaclePart}`;
+    });
+    sections.push(`USER'S SAVED ACTIVE GOALS:\n${goalLines.join('\n')}`);
+  }
+
+  // Saved Memories & Insights
+  if (Array.isArray(params.memories) && params.memories.length > 0) {
+    const memoryLines = params.memories.slice(0, 8).map((m: any) => {
+      const cat = m.category ? `[${m.category}] ` : '';
+      const contentPreview = m.content ? `: ${m.content.substring(0, 140)}` : '';
+      return `- ${cat}"${m.title}"${contentPreview}`;
+    });
+    sections.push(`USER'S SAVED MEMORIES & KEY FACTS:\n${memoryLines.join('\n')}`);
+  }
+
+  // Today's Daily Plan & Tasks
+  if (params.dailyPlan) {
+    const dp = params.dailyPlan;
+    const planParts: string[] = [];
+    if (dp.theme) planParts.push(`- Today's Focus Theme: "${dp.theme}"`);
+    if (typeof dp.energyLevel === 'number') planParts.push(`- Logged Energy Level: ${dp.energyLevel}/10`);
+    if (Array.isArray(dp.priorityTasks) && dp.priorityTasks.length > 0) {
+      const taskLines = dp.priorityTasks.map((t: any) => `  * [${t.completed ? 'COMPLETED' : 'PENDING'}] ${t.task} (${t.impact || 'Normal'} Impact, ${t.timeEstimate || '30m'})`);
+      planParts.push(`- Today's Priority Tasks:\n${taskLines.join('\n')}`);
+    }
+    if (dp.mindsetReminder) planParts.push(`- Mindset Reminder: "${dp.mindsetReminder}"`);
+    if (planParts.length > 0) {
+      sections.push(`TODAY'S DAILY PLAN & TASKS:\n${planParts.join('\n')}`);
+    }
+  }
+
+  // Recent Life Updates
+  if (Array.isArray(params.lifeUpdates) && params.lifeUpdates.length > 0) {
+    const updateLines = params.lifeUpdates.slice(0, 5).map((u: any) => {
+      const cat = u.primaryCategory ? `[${u.primaryCategory}] ` : '';
+      return `- ${cat}${u.content || u.title || ''} (${new Date(u.createdAt || Date.now()).toLocaleDateString()})`;
+    });
+    sections.push(`RECENT LIFE UPDATES & CONTEXT:\n${updateLines.join('\n')}`);
+  }
+
+  // Wellness Logs
+  if (Array.isArray(params.wellnessLogs) && params.wellnessLogs.length > 0) {
+    const latest = params.wellnessLogs[0];
+    const wellnessParts: string[] = [];
+    if (typeof latest.sleepHours === 'number') wellnessParts.push(`Sleep: ${latest.sleepHours}h (Quality: ${latest.sleepQuality || 'N/A'}/10)`);
+    if (typeof latest.stressLevel === 'number') wellnessParts.push(`Stress: ${latest.stressLevel}/10`);
+    if (typeof latest.focusHours === 'number') wellnessParts.push(`Focus: ${latest.focusHours}h`);
+    if (latest.movementType || latest.movementMinutes) wellnessParts.push(`Movement: ${latest.movementMinutes || 0}m (${latest.movementType || 'general'})`);
+    if (latest.notes) wellnessParts.push(`Notes: "${latest.notes}"`);
+    if (wellnessParts.length > 0) {
+      sections.push(`LATEST WELLNESS & VITALITY STATUS:\n${wellnessParts.join(' | ')}`);
+    }
+  }
+
+  // Current Schedule
+  if (Array.isArray(params.currentSchedule) && params.currentSchedule.length > 0) {
+    const schedLines = params.currentSchedule.map((s: any) => `- [${s.status || 'pending'}] ${s.title} (${s.startAt || ''} to ${s.endAt || ''})`);
+    sections.push(`TODAY'S SCHEDULE BLOCKS:\n${schedLines.join('\n')}`);
+  }
+
+  return sections.length > 0 ? sections.join('\n\n') : 'No saved user information recorded yet.';
+}
 
 // API Routes
 app.get('/api/health', (req: Request, res: Response) => {
@@ -133,7 +229,19 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 // Chat & General Reasoning Endpoint
 app.post('/api/aim/chat', async (req: Request, res: Response) => {
-  const { message, history = [], userProfile, contextCategory } = req.body;
+  const {
+    message,
+    history = [],
+    userProfile,
+    goals = [],
+    memories = [],
+    dailyPlan,
+    wellnessLogs = [],
+    lifeUpdates = [],
+    currentSchedule = [],
+    contextCategory,
+  } = req.body;
+
   try {
     const ai = getGenAI();
 
@@ -143,12 +251,28 @@ app.post('/api/aim/chat', async (req: Request, res: Response) => {
       coachId: 'guidance',
       userMessage: message || '',
       userProfile,
+      goals,
+      memories,
+      dailyPlan,
+      wellnessLogs,
+      recentLifeUpdates: lifeUpdates,
+      currentSchedule,
+    });
+
+    const userSavedContext = buildUserSavedInformationPrompt({
+      userProfile,
+      goals,
+      memories,
+      dailyPlan,
+      wellnessLogs,
+      lifeUpdates,
+      currentSchedule,
     });
 
     if (!ai) {
       return res.json({
-        reply: `I am AIM, your Life Operating System. I received your thought: "${message}". Let's organize this into your actionable plan! Priority focus: ${coachContext.priorityAssessment.primaryAttentionFocus}.`,
-        extractedCategory: contextCategory || 'Journal',
+        reply: `I hear you clearly on "${message}". Looking at your focus for today, your primary next priority is: ${coachContext.priorityAssessment.immediateActionForNow}. How can we make tangible progress on this right now?`,
+        extractedCategory: contextCategory || 'General Guidance',
         suggestedActions: [
           { title: 'Define immediate next milestone', type: 'task' },
           { title: 'Log key insight in AIM memory', type: 'memory' }
@@ -156,18 +280,16 @@ app.post('/api/aim/chat', async (req: Request, res: Response) => {
       });
     }
 
-    const profileContext = userProfile ? `
-User Identity & Vision:
-- Desired Identity: ${userProfile.desiredIdentity || 'High-achieving creator & entrepreneur'}
-- Core Mission: ${userProfile.coreMission || 'Financial freedom & maximum personal impact'}
-- Current Income Goal: ${userProfile.targetMonthlyIncome ? '$' + userProfile.targetMonthlyIncome + '/mo' : '$10,000/mo'}
-- Primary Obstacle: ${userProfile.currentObstacle || 'Time management and outreach momentum'}
-` : '';
-
     const systemPrompt = `${AIM_SYSTEM_INSTRUCTION}
-${profileContext}
+
+=== SAVED USER INFORMATION & LIVING CONTEXT ===
+${userSavedContext}
+==============================================
+
 Current Focus Category: ${contextCategory || 'General Guidance'}
-${coachContext.systemPromptAddendum}`;
+${coachContext.systemPromptAddendum}
+
+Remember: Give a real, genuine, articulate, empathetic answer specifically addressing what the user said in light of their saved information above. DO NOT give generic quotes.`;
 
     const formattedContents = [
       ...history.slice(-10).map((h: { role: string; content: string }) => ({
@@ -188,7 +310,7 @@ ${coachContext.systemPromptAddendum}`;
       }
     });
 
-    const replyText = response.text || 'I have analyzed your reflection and updated your trajectory.';
+    const replyText = response.text || `I hear you clearly on "${message}". Let's align on your next practical step.`;
 
     res.json({
       reply: replyText,
@@ -197,7 +319,7 @@ ${coachContext.systemPromptAddendum}`;
   } catch (error: any) {
     console.warn('Chat endpoint resilient fallback:', error?.message);
     res.json({
-      reply: `I heard you clearly: "${message}". Let's keep your focus anchored and take the next high-leverage step toward your goals today.`,
+      reply: `I heard you clearly: "${message}". Let's keep your focus anchored and take the next practical step toward your goals today.`,
       extractedCategory: contextCategory || 'General Guidance',
       timestamp: new Date().toISOString(),
       suggestedActions: [
@@ -821,6 +943,11 @@ app.post('/api/aim/coach/interact', async (req: Request, res: Response) => {
     message,
     conversationHistory = [],
     userProfile,
+    goals = [],
+    memories = [],
+    dailyPlan,
+    wellnessLogs = [],
+    lifeUpdates = [],
     currentSchedule = [],
     currentTime,
     timeZone = 'UTC',
@@ -837,57 +964,106 @@ app.post('/api/aim/coach/interact', async (req: Request, res: Response) => {
       coachId: coachId as any,
       userMessage: message || '',
       userProfile,
+      goals,
+      memories,
+      dailyPlan,
+      wellnessLogs,
+      recentLifeUpdates: lifeUpdates,
       currentSchedule,
       energyLevel,
       stressLevel,
     });
 
-    // Coach persona specifics
+    const userSavedContext = buildUserSavedInformationPrompt({
+      userProfile,
+      goals,
+      memories,
+      dailyPlan,
+      wellnessLogs,
+      lifeUpdates,
+      currentSchedule,
+    });
+
+    // Coach persona specifics with distinct jobs and decision rules
     const coachInstructions: Record<string, string> = {
-      guidance: `You are the Guidance Coach, AIM's primary daily coordinator and life navigator. Help the user understand their timeline, where they stand right now, and coordinate with other coaches or adjust the schedule.`,
-      motivation: `You are the Motivation Coach inside AIM, specialized in motivation, recovery, momentum, and accountability. Meet users where they are without shame or guilt. Break inertia with 2-minute micro-actions and direct momentum.`,
-      spiritual: `You are the Spiritual Coach inside AIM, focused on reflection, beliefs, identity, core values, gratitude, emotional patterns, meaning, and inner peace. Connect daily action to deep purpose.`,
-      health: `You are the Health Coach inside AIM, providing general wellness support across sleep, nutrition, hydration, movement, stress recovery, and vitality. Reminder: Not a licensed doctor.`,
-      relationships: `You are the Relationships Coach inside AIM, helping users navigate friendships, family, parenting, dating, partnership, communication, boundaries, and conflict resolution.`,
+      guidance: `You are the Guidance Coach, AIM's primary daily coordinator and life navigator.
+PURPOSE: Life navigation, schedule calibration, decision-making, and priority coordination.
+WHEN USER ASKS "What should I do now?" or questions about their day:
+- Inspect the current local time, today's schedule blocks, unfinished priority tasks, upcoming appointments, and recent updates.
+- Give a direct, pragmatic, highly specific answer explaining what makes the most sense right now.
+- If the user asks to move an appointment, reschedule a task, or add a commitment, describe what changed AND emit the exact structured action in the "actions" array.
+- NEVER use generic motivational filler ("Let's get to it", "Believe in yourself"). Be a sharp, calm, practical navigator.`,
+
+      motivation: `You are the Motivation Coach inside AIM (Momentum & Accountability).
+PURPOSE: Overcome friction, break inertia, rebuild confidence, and lock in execution.
+WHEN USER FEELS RESISTANCE, OVERWHELMED, OR STUCK:
+- Validate their experience without indulging in excuses or shame.
+- Ground your advice in their stated desired identity and active goals.
+- Prescribe ONE immediate 2-minute micro-action to break inertia right now.
+- Do NOT act like a general calendar planner or recite cliché motivational quotes. Focus purely on psychological momentum and practical accountability.`,
+
+      spiritual: `You are the Spiritual Coach inside AIM (Inner Alignment & Reflection).
+PURPOSE: Meaning, core values, gratitude, emotional perspective, and grounded wisdom.
+WHEN USER REFLECTS OR EXPLORES PURPOSE:
+- Help them connect outward daily actions to their deepest inner convictions, core mission, and identity.
+- Ask thoughtful, contemplative questions that illuminate unexamined feelings and inner clarity.
+- Ground insights in their saved core values and life mission. Do NOT preach dogmatically.`,
+
+      health: `You are the Health & Vitality Coach inside AIM.
+PURPOSE: Daily wellness support across sleep, nutrition, movement, hydration, stress, and recovery.
+WHEN USER DISCUSSES HEALTH OR ENERGY:
+- Check their recent wellness logs (sleep hours, stress levels, energy).
+- Provide practical, sustainable adjustments to optimize their physical energy and mental clarity.
+- Clarify that you offer general wellness guidance and are not a substitute for licensed medical advice.`,
+
+      relationships: `You are the Relationships Coach inside AIM.
+PURPOSE: Friendships, family, partners, communication, healthy boundaries, and interpersonal decisions.
+WHEN USER DISCUSSES RELATIONSHIPS OR CONFLICTS:
+- Help them reflect on communication patterns, clarify intentions, and set healthy, respectful boundaries.
+- Offer constructive dialogue scripts or reframing exercises for real-world interactions.`,
     };
 
     const specificInstruction = coachInstructions[coachId] || coachInstructions.guidance;
 
-    const scheduleContext = currentSchedule.length > 0
-      ? `Today's current schedule:\n${currentSchedule.map((s: any) => `- [${s.status}] ${s.title} (${s.startAt} to ${s.endAt})`).join('\n')}`
-      : 'No active schedule items registered for today yet.';
-
     const systemPrompt = `You are a specialized coach inside AIM (Artificial Intelligence for Manifestation).
 ${specificInstruction}
 
-User Profile:
-- Desired Identity: ${userProfile?.desiredIdentity || 'High-Leverage Sovereign Builder'}
-- Core Mission: ${userProfile?.coreMission || 'Financial freedom & maximum personal impact'}
-- Primary Obstacle: ${userProfile?.currentObstacle || 'Daily inconsistency and focus friction'}
-- TimeZone: ${timeZone}
-- Current Local Moment: ${currentTime || new Date().toISOString()}
+=== USER'S SAVED INFORMATION & LIVING CONTEXT ===
+${userSavedContext}
+================================================
 
-${scheduleContext}
+TimeZone: ${timeZone}
+Current Local Time: ${currentTime || new Date().toISOString()}
 
 ${coachContext.systemPromptAddendum}
 
-Safety Rules:
-- If medical symptoms, acute injury, or clinical psychiatric concerns are mentioned, set safety.category to "medical" and provide an encouraging medical consult disclaimer.
-- If domestic abuse or violence is mentioned, set safety.category to "abuse" and provide supportive boundaries.
-- Never write directly to a database. If schedule changes are needed, propose them clearly in "scheduleChangeProposal" so the user can review and confirm.
-- Provide a concise "spokenText" suitable for clear voice narration (1-3 sentences without markdown/bullet points) and a rich "displayText" for screen display.
-- Output strictly a JSON object conforming to the schema.`;
+CRITICAL RULES:
+1. GENUINE & REAL OVER QUOTES: NEVER recite generic motivational quotes, proverbs, aphorisms, or clichés (e.g. "As the ancient proverb goes...", "A journey of a thousand miles..."). Speak in an authentic, intelligent, grounded voice.
+2. GROUNDED IN REAL USER CONTEXT: You know who this person is, their goals, their schedule, and their obstacles. Tailor your response directly to their situation.
+3. ACTION DISCIPLINE & INTEGRITY:
+   - Distinguish between TALKING about an action and EXECUTING an action.
+   - If you state that you created, rescheduled, completed, or removed a task or schedule block, YOU MUST include the matching action in the "actions" array.
+   - Supported action types: "createTask", "updateTask", "completeTask", "rescheduleTask", "removeTask", "createScheduleBlock", "updateScheduleBlock", "rescheduleScheduleBlock", "removeScheduleBlock", "createAppointment", "updateGoal", "saveLifeUpdate", "saveRelevantMemory", "updateProfile".
+   - If an action cannot be performed, state it clearly. Never pretend.
+4. CONVERSATIONAL SPOKEN TEXT: The "spokenText" field is spoken aloud by TTS. Make it 1-3 natural, warm, human sentences. Absolutely NO markdown, asterisks (*), hashtags (#), or bullet points in spokenText.
+5. Output strictly a valid JSON object matching the schema.`;
 
     const userPrompt = `User said to ${coachId} coach: "${message}"
 
 Respond strictly as a JSON object:
 {
   "coachId": "${coachId}",
-  "displayText": "Clear, grounded response acknowledging the user, addressing their question/state, and framing the next action.",
-  "spokenText": "Natural, warm, spoken audio narration version (1-3 sentences, no symbols/markdown).",
+  "displayText": "Clear, grounded response directly addressing the user's situation and saved context, with genuine insight and clear next steps.",
+  "spokenText": "Natural, warm, human spoken voice response (1-3 sentences, completely free of asterisks, quotes, markdown, or bullet points).",
   "intent": "conversation",
   "confidence": 0.95,
-  "followUpQuestion": "One thoughtful, single follow-up question.",
+  "followUpQuestion": "One thoughtful, practical follow-up question.",
+  "actions": [
+    {
+      "type": "createTask | completeTask | rescheduleTask | removeTask | createScheduleBlock | rescheduleScheduleBlock | updateGoal | saveLifeUpdate | saveRelevantMemory",
+      "payload": { ... }
+    }
+  ],
   "recommendedActions": [
     {
       "label": "Action label",
@@ -898,19 +1074,42 @@ Respond strictly as a JSON object:
 }`;
 
     if (!ai) {
+      // Intelligent offline response based on message content and coach
+      const isScheduleQuestion = /what should i do|schedule|free hours|next|time/i.test(message);
+      const isCompleteAction = /finished|done|completed|checked off/i.test(message);
+
+      let displayText = `I hear you on "${message}". Looking at your active priorities, let's focus on: ${coachContext.priorityAssessment.immediateActionForNow}`;
+      let spokenText = `I hear you. Let's focus on your immediate next priority right now.`;
+      const fallbackActions: any[] = [];
+
+      if (coachId === 'guidance' && isScheduleQuestion) {
+        displayText = `Looking at your schedule and active priorities, your top focus right now is "${coachContext.priorityAssessment.immediateActionForNow}". Let's dedicate the next focused block to making tangible progress on this.`;
+        spokenText = `Looking at your schedule, your top focus right now is to work on your primary priority. Let's get that done.`;
+      } else if (coachId === 'motivation') {
+        displayText = `Friction is just a signal of resistance, not a reason to stop. Let's take the smallest possible step: spend just 2 minutes starting on "${coachContext.priorityAssessment.immediateActionForNow}". Once you start, momentum takes care of the rest.`;
+        spokenText = `Let's take the smallest step forward right now: spend two minutes getting started, and let the momentum build.`;
+      }
+
+      if (isCompleteAction) {
+        fallbackActions.push({
+          type: 'completeTask',
+          payload: { query: message.replace(/finished|done|completed|checked off/gi, '').trim() }
+        });
+      }
+
       return res.json({
         coachId,
-        displayText: `I hear you on "${message}". Let's focus on: ${coachContext.priorityAssessment.immediateActionForNow}`,
-        spokenText: `I hear you. Let's focus on the immediate next step right now.`,
+        displayText,
+        spokenText,
         intent: 'conversation',
         confidence: 0.9,
-        followUpQuestion: 'What is the single most important thing you want to accomplish in the next hour?',
+        followUpQuestion: 'What is the single most important thing you want to accomplish next?',
+        actions: fallbackActions,
         recommendedActions: [
           {
-            label: 'Review Today’s Schedule',
-            reason: 'Check your upcoming focus blocks',
-            actionType: 'open_route',
-            target: '/home',
+            label: 'Focus on Priority',
+            reason: 'Commit to your immediate task',
+            actionType: 'none',
           },
         ],
       });
@@ -938,10 +1137,13 @@ Respond strictly as a JSON object:
 
     const parsed = JSON.parse(response.text || '{}');
     if (!parsed.displayText) {
-      parsed.displayText = `I'm here with you. Let's take the next best step for today.`;
+      parsed.displayText = `I hear you clearly. Let's take the next best step for your day.`;
     }
     if (!parsed.spokenText) {
       parsed.spokenText = parsed.displayText.replace(/[*#_`~[\]()]/g, '').substring(0, 200);
+    }
+    if (!Array.isArray(parsed.actions)) {
+      parsed.actions = [];
     }
     parsed.coachId = coachId;
 
@@ -950,8 +1152,8 @@ Respond strictly as a JSON object:
     console.warn('Coach interact resilient fallback:', error?.message);
     res.json({
       coachId: coachId || 'guidance',
-      displayText: `I'm here to support you. Let's look at what's in front of you today and move forward step by step.`,
-      spokenText: `I'm here to support you. Let's look at what's in front of you today and move forward step by step.`,
+      displayText: `I'm here with you. Let's look at what's in front of you today and take the next practical step.`,
+      spokenText: `I'm here with you. Let's look at what's in front of you today and take the next step.`,
       intent: 'conversation',
       confidence: 0.8,
       followUpQuestion: 'How can I best support your focus right now?',

@@ -10,7 +10,7 @@ import {
   Volume2,
   RefreshCw,
 } from 'lucide-react';
-import { ChatMessage, UserProfile, AIMCategory, AIM_CATEGORIES } from '../../types';
+import { ChatMessage, UserProfile, AIMCategory, AIM_CATEGORIES, Goal, MemoryItem, DailyPlan, WellnessLog, LifeUpdate } from '../../types';
 import { AimOrbCanvas } from '../common/AimOrbCanvas';
 import { api } from '../../services/api';
 import { voiceEngine } from '../../services/voiceService';
@@ -18,6 +18,11 @@ import { voiceEngine } from '../../services/voiceService';
 interface ChatAdvisorProps {
   chatMessages: ChatMessage[];
   userProfile: UserProfile;
+  goals?: Goal[];
+  memories?: MemoryItem[];
+  dailyPlan?: DailyPlan;
+  wellnessLogs?: WellnessLog[];
+  lifeUpdates?: LifeUpdate[];
   onUpdateChat: (messages: ChatMessage[]) => void;
   onQuickAction: (actionType: string, payload?: any) => void;
   onToast: (msg: string) => void;
@@ -26,6 +31,11 @@ interface ChatAdvisorProps {
 export const ChatAdvisorModule: React.FC<ChatAdvisorProps> = ({
   chatMessages,
   userProfile,
+  goals = [],
+  memories = [],
+  dailyPlan,
+  wellnessLogs = [],
+  lifeUpdates = [],
   onUpdateChat,
   onQuickAction,
   onToast,
@@ -67,6 +77,11 @@ export const ChatAdvisorModule: React.FC<ChatAdvisorProps> = ({
         message: text,
         history: newHistory.slice(-8).map((m) => ({ role: m.role, content: m.content })),
         userProfile,
+        goals,
+        memories,
+        dailyPlan,
+        wellnessLogs,
+        lifeUpdates,
         contextCategory: selectedCategory,
       });
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Compass, ShieldCheck, Zap, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
-import { CoachId, UserProfile, DailyPlan, Goal } from '../../types';
+import { CoachId, UserProfile, DailyPlan, Goal, MemoryItem, WellnessLog, LifeUpdate } from '../../types';
 import { TodayHeader } from './TodayHeader';
 import { CoachTabBar } from './CoachTabBar';
 import { HomeScreen } from './HomeScreen';
@@ -13,6 +13,14 @@ interface CoachShellProps {
   userProfile: UserProfile;
   dailyPlan: DailyPlan;
   goals: Goal[];
+  memories?: MemoryItem[];
+  wellnessLogs?: WellnessLog[];
+  lifeUpdates?: LifeUpdate[];
+  onUpdateDailyPlan?: (plan: DailyPlan) => void;
+  onUpdateGoals?: (goals: Goal[]) => void;
+  onUpdateMemories?: (memories: MemoryItem[]) => void;
+  onUpdateLifeUpdates?: (updates: LifeUpdate[]) => void;
+  onUpdateProfile?: (profile: UserProfile) => void;
   onNavigateToTab: (tab: string) => void;
   onOpenLifeUpdate: (initialText?: string) => void;
   onToast: (msg: string) => void;
@@ -22,6 +30,14 @@ export const CoachShell: React.FC<CoachShellProps> = ({
   userProfile,
   dailyPlan,
   goals,
+  memories = [],
+  wellnessLogs = [],
+  lifeUpdates = [],
+  onUpdateDailyPlan,
+  onUpdateGoals,
+  onUpdateMemories,
+  onUpdateLifeUpdates,
+  onUpdateProfile,
   onNavigateToTab,
   onOpenLifeUpdate,
   onToast,
@@ -152,7 +168,15 @@ export const CoachShell: React.FC<CoachShellProps> = ({
             userProfile={userProfile}
             dailyPlan={dailyPlan}
             goals={goals}
+            memories={memories}
+            wellnessLogs={wellnessLogs}
+            lifeUpdates={lifeUpdates}
             compactContext={compactContext}
+            onUpdateDailyPlan={onUpdateDailyPlan}
+            onUpdateGoals={onUpdateGoals}
+            onUpdateMemories={onUpdateMemories}
+            onUpdateLifeUpdates={onUpdateLifeUpdates}
+            onUpdateProfile={onUpdateProfile}
             onNavigateToTab={onNavigateToTab}
             onOpenCalendar={() => setIsCalendarOpen(true)}
             onOpenVoiceSettings={() => setIsVoiceSettingsOpen(true)}
@@ -163,7 +187,17 @@ export const CoachShell: React.FC<CoachShellProps> = ({
           <CoachScreen
             coachId={activeCoachId}
             userProfile={userProfile}
+            goals={goals}
+            memories={memories}
+            dailyPlan={dailyPlan}
+            wellnessLogs={wellnessLogs}
+            lifeUpdates={lifeUpdates}
             compactContext={compactContext}
+            onUpdateDailyPlan={onUpdateDailyPlan}
+            onUpdateGoals={onUpdateGoals}
+            onUpdateMemories={onUpdateMemories}
+            onUpdateLifeUpdates={onUpdateLifeUpdates}
+            onUpdateProfile={onUpdateProfile}
             onRefreshContext={() => loadOrbContext(activeCoachId, true)}
             onReturnToToday={() => setActiveCoachId('guidance')}
             onOpenVoiceSettings={() => setIsVoiceSettingsOpen(true)}

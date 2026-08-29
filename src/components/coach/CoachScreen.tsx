@@ -26,6 +26,11 @@ import {
   VoiceState,
   SpeakerState,
   ScheduleChangeProposal,
+  Goal,
+  MemoryItem,
+  DailyPlan,
+  WellnessLog,
+  LifeUpdate,
 } from '../../types';
 import { CoachOrb } from './CoachOrb';
 import { getCoachConfig } from '../../services/coachRegistry';
@@ -36,11 +41,22 @@ import { voiceEngine } from '../../services/voiceService';
 import { intelligenceService, CompactOrbContext } from '../../services/intelligenceService';
 import { applyConfirmedScheduleChange } from '../../services/reroutingService';
 import { getEffectiveTimeZone, formatTimeRange } from '../../utils/dateTimeUtils';
+import { actionExecutionEngine } from '../../services/actionExecutionEngine';
 
 interface CoachScreenProps {
   coachId: CoachId;
   userProfile: UserProfile;
+  goals?: Goal[];
+  memories?: MemoryItem[];
+  dailyPlan?: DailyPlan;
+  wellnessLogs?: WellnessLog[];
+  lifeUpdates?: LifeUpdate[];
   compactContext?: CompactOrbContext | null;
+  onUpdateDailyPlan?: (plan: DailyPlan) => void;
+  onUpdateGoals?: (goals: Goal[]) => void;
+  onUpdateMemories?: (memories: MemoryItem[]) => void;
+  onUpdateLifeUpdates?: (updates: LifeUpdate[]) => void;
+  onUpdateProfile?: (profile: UserProfile) => void;
   onRefreshContext?: () => void;
   onReturnToToday: () => void;
   onOpenVoiceSettings: () => void;
@@ -51,7 +67,17 @@ interface CoachScreenProps {
 export const CoachScreen: React.FC<CoachScreenProps> = ({
   coachId,
   userProfile,
+  goals = [],
+  memories = [],
+  dailyPlan,
+  wellnessLogs = [],
+  lifeUpdates = [],
   compactContext: propCompactContext,
+  onUpdateDailyPlan,
+  onUpdateGoals,
+  onUpdateMemories,
+  onUpdateLifeUpdates,
+  onUpdateProfile,
   onRefreshContext,
   onReturnToToday,
   onOpenVoiceSettings,
@@ -161,7 +187,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({
       });
       setLocalContext(currentCompactContext);
 
-      // 2. Dispatch to coach with compactContext
+      // 2. Dispatch to coach with compactContext and comprehensive living user data
       const response = await api.interactWithCoach({
         coachId,
         message: cleanText,
@@ -170,6 +196,11 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({
           content: m.content,
         })),
         userProfile,
+        goals,
+        memories,
+        dailyPlan,
+        wellnessLogs,
+        lifeUpdates,
         currentSchedule: todaySchedule,
         currentTime: new Date().toISOString(),
         timeZone: effectiveTz,
@@ -189,6 +220,29 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({
 
       setMessages((prev) => [...prev, assistantMessage]);
       await coachConversationRepository.addMessage(assistantMessage);
+
+      // Execute any real actions returned by the coach
+      if (response.actions && response.actions.length > 0) {
+        await actionExecutionEngine.executeActions(response.actions, {
+          userProfile,
+          dailyPlan: dailyPlan || {
+            id: 'dp-today',
+            date: new Date().toISOString(),
+            priorityTasks: [],
+            completedTasksCount: 0,
+            timeBlocks: [],
+          },
+          goals,
+          memories,
+          lifeUpdates,
+          onUpdateDailyPlan,
+          onUpdateGoals,
+          onUpdateMemories,
+          onUpdateLifeUpdates,
+          onUpdateProfile,
+          onToast,
+        });
+      }
 
       // Check if schedule proposal was generated
       if (response.scheduleChangeProposal) {
@@ -459,7 +513,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({
                               if (action.target === '/home') {
                                 onReturnToToday();
                               } else {
-                                onOpenLifeUpdate(action.label);
+                                handleSendMessage(action.label);
                               }
                             }}
                             className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1 transition-colors"

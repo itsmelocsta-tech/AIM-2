@@ -200,6 +200,14 @@ export default function App() {
             userProfile={userProfile}
             dailyPlan={dailyPlan}
             goals={goals}
+            memories={memories}
+            wellnessLogs={wellnessLogs}
+            lifeUpdates={lifeUpdates}
+            onUpdateDailyPlan={handleUpdateDailyPlan}
+            onUpdateGoals={handleUpdateGoals}
+            onUpdateMemories={handleUpdateMemories}
+            onUpdateLifeUpdates={handleUpdateLifeUpdates}
+            onUpdateProfile={handleUpdateProfile}
             onNavigateToTab={setActiveTab}
             onOpenLifeUpdate={(initialText) => {
               setActiveTab('life-update');
@@ -265,6 +273,11 @@ export default function App() {
           <ChatAdvisorModule
             chatMessages={chatMessages}
             userProfile={userProfile}
+            goals={goals}
+            memories={memories}
+            dailyPlan={dailyPlan}
+            wellnessLogs={wellnessLogs}
+            lifeUpdates={lifeUpdates}
             onUpdateChat={handleUpdateChatMessages}
             onQuickAction={handleQuickAction}
             onToast={showToast}
@@ -297,6 +310,12 @@ export default function App() {
         isOpen={isVoiceModalOpen}
         onClose={() => setIsVoiceModalOpen(false)}
         userProfile={userProfile}
+        chatMessages={chatMessages}
+        goals={goals}
+        memories={memories}
+        dailyPlan={dailyPlan}
+        wellnessLogs={wellnessLogs}
+        lifeUpdates={lifeUpdates}
         onAddChatMessage={(msg) => handleUpdateChatMessages([...chatMessages, msg])}
         onToast={showToast}
       />

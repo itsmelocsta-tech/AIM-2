@@ -1,4 +1,4 @@
-import { UserProfile, DailyPlan, MonetizationOffer, CoachId, CoachResponse, ScheduleItem } from '../types';
+import { UserProfile, DailyPlan, MonetizationOffer, CoachId, CoachResponse, ScheduleItem, Goal, MemoryItem, WellnessLog, LifeUpdate } from '../types';
 import { intelligenceService, CompactOrbContext, LifePriorityAssessmentResult, WisdomSynthesisResultClient } from './intelligenceService';
 
 export const api = {
@@ -7,6 +7,11 @@ export const api = {
     message: string;
     conversationHistory?: { role: 'user' | 'model'; content: string }[];
     userProfile?: UserProfile;
+    goals?: Goal[];
+    memories?: MemoryItem[];
+    dailyPlan?: DailyPlan;
+    wellnessLogs?: WellnessLog[];
+    lifeUpdates?: LifeUpdate[];
     currentSchedule?: ScheduleItem[];
     currentTime?: string;
     timeZone?: string;
@@ -72,6 +77,12 @@ export const api = {
     message: string;
     history: { role: 'user' | 'aim'; content: string }[];
     userProfile: UserProfile;
+    goals?: Goal[];
+    memories?: MemoryItem[];
+    dailyPlan?: DailyPlan;
+    wellnessLogs?: WellnessLog[];
+    lifeUpdates?: LifeUpdate[];
+    currentSchedule?: ScheduleItem[];
     contextCategory?: string;
   }): Promise<{ reply: string; extractedCategory?: string }> {
     try {

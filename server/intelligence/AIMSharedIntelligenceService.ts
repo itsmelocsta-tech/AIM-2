@@ -45,6 +45,10 @@ export class AIMSharedIntelligenceService {
     currentSchedule?: any[];
     energyLevel?: number;
     stressLevel?: number;
+    goals?: any[];
+    memories?: any[];
+    dailyPlan?: any;
+    wellnessLogs?: any[];
     recentLifeUpdates?: any[];
   }): CoachPromptAugmentation {
     const userLifeContext: UserLifeContext = {
@@ -59,13 +63,32 @@ export class AIMSharedIntelligenceService {
             : 'low',
       },
       physicalWellbeing: {
-        energyLevel: params.energyLevel ?? 7,
-        stressLevel: params.stressLevel ?? 4,
+        energyLevel: params.energyLevel ?? params.dailyPlan?.energyLevel ?? 7,
+        stressLevel: params.stressLevel ?? (params.wellnessLogs && params.wellnessLogs[0]?.stressLevel) ?? 4,
+        sleepHours: params.wellnessLogs && params.wellnessLogs[0]?.sleepHours,
       },
+      activeGoals: Array.isArray(params.goals)
+        ? params.goals.map((g: any) => ({
+            id: g.id || 'g-id',
+            title: g.title,
+            category: g.category || 'General',
+            targetDate: g.targetDate,
+          }))
+        : undefined,
+      todayScheduleItems: Array.isArray(params.currentSchedule)
+        ? params.currentSchedule.map((s: any) => ({
+            title: s.title,
+            status: s.status,
+            priority: s.priority || 'medium',
+          }))
+        : undefined,
+      recentLifeUpdateNotes: Array.isArray(params.recentLifeUpdates) && params.recentLifeUpdates.length > 0
+        ? params.recentLifeUpdates.slice(0, 3).map((u: any) => u.content || u.title).join('; ')
+        : undefined,
       confirmedProfileFacts: {
         desiredIdentity: params.userProfile?.desiredIdentity,
         coreMission: params.userProfile?.coreMission,
-        primaryObstacle: params.userProfile?.primaryObstacle,
+        primaryObstacle: params.userProfile?.primaryObstacle || params.userProfile?.currentObstacle,
         topSkills: params.userProfile?.topSkills,
         coreValues: params.userProfile?.coreValues,
       },
@@ -76,7 +99,7 @@ export class AIMSharedIntelligenceService {
 
     // 2. Run Momentum Analysis
     const momentumAnalysis = this.momentumEngine.analyzeMomentum({
-      energyLevel: params.energyLevel,
+      energyLevel: params.energyLevel ?? params.dailyPlan?.energyLevel,
       stressLevel: params.stressLevel,
     });
 
@@ -85,9 +108,9 @@ export class AIMSharedIntelligenceService {
       userSituation: params.userMessage,
       desiredIdentity: params.userProfile?.desiredIdentity,
       coreMission: params.userProfile?.coreMission,
-      currentObstacle: params.userProfile?.primaryObstacle,
+      currentObstacle: params.userProfile?.primaryObstacle || params.userProfile?.currentObstacle,
       requestingOrb: params.coachId,
-      userEnergyLevel: params.energyLevel ?? 7,
+      userEnergyLevel: params.energyLevel ?? params.dailyPlan?.energyLevel ?? 7,
       categoryOfProblem: priorityAssessment.topRankedPriorities[0]?.category,
       momentumHistory: {
         chronicResistanceArea: momentumAnalysis.chronicResistanceCategories[0],
@@ -105,7 +128,7 @@ GUIDANCE ORB DIRECTIVES:
 - Connect the immediate action directly to who the user is becoming: "${params.userProfile?.desiredIdentity || 'their highest potential'}".
 - Top Assessed Life Priority Focus: "${priorityAssessment.primaryAttentionFocus}".
 - Immediate Next Win: "${priorityAssessment.immediateActionForNow}".
-- Complex reasoning is internal. Keep spoken and display responses direct, grounded, and human.`;
+- Strict rule: Give REAL, GENUINE answers tailored to this user's specific context. Never recite generic quotes or proverbs.`;
         break;
 
       case 'motivation':
@@ -114,7 +137,7 @@ MOMENTUM & MOTIVATION ORB DIRECTIVES:
 - Meet the user where they are without shame or guilt.
 - If friction or avoidance is detected, recommend the smallest viable 2-minute micro-action: "${momentumAnalysis.recommendedMicroAction}".
 - Burnout risk level is ${momentumAnalysis.burnoutRiskLevel.toUpperCase()}. Pacing adjustment: "${momentumAnalysis.actionableAdjustment}".
-- Do not use shallow generic motivational quotes. Ground courage in purposeful identity and clear biological pacing.`;
+- DO NOT use generic motivational quotes or cliché mantras. Ground courage in purposeful identity and clear biological pacing.`;
         break;
 
       case 'spiritual':
@@ -123,7 +146,7 @@ SPIRITUAL REFLECTION ORB DIRECTIVES:
 - Support contemplation of core values, emotional patterns, gratitude, and inner stillness.
 - Deep Principle: "${wisdomSynthesis.guidanceSynthesis.primaryShift}".
 - Contemplative Reflection: "${wisdomSynthesis.guidanceSynthesis.recommendedReflectionQuestion}".
-- Always distinguish established historical/philosophical traditions from personal or metaphysical interpretations.`;
+- Always distinguish established historical/philosophical traditions from personal or metaphysical interpretations. Speak with genuine human depth, not canned sayings.`;
         break;
 
       case 'health':
