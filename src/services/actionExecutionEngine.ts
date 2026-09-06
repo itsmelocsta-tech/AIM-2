@@ -11,6 +11,7 @@ import {
 import { scheduleRepository } from './repositories/scheduleRepository';
 import { storageService } from './storage';
 import { getEffectiveTimeZone, getTodayDateString, createUtcIsoFromLocal } from '../utils/dateTimeUtils';
+import { ensureDetailedTaskGuidance } from '../utils/taskGuidance';
 
 export interface ActionExecutionContext {
   userProfile: UserProfile;
@@ -79,10 +80,12 @@ export class ActionExecutionEngine {
             const category = action.payload?.category || 'Personal';
             const impact = action.payload?.impact || 'High';
             const timeEstimate = action.payload?.timeEstimate || '45m';
+            const description = ensureDetailedTaskGuidance(taskText, action.payload?.description);
 
             const newTask = {
               id: 'pt-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
               task: taskText,
+              description,
               category,
               timeEstimate,
               impact,
@@ -104,9 +107,13 @@ export class ActionExecutionEngine {
             currentPlan.priorityTasks = currentPlan.priorityTasks.map((t) => {
               const matches = (taskId && t.id === taskId) || (taskQuery && t.task.toLowerCase().includes(taskQuery.toLowerCase()));
               if (matches) {
+                const finalTitle = newText || t.task;
                 return {
                   ...t,
-                  task: newText || t.task,
+                  task: finalTitle,
+                  description: action.payload?.description
+                    ? ensureDetailedTaskGuidance(finalTitle, action.payload.description)
+                    : ensureDetailedTaskGuidance(finalTitle, t.description),
                   impact: action.payload?.impact || t.impact,
                   category: action.payload?.category || t.category,
                   timeEstimate: action.payload?.timeEstimate || t.timeEstimate,
@@ -193,7 +200,7 @@ export class ActionExecutionEngine {
             const title = action.payload?.title || action.payload?.name || 'Scheduled Block';
             const startTime = action.payload?.startTime || action.payload?.start || '14:00';
             const endTime = action.payload?.endTime || action.payload?.end || '15:00';
-            const description = action.payload?.description || '';
+            const description = ensureDetailedTaskGuidance(title, action.payload?.description);
             const priority = action.payload?.priority || 'high';
 
             const newItem: ScheduleItem = {
@@ -228,6 +235,9 @@ export class ActionExecutionEngine {
             if (item) {
               if (action.payload?.status) item.status = action.payload.status as ScheduleItemStatus;
               if (action.payload?.title) item.title = action.payload.title;
+              if (action.payload?.description) {
+                item.description = ensureDetailedTaskGuidance(item.title, action.payload.description);
+              }
               if (action.payload?.priority) item.priority = action.payload.priority;
               await scheduleRepository.saveScheduleItem(item);
               summary.push(`Updated schedule block: "${item.title}"`);

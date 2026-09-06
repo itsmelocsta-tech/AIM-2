@@ -18,7 +18,15 @@ import {
   DriveSyncState,
   LifeUpdate,
 } from './types';
-import { storageService } from './services/storage';
+import {
+  storageService,
+  DEFAULT_PROFILE,
+  DEFAULT_MEMORIES,
+  DEFAULT_GOALS,
+  DEFAULT_DAILY_PLAN,
+  DEFAULT_WELLNESS,
+  DEFAULT_CHAT,
+} from './services/storage';
 import { driveService } from './services/driveService';
 import { Header } from './components/common/Header';
 import { CoachShell } from './components/coach/CoachShell';
@@ -99,6 +107,27 @@ export default function App() {
   const handleUpdateLifeUpdates = (updates: LifeUpdate[]) => {
     setLifeUpdates(updates);
     storageService.saveLifeUpdates(updates);
+  };
+
+  // Full reset for new user testing
+  const handleResetAllData = () => {
+    storageService.clearAllData();
+    setUserProfile({ ...DEFAULT_PROFILE });
+    setMemories([...DEFAULT_MEMORIES]);
+    setGoals([...DEFAULT_GOALS]);
+    setDailyPlan({ ...DEFAULT_DAILY_PLAN, date: new Date().toISOString().split('T')[0] });
+    setWellnessLogs([...DEFAULT_WELLNESS]);
+    setChatMessages([...DEFAULT_CHAT]);
+    setLifeUpdates([]);
+    setDriveState({
+      isConnected: false,
+      accessToken: null,
+      userEmail: null,
+      lastSyncTime: null,
+      syncedFiles: [],
+    });
+    setActiveTab('home');
+    showToast('All app information cleared. Restarted as fresh new user!');
   };
 
   // Quick Action Handler from Chat
@@ -303,6 +332,7 @@ export default function App() {
         onClose={() => setIsFoundationModalOpen(false)}
         userProfile={userProfile}
         onSaveProfile={handleUpdateProfile}
+        onResetAllData={handleResetAllData}
         onToast={showToast}
       />
 

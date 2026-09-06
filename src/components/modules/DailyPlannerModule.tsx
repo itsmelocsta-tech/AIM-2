@@ -21,6 +21,7 @@ import {
 import { DailyPlan, PriorityTask, TimeBlock, UserProfile, Goal } from '../../types';
 import { api } from '../../services/api';
 import { driveService } from '../../services/driveService';
+import { ensureDetailedTaskGuidance } from '../../utils/taskGuidance';
 
 interface DailyPlannerProps {
   dailyPlan: DailyPlan;
@@ -77,6 +78,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
     const newTask: PriorityTask = {
       id: 'pt-' + Date.now(),
       task: newTaskTitle.trim(),
+      description: ensureDetailedTaskGuidance(newTaskTitle.trim()),
       category: 'Business',
       timeEstimate: '45m',
       impact: 'High',
@@ -113,6 +115,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
           priorityTasks: planData.topThreePriorityTasks?.map((t: any, idx: number) => ({
             id: 'pt-' + idx + '-' + Date.now(),
             task: t.task,
+            description: ensureDetailedTaskGuidance(t.task, t.description),
             category: t.category || 'Business',
             timeEstimate: t.timeEstimate || '60m',
             impact: t.impact || 'High',
@@ -122,7 +125,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             id: 'tb-' + idx + '-' + Date.now(),
             time: b.time,
             title: b.title,
-            details: b.details,
+            details: ensureDetailedTaskGuidance(b.title, b.details),
             completed: false,
           })) || dailyPlan.timeBlocks,
           mindsetReminder: planData.mindsetReminder || 'Focus strictly on compounding actions.',
@@ -478,6 +481,16 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                           {t.impact} Impact
                         </span>
                       </div>
+                      {t.description && (
+                        <div className="mt-2.5 text-[11px] text-slate-200 leading-relaxed bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 space-y-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
+                            Action Steps (What to do):
+                          </span>
+                          <div className="whitespace-pre-line text-slate-300">
+                            {t.description}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -567,7 +580,16 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                           {block.time}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-1 leading-snug">{block.details}</p>
+                      {block.details && (
+                        <div className="mt-2 text-[11px] text-slate-300 leading-relaxed bg-slate-900/70 p-2.5 rounded-lg border border-slate-800 space-y-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block">
+                            Execution Details:
+                          </span>
+                          <div className="whitespace-pre-line text-slate-200">
+                            {block.details}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

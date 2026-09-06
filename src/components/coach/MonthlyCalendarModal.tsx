@@ -315,13 +315,21 @@ export const MonthlyCalendarModal: React.FC<MonthlyCalendarModalProps> = ({
                       </button>
 
                       <div className="flex-1 min-w-0">
-                        <p className={`font-semibold truncate ${isCompleted ? 'line-through' : 'text-white'}`}>
+                        <p className={`font-semibold ${isCompleted ? 'line-through text-slate-400' : 'text-white'}`}>
                           {item.title}
                         </p>
                         <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
                           <Clock className="w-3 h-3 shrink-0" />
                           <span>{formatTimeRange(item.startAt, item.endAt, effectiveTz)}</span>
                         </div>
+                        {item.description && (
+                          <div className="mt-2 text-[11px] text-slate-300 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80 leading-relaxed whitespace-pre-line">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block mb-0.5">
+                              Action Steps:
+                            </span>
+                            {item.description}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

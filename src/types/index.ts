@@ -125,6 +125,7 @@ export interface MonetizationOffer {
 export interface PriorityTask {
   id: string;
   task: string;
+  description?: string; // Detailed step-by-step instructions on what to do
   category: AIMCategory;
   timeEstimate: string;
   impact: 'High' | 'Medium' | 'Low';

@@ -1,11 +1,13 @@
 import { ScheduleItem, ScheduleItemStatus, CoachId } from '../../types';
 import { getEffectiveTimeZone, getTodayDateString, createUtcIsoFromLocal } from '../../utils/dateTimeUtils';
+import { ensureDetailedTaskGuidance, isVagueGuidance } from '../../utils/taskGuidance';
 import { storageService } from '../storage';
 
 const SCHEDULE_STORAGE_KEY = 'aim_canonical_schedule_items';
 
 /**
  * Creates sensible default schedule items for a given day in the user's timezone
+ * with explicit, actionable, step-by-step instructions. Never gives vague guidance.
  */
 export function generateDefaultDaySchedule(userId: string, dateStr: string, timeZone: string): ScheduleItem[] {
   const tz = getEffectiveTimeZone(timeZone);
@@ -14,7 +16,10 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
   const blocks = [
     {
       title: 'Morning Alignment & Grounding Routine',
-      description: 'Hydration, light movement, review daily priorities, and calibrate intention.',
+      description: `1. Drink 500ml of water immediately to rehydrate after sleep.
+2. Complete 5–10 minutes of light dynamic mobility (neck rolls, thoracic rotations, hip openers) with natural outdoor daylight exposure.
+3. Open AIM to review today's top 3 priority tasks and define your single non-negotiable breakthrough outcome.
+4. Record a 1-sentence grounding intention before opening notifications, inbox, or social feeds.`,
       startTime: '08:00',
       endTime: '09:00',
       priority: 'high' as const,
@@ -23,7 +28,10 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
     },
     {
       title: 'High-Leverage Deep Work Sprint',
-      description: 'Uninterrupted focus on primary breakthrough goal and revenue/career asset.',
+      description: `1. Close all communication apps (Slack, Discord, Email) and place your phone on silent in another room.
+2. Open the primary document, codebase, or software tool needed and set an uninterrupted 90-minute timer.
+3. Focus exclusively on producing concrete output (draft the proposal, write the core module, or design the asset) with zero context switching.
+4. Stop promptly at the timer, save your progress, and log your milestone checkpoint in AIM before taking a 5-minute breathing break.`,
       startTime: '09:30',
       endTime: '11:30',
       priority: 'critical' as const,
@@ -32,7 +40,10 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
     },
     {
       title: 'Vitality & Nourishment Break',
-      description: 'Healthy meal, outdoor walking, mental decompression, and recovery.',
+      description: `1. Fully step away from your computer screen, workstation, and phone.
+2. Eat a balanced whole-food meal with clean protein, complex carbohydrates, and water to sustain cognitive focus.
+3. Take a brisk 15–20 minute outdoor walk in fresh air without listening to work calls or checking email.
+4. Practice 3 minutes of slow diaphragmatic nasal breathing (4s inhale, 6s exhale) to downregulate cortisol and reset nervous system tone.`,
       startTime: '12:00',
       endTime: '13:00',
       priority: 'medium' as const,
@@ -41,7 +52,10 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
     },
     {
       title: 'Core Execution & Communication Block',
-      description: 'Client outreach, administrative actions, correspondence, and team touchpoints.',
+      description: `1. Open your pipeline and review your top 3 prospective clients, stakeholders, or collaborators.
+2. Craft and dispatch 3 personalized messages offering a concrete solution to their primary bottleneck with a clear booking link or next step.
+3. Process pending operational emails, slack messages, and administrative invoices in a focused 30-minute batch.
+4. Verify tomorrow's calendar appointments and clear any pending scheduling blockers.`,
       startTime: '13:30',
       endTime: '15:30',
       priority: 'high' as const,
@@ -50,7 +64,9 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
     },
     {
       title: 'Inner Reflection & Evening Calibration',
-      description: 'Review accomplishments, log insights into Memory Vault, and prepare tomorrow.',
+      description: `1. Review today's schedule items in AIM: mark completed tasks and migrate unfinished items to tomorrow without self-criticism.
+2. Open the Memory Vault to record 2 specific wins and 1 key lesson or insight learned from today's execution.
+3. Identify the single first physical task you will tackle tomorrow morning, prepare the required tabs or materials, and tidy your workspace so you wake up to zero starting friction.`,
       startTime: '17:00',
       endTime: '17:45',
       priority: 'medium' as const,
@@ -119,7 +135,26 @@ export class ScheduleRepository {
     });
 
     if (dayItems.length > 0) {
-      return dayItems.sort(
+      let needsSave = false;
+      const enriched = dayItems.map((item) => {
+        if (isVagueGuidance(item.description)) {
+          needsSave = true;
+          return {
+            ...item,
+            description: ensureDetailedTaskGuidance(item.title, item.description),
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return item;
+      });
+
+      if (needsSave) {
+        const enrichedMap = new Map(enriched.map((i) => [i.id, i]));
+        const updatedAll = allItems.map((i) => enrichedMap.get(i.id) || i);
+        this.saveStoredItems(updatedAll);
+      }
+
+      return enriched.sort(
         (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
       );
     }
@@ -146,12 +181,13 @@ export class ScheduleRepository {
 
         const start24 = parseTo24(startTime);
         const end24 = parseTo24(endTime);
+        const title = b.title || 'Focus Block';
 
         return {
           id: b.id || `sched-${dateStr}-${idx}-${Date.now().toString(36)}`,
           userId: params.userId,
-          title: b.title || 'Focus Block',
-          description: b.details || 'Focus session',
+          title,
+          description: ensureDetailedTaskGuidance(title, b.details),
           startAt: createUtcIsoFromLocal(dateStr, start24, tz),
           endAt: createUtcIsoFromLocal(dateStr, end24, tz),
           timeZone: tz,
@@ -205,6 +241,7 @@ export class ScheduleRepository {
     const existingIndex = allItems.findIndex((i) => i.id === item.id);
     const updatedItem = {
       ...item,
+      description: ensureDetailedTaskGuidance(item.title, item.description),
       updatedAt: new Date().toISOString(),
     };
 
@@ -250,21 +287,27 @@ export class ScheduleRepository {
     const allItems = this.getStoredItems();
     const nowIso = new Date().toISOString();
 
-    for (const newItem of items) {
+    const updatedItems = items.map((newItem) => {
+      const withUpdate = {
+        ...newItem,
+        description: ensureDetailedTaskGuidance(newItem.title, newItem.description),
+        userId,
+        updatedAt: nowIso,
+      };
       const idx = allItems.findIndex((i) => i.id === newItem.id);
-      const withUpdate = { ...newItem, userId, updatedAt: nowIso };
       if (idx >= 0) {
         allItems[idx] = withUpdate;
       } else {
         allItems.push(withUpdate);
       }
-    }
+      return withUpdate;
+    });
 
     this.saveStoredItems(allItems);
-    if (items.length > 0) {
-      this.syncWithDailyPlan(allItems, items[0].timeZone);
+    if (updatedItems.length > 0) {
+      this.syncWithDailyPlan(allItems, updatedItems[0].timeZone);
     }
-    return items;
+    return updatedItems;
   }
 
   /**

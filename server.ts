@@ -1,6 +1,5 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
@@ -11,9 +10,6 @@ import { AIMSharedIntelligenceService } from './server/intelligence/AIMSharedInt
 import { AIMVoiceService } from './server/voice/AIMVoiceService';
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
@@ -421,16 +417,69 @@ app.post('/api/aim/plan', async (req: Request, res: Response) => {
   const defaultMorningPlan = {
     theme: "High-Leverage Execution & Compounding Action",
     topThreePriorityTasks: [
-      { task: plannerContext.priorityAssessment.immediateActionForNow || "Execute primary high-impact deliverable / outreach sprint", category: "Business", timeEstimate: "60m", impact: "High" },
-      { task: "Deep work session on core strategic asset", category: "Projects", timeEstimate: "90m", impact: "High" },
-      { task: "45 min physical movement & mindfulness reset", category: "Health", timeEstimate: "45m", impact: "Medium" }
+      {
+        task: plannerContext.priorityAssessment.immediateActionForNow || "Execute primary high-impact deliverable / outreach sprint",
+        description: `1. Open your project dashboard or communication tool and silence all peripheral notifications.
+2. Draft and dispatch 3 personalized outreach messages or ship the core module deliverable.
+3. Review your sent items or commit logs, verify completion criteria, and check off this milestone in AIM.`,
+        category: "Business",
+        timeEstimate: "60m",
+        impact: "High"
+      },
+      {
+        task: "Deep work session on core strategic asset",
+        description: `1. Open the primary document, codebase, or creative editor and set an uninterrupted 90-minute focus timer.
+2. Execute directly on the central deliverable without switching browser tabs or checking messages.
+3. Save your progress, write a 1-sentence checkpoint note on where you stopped, and log the win in AIM.`,
+        category: "Projects",
+        timeEstimate: "90m",
+        impact: "High"
+      },
+      {
+        task: "45 min physical movement & mindfulness reset",
+        description: `1. Put on athletic shoes, fill your water bottle, and spend 5 minutes doing dynamic mobility drills.
+2. Complete 30 minutes of moderate-to-high intensity aerobic exercise or resistance training.
+3. Conclude with 5 minutes of mindful nasal breathing and static stretching to reset nervous system tone.`,
+        category: "Health",
+        timeEstimate: "45m",
+        impact: "Medium"
+      }
     ],
     timeBlocks: [
-      { time: "08:30 - 10:00", title: "Deep Work Sprint: High-Leverage Priorities", details: "Direct execution on primary objective" },
-      { time: "10:30 - 12:30", title: "Core Asset Building", details: "Focused deliverable implementation" },
-      { time: "14:00 - 15:30", title: "Strategy, Coordination & Review", details: "Review trajectory and momentum" },
-      { time: "16:30 - 17:30", title: "Movement & Energy Recharge", details: "Cardio / Strength session" },
-      { time: "19:00 - 19:30", title: "Evening Alignment & Wins Review", details: "Log daily achievements in AIM" }
+      {
+        time: "08:30 - 10:00",
+        title: "Deep Work Sprint: High-Leverage Priorities",
+        details: `1. Eliminate distractions by closing Slack, email, and phone notifications.
+2. Work exclusively on your single highest-leverage task for 90 minutes.
+3. Check off the completed milestone in AIM before stepping away.`
+      },
+      {
+        time: "10:30 - 12:30",
+        title: "Core Asset Building & Implementation",
+        details: `1. Open your development or production environment.
+2. Build and refine the core deliverable features step-by-step.
+3. Review and test your work, committing final changes.`
+      },
+      {
+        time: "14:00 - 15:30",
+        title: "Client Outreach, Coordination & Communication",
+        details: `1. Open client pipeline and send 3 high-impact personalized follow-up proposals.
+2. Clear pending operational emails in a 30-minute time-boxed batch.
+3. Confirm upcoming appointments and tomorrow's calendar schedule.`
+      },
+      {
+        time: "16:30 - 17:30",
+        title: "Physical Movement & Vitality Reset",
+        details: `1. Complete 45 minutes of structured exercise (strength training or brisk outdoor cardio).
+2. Rehydrate with 500ml of water and perform 5 minutes of hip and back mobility stretches.`
+      },
+      {
+        time: "19:00 - 19:30",
+        title: "Evening Reflection & Next Day Alignment",
+        details: `1. Open AIM: mark all completed tasks and migrate any unfinished items to tomorrow.
+2. Log 2 specific wins and 1 core learning in the Memory Vault.
+3. Prep tomorrow morning's primary workspace so you start with zero friction.`
+      }
     ],
     mindsetReminder: "Focus strictly on compounding actions that move your reality forward."
   };
@@ -454,20 +503,66 @@ Available productive hours: ${availableHours || 8}
 Long-term Goals: ${JSON.stringify(goals || ['Hit target revenue', 'Daily physical workout', 'Ship high-value project'])}
 Notes/intent for today: ${dayNotes || 'Focus on high-leverage tasks, deep work, and balanced recovery.'}
 
-Return JSON with:
+CRITICAL REQUIREMENT - NEVER GIVE VAGUE GUIDANCE:
+On ALL daily tasks and time blocks, you MUST give a detailed, concrete description of EXACTLY what the user should do. NEVER give vague guidance (such as 'work on core project', 'deep work', 'review tasks', 'reach out to people', 'focus on priorities', or 'hit the gym').
+Every single task in "topThreePriorityTasks" MUST have both an action title ("task") AND a step-by-step "description" detailing:
+  1. What specific apps, tools, files, or environment to open.
+  2. The concrete, physical chronological steps to execute.
+  3. The clear definition of done so the user knows exactly when it is finished.
+Every block in "timeBlocks" MUST have a detailed "details" field explaining the exact step-by-step actions (at least 2-3 numbered steps).
+
+Return strictly valid JSON with:
 {
   "theme": "Inspiring 3-5 word focus theme for today",
   "topThreePriorityTasks": [
-    {"task": "Revenue Generating Task", "category": "Business", "timeEstimate": "90m", "impact": "High"},
-    {"task": "Deep Work Core Project", "category": "Projects", "timeEstimate": "120m", "impact": "High"},
-    {"task": "Vital Wellness / Physical recharge", "category": "Health", "timeEstimate": "45m", "impact": "Medium"}
+    {
+      "task": "Specific concrete action title",
+      "description": "1. Setup & tools to open.\\n2. Step-by-step physical execution steps.\\n3. Concrete definition of done.",
+      "category": "Business",
+      "timeEstimate": "90m",
+      "impact": "High"
+    },
+    {
+      "task": "Second concrete action title",
+      "description": "1. Tools and focus timer setup.\\n2. Chronological output production steps.\\n3. Review and checkpoint verification.",
+      "category": "Projects",
+      "timeEstimate": "120m",
+      "impact": "High"
+    },
+    {
+      "task": "Vital Wellness / Physical recharge",
+      "description": "1. Physical warm-up movements.\\n2. 30-40 min structured training with tempo and form focus.\\n3. Hydration and 5-min parasympathetic breathing reset.",
+      "category": "Health",
+      "timeEstimate": "45m",
+      "impact": "Medium"
+    }
   ],
   "timeBlocks": [
-    {"time": "08:00 - 09:30", "title": "Morning Power Routine & Deep Focus", "details": "High leverage task 1"},
-    {"time": "10:00 - 12:00", "title": "Client Outreach & Monetization Sprint", "details": "Send proposals and follow-ups"},
-    {"time": "13:30 - 15:30", "title": "Creation & Project Execution", "details": "Deliverable building"},
-    {"time": "16:00 - 17:00", "title": "Physical Movement & Outdoor Walk", "details": "Decompress and recharge"},
-    {"time": "19:00 - 19:30", "title": "Evening Review & Next Day Alignment", "details": "Log wins in AIM"}
+    {
+      "time": "08:00 - 09:30",
+      "title": "Morning Power Routine & Deep Focus",
+      "details": "1. Hydrate with 500ml water and get 10 mins outdoor daylight.\\n2. Silence all notifications and open the primary deliverable file.\\n3. Execute the core priority sprint for 75 uninterrupted minutes."
+    },
+    {
+      "time": "10:00 - 12:00",
+      "title": "Client Outreach & Monetization Sprint",
+      "details": "1. Review top 5 prospective client profiles in CRM.\\n2. Dispatch 3 tailored value-first messages with booking links.\\n3. Batch-reply to outstanding client questions."
+    },
+    {
+      "time": "13:30 - 15:30",
+      "title": "Creation & Project Execution",
+      "details": "1. Open the project editor and reference specifications.\\n2. Build the primary deliverable assets without multitasking.\\n3. Run quality check and save work."
+    },
+    {
+      "time": "16:00 - 17:00",
+      "title": "Physical Movement & Outdoor Walk",
+      "details": "1. Complete 35 minutes of moderate resistance or bodyweight training.\\n2. Take a 15-minute outdoor walk without screens.\\n3. Rehydrate and take a brief cool shower."
+    },
+    {
+      "time": "19:00 - 19:30",
+      "title": "Evening Review & Next Day Alignment",
+      "details": "1. Open AIM to check off completed tasks and reschedule loose ends.\\n2. Record 2 daily wins and 1 core insight in the Memory Vault.\\n3. Set out tomorrow's workspace and clothes for zero morning friction."
+    }
   ],
   "mindsetReminder": "A sharp, empowering psychological anchor for the day"
 }`
@@ -1046,7 +1141,8 @@ CRITICAL RULES:
    - Supported action types: "createTask", "updateTask", "completeTask", "rescheduleTask", "removeTask", "createScheduleBlock", "updateScheduleBlock", "rescheduleScheduleBlock", "removeScheduleBlock", "createAppointment", "updateGoal", "saveLifeUpdate", "saveRelevantMemory", "updateProfile".
    - If an action cannot be performed, state it clearly. Never pretend.
 4. CONVERSATIONAL SPOKEN TEXT: The "spokenText" field is spoken aloud by TTS. Make it 1-3 natural, warm, human sentences. Absolutely NO markdown, asterisks (*), hashtags (#), or bullet points in spokenText.
-5. Output strictly a valid JSON object matching the schema.`;
+5. NEVER GIVE VAGUE GUIDANCE: On ALL daily tasks, schedule items, and action recommendations, give a DETAILED description of EXACTLY what the user should do. Never give vague guidance. When creating tasks ('createTask') or schedule blocks ('createScheduleBlock'), ALWAYS populate a detailed 'description' explaining: (1) what specific tools, materials, or files to open, (2) the exact step-by-step physical actions to take, and (3) what 'done' looks like. When answering 'What should I do now?', break down the exact physical next step in concrete detail.
+6. Output strictly a valid JSON object matching the schema.`;
 
     const userPrompt = `User said to ${coachId} coach: "${message}"
 
@@ -1323,7 +1419,7 @@ app.post('/api/aim/voice/speak', async (req: Request, res: Response) => {
 
     res.json(result);
   } catch (err: any) {
-    console.error('Voice speak API error:', err?.message || err);
+    console.warn('[VoiceAPI] TTS synthesis notice:', err?.message || err);
     const voiceService = AIMVoiceService.getInstance();
     const spokenText = voiceService.formatSpokenResponse(req.body?.text || '', req.body?.emotion);
     res.status(200).json({

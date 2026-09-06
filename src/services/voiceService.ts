@@ -454,49 +454,140 @@ export class VoiceEngine {
 
       const data = await response.json();
 
-      if (!data || !data.audioBase64) {
-        throw new Error(data?.warning || data?.error || 'TTS service did not return audio data');
+      if (data && data.audioBase64) {
+        // Convert base64 audio into playable Blob URL
+        const byteCharacters = atob(data.audioBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: data.mimeType || 'audio/wav' });
+        const audioUrl = URL.createObjectURL(blob);
+
+        // Cache audio snippet for snappy playback
+        if (clientAudioCache.size >= MAX_CLIENT_CACHE) {
+          const oldestKey = clientAudioCache.keys().next().value;
+          if (oldestKey) clientAudioCache.delete(oldestKey);
+        }
+        clientAudioCache.set(cacheKey, {
+          audioUrl,
+          spokenText: formattedText,
+          timestamp: Date.now(),
+        });
+
+        // Play synthesized natural audio
+        this.playAudioUrl(audioUrl, normalizedOptions);
+        return;
       }
 
-      // Convert base64 audio into playable Blob URL
-      const byteCharacters = atob(data.audioBase64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: data.mimeType || 'audio/wav' });
-      const audioUrl = URL.createObjectURL(blob);
-
-      // Cache audio snippet for snappy playback
-      if (clientAudioCache.size >= MAX_CLIENT_CACHE) {
-        const oldestKey = clientAudioCache.keys().next().value;
-        if (oldestKey) clientAudioCache.delete(oldestKey);
-      }
-      clientAudioCache.set(cacheKey, {
-        audioUrl,
-        spokenText: formattedText,
-        timestamp: Date.now(),
+      // If server could not generate Gemini TTS audio (e.g. key unconfigured, quota, or service issue),
+      // seamlessly speak using browser SpeechSynthesis fallback
+      const textToSpeak = data?.spokenText || formattedText;
+      this.playWithSpeechSynthesis(textToSpeak, {
+        rate: speakingRate,
+        pitch,
+        gender,
+        accentStyle,
+        ...normalizedOptions,
       });
-
-      // Play synthesized natural audio
-      this.playAudioUrl(audioUrl, normalizedOptions);
     } catch (err: any) {
       if (err.name === 'AbortError') {
         return;
       }
-      console.error('[VoiceEngine] Natural TTS synthesis error:', err);
-      this.setSpeakerState('error');
-      this.setVoiceState('error');
+      console.warn('[VoiceEngine] TTS fetch notice, using browser speech synthesis:', err?.message || err);
+      // Fall back to browser SpeechSynthesis without throwing unhandled error
+      this.playWithSpeechSynthesis(formattedText, {
+        rate: speakingRate,
+        pitch,
+        gender,
+        accentStyle,
+        ...normalizedOptions,
+      });
+    }
+  }
 
-      const errorMessage = `Voice generation failed: ${err?.message || 'TTS connection issue'}. Tap to retry.`;
-      if (this.onErrorNotification) {
-        this.onErrorNotification(errorMessage, true);
+  /**
+   * Seamless browser-based speech synthesis fallback
+   * Ensures the user always hears spoken guidance even if Gemini TTS is temporarily unreachable.
+   */
+  private playWithSpeechSynthesis(
+    text: string,
+    options?: SpeakOptions & { gender?: GenderPresentation; accentStyle?: string }
+  ): void {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      this.setSpeakerState('ready');
+      this.setVoiceState('idle');
+      if (options?.onEnd) options.onEnd();
+      return;
+    }
+
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = Math.min(Math.max((options?.rate ?? 0.95), 0.7), 1.3);
+      utterance.pitch = Math.min(Math.max((options?.pitch ?? 1.0), 0.7), 1.3);
+
+      const voices = window.speechSynthesis.getVoices();
+      if (voices && voices.length > 0) {
+        const isFeminine = options?.gender === 'feminine';
+        const englishVoices = voices.filter((v) => v.lang.startsWith('en'));
+        const pool = englishVoices.length > 0 ? englishVoices : voices;
+        const matched = pool.find((v) => {
+          const name = v.name.toLowerCase();
+          if (isFeminine) {
+            return (
+              name.includes('female') ||
+              name.includes('samantha') ||
+              name.includes('karen') ||
+              name.includes('victoria') ||
+              name.includes('zira') ||
+              name.includes('ava')
+            );
+          } else {
+            return (
+              name.includes('male') ||
+              name.includes('david') ||
+              name.includes('daniel') ||
+              name.includes('alex') ||
+              name.includes('george') ||
+              name.includes('tom')
+            );
+          }
+        });
+        if (matched) {
+          utterance.voice = matched;
+        } else if (pool[0]) {
+          utterance.voice = pool[0];
+        }
       }
 
-      if (normalizedOptions?.onError) {
-        normalizedOptions.onError(err);
-      }
+      utterance.onstart = () => {
+        this.setSpeakerState('playing');
+        this.setVoiceState('speaking');
+        if (options?.onStart) options.onStart();
+      };
+
+      utterance.onend = () => {
+        this.setSpeakerState('finished');
+        this.setVoiceState('idle');
+        if (options?.onEnd) options.onEnd();
+      };
+
+      utterance.onerror = (e) => {
+        if (e.error === 'canceled' || e.error === 'interrupted') return;
+        console.warn('[VoiceEngine] SpeechSynthesis fallback event:', e.error);
+        this.setSpeakerState('ready');
+        this.setVoiceState('idle');
+        if (options?.onEnd) options.onEnd();
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn('[VoiceEngine] SpeechSynthesis invocation notice:', err);
+      this.setSpeakerState('ready');
+      this.setVoiceState('idle');
+      if (options?.onEnd) options.onEnd();
     }
   }
 
@@ -540,17 +631,20 @@ export class VoiceEngine {
     };
 
     audio.onerror = (e) => {
-      console.warn('[VoiceEngine] Audio playback error:', e);
-      this.setSpeakerState('error');
-      this.setVoiceState('error');
+      console.warn('[VoiceEngine] Audio playback notification:', e);
+      this.setSpeakerState('ready');
+      this.setVoiceState('idle');
       this.currentAudioElement = null;
       if (options?.onError) options.onError(e);
     };
 
     audio.play().catch((err) => {
-      console.warn('[VoiceEngine] Audio play() promise rejected:', err);
-      this.setSpeakerState('error');
-      this.setVoiceState('error');
+      // Browsers often block autoplay without user gesture (NotAllowedError)
+      this.setSpeakerState('ready');
+      this.setVoiceState('idle');
+      if (err?.name !== 'NotAllowedError') {
+        console.warn('[VoiceEngine] Audio play notice:', err?.message || err);
+      }
       if (options?.onError) options.onError(err);
     });
   }
@@ -589,6 +683,9 @@ export class VoiceEngine {
     if (this.currentAudioElement && !this.currentAudioElement.paused) {
       this.currentAudioElement.pause();
     }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
+      window.speechSynthesis.pause();
+    }
     this.setSpeakerState('paused');
     if (this.activeOptions?.onPause) this.activeOptions.onPause();
   }
@@ -597,6 +694,11 @@ export class VoiceEngine {
     this.isPausedInternally = false;
     if (this.currentAudioElement && this.currentAudioElement.paused) {
       this.currentAudioElement.play().catch((e) => console.warn('[VoiceEngine] Resume audio error:', e));
+      this.setSpeakerState('playing');
+      this.setVoiceState('speaking');
+      if (this.activeOptions?.onResume) this.activeOptions.onResume();
+    } else if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
       this.setSpeakerState('playing');
       this.setVoiceState('speaking');
       if (this.activeOptions?.onResume) this.activeOptions.onResume();
@@ -621,6 +723,14 @@ export class VoiceEngine {
       this.currentAudioElement.currentTime = 0;
       this.currentAudioElement.removeAttribute('src');
       this.currentAudioElement = null;
+    }
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // ignore
+      }
     }
 
     this.isPausedInternally = false;

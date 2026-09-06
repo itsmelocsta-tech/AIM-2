@@ -11,7 +11,7 @@ import {
   LifeUpdate,
 } from '../types';
 
-const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
   PROFILE: 'aim_user_profile',
   MEMORIES: 'aim_memories',
   GOALS: 'aim_goals',
@@ -23,10 +23,21 @@ const STORAGE_KEYS = {
   ACTIVE_TAB: 'aim_active_tab',
   CALIBRATION: 'aim_calibration_state',
   LIFE_UPDATES: 'aim_life_updates',
+  COACH_CONVERSATIONS: 'aim_coach_conversations_v1',
+  SCHEDULE_ITEMS: 'aim_canonical_schedule_items',
+  DRIVE_SYNC_FILES: 'aim_drive_synced_files',
+  DRIVE_LAST_SYNC: 'aim_last_drive_sync',
+  DRIVE_TOKEN: 'aim_google_drive_access_token',
+  DRIVE_USER: 'aim_google_drive_user_email',
+  VOICE_PREFS: 'aim_voice_preferences',
+  CENTRAL_VOICE: 'aim_central_voice_config',
+  GREETING_SESSION: 'aim_greeting_session_state',
+  WEATHER_CACHE: 'aim_weather_cache',
+  USER_LOCATION: 'aim_user_location',
 };
 
-const DEFAULT_PROFILE: UserProfile = {
-  name: 'User',
+export const DEFAULT_PROFILE: UserProfile = {
+  name: '',
   email: '',
   desiredIdentity: '',
   coreMission: '',
@@ -39,18 +50,18 @@ const DEFAULT_PROFILE: UserProfile = {
   onboardingCompleted: false,
 };
 
-const DEFAULT_MEMORIES: MemoryItem[] = [];
+export const DEFAULT_MEMORIES: MemoryItem[] = [];
 
-const DEFAULT_GOALS: Goal[] = [];
+export const DEFAULT_GOALS: Goal[] = [];
 
-const DEFAULT_DEALS: DealPipelineItem[] = [];
+export const DEFAULT_DEALS: DealPipelineItem[] = [];
 
-const DEFAULT_OFFERS: MonetizationOffer[] = [];
+export const DEFAULT_OFFERS: MonetizationOffer[] = [];
 
-const todayStr = new Date().toISOString().split('T')[0];
+export const getTodayDateStr = () => new Date().toISOString().split('T')[0];
 
-const DEFAULT_DAILY_PLAN: DailyPlan = {
-  date: todayStr,
+export const DEFAULT_DAILY_PLAN: DailyPlan = {
+  date: getTodayDateStr(),
   theme: 'Clarity & Intentional Action',
   energyLevel: 8,
   availableHours: 6,
@@ -60,9 +71,9 @@ const DEFAULT_DAILY_PLAN: DailyPlan = {
   notes: '',
 };
 
-const DEFAULT_WELLNESS: WellnessLog[] = [];
+export const DEFAULT_WELLNESS: WellnessLog[] = [];
 
-const DEFAULT_CHAT: ChatMessage[] = [
+export const DEFAULT_CHAT: ChatMessage[] = [
   {
     id: 'msg-1',
     role: 'aim',
@@ -160,7 +171,7 @@ export const storageService = {
     localStorage.setItem(STORAGE_KEYS.OFFERS, JSON.stringify(offers));
   },
 
-  getDailyPlan(dateStr: string = todayStr): DailyPlan {
+  getDailyPlan(dateStr: string = getTodayDateStr()): DailyPlan {
     try {
       const data = localStorage.getItem(`${STORAGE_KEYS.DAILY_PLANS}_${dateStr}`);
       return data ? JSON.parse(data) : { ...DEFAULT_DAILY_PLAN, date: dateStr };
@@ -210,5 +221,33 @@ export const storageService = {
 
   saveLifeUpdates(updates: LifeUpdate[]): void {
     localStorage.setItem(STORAGE_KEYS.LIFE_UPDATES, JSON.stringify(updates));
+  },
+
+  /**
+   * Completely clears all saved user information, history, and state across storage
+   * Restores pristine new-user initial state
+   */
+  clearAllData(): void {
+    try {
+      if (typeof window !== 'undefined') {
+        // Remove all AIM-specific keys
+        Object.values(STORAGE_KEYS).forEach((key) => {
+          localStorage.removeItem(key);
+        });
+
+        // Also clean any date-keyed daily plans
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('aim_') || k.startsWith('coach_'))) {
+            localStorage.removeItem(k);
+          }
+        }
+
+        // Clear session storage (greetings, ephemeral state)
+        sessionStorage.clear();
+      }
+    } catch (e) {
+      console.warn('[storageService] Failed to clear all data:', e);
+    }
   },
 };

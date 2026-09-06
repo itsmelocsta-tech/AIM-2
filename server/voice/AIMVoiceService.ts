@@ -352,19 +352,50 @@ export class AIMVoiceService {
         },
       });
 
-      const candidates = response.candidates;
-      let rawBase64Audio = candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      let mimeType = candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/pcm;rate=24000';
+      let rawBase64Audio: string | undefined;
+      let mimeType = 'audio/pcm;rate=24000';
 
-      if (!rawBase64Audio) {
-        throw new Error('Gemini TTS did not return audio data in candidate parts');
+      for (const candidate of response.candidates || []) {
+        for (const part of candidate.content?.parts || []) {
+          if (part.inlineData?.data) {
+            rawBase64Audio = part.inlineData.data;
+            if (part.inlineData.mimeType) {
+              mimeType = part.inlineData.mimeType;
+            }
+            break;
+          }
+        }
+        if (rawBase64Audio) break;
       }
 
-      // 5. Convert raw PCM base64 to standard WAV buffer and base64 string
-      const rawBuffer = Buffer.from(rawBase64Audio, 'base64');
-      const wavBuffer = this.pcmToWav(rawBuffer, 24000, 1, 16);
-      const finalAudioBase64 = wavBuffer.toString('base64');
-      const finalMimeType = 'audio/wav';
+      if (!rawBase64Audio) {
+        console.warn('[AIMVoiceService] Gemini TTS candidate parts contained no inline audio data');
+        return {
+          audioBase64: '',
+          mimeType: '',
+          spokenText,
+          emotionDetected: emotion,
+          voiceNameUsed: voiceName,
+          provider: 'fallback',
+        };
+      }
+
+      // 5. Convert raw PCM base64 to standard WAV buffer and base64 string if needed
+      let finalAudioBase64 = rawBase64Audio;
+      let finalMimeType = mimeType;
+
+      if (
+        mimeType.includes('pcm') ||
+        (!mimeType.includes('wav') &&
+          !mimeType.includes('mp3') &&
+          !mimeType.includes('mpeg') &&
+          !mimeType.includes('ogg'))
+      ) {
+        const rawBuffer = Buffer.from(rawBase64Audio, 'base64');
+        const wavBuffer = this.pcmToWav(rawBuffer, 24000, 1, 16);
+        finalAudioBase64 = wavBuffer.toString('base64');
+        finalMimeType = 'audio/wav';
+      }
 
       // 6. Cache the synthesized audio
       if (audioCache.size >= MAX_CACHE_SIZE) {
@@ -387,8 +418,15 @@ export class AIMVoiceService {
         provider: 'gemini-tts',
       };
     } catch (err: any) {
-      console.error('[AIMVoiceService] Gemini TTS synthesis error:', err?.message || err);
-      throw err;
+      console.warn('[AIMVoiceService] Gemini TTS unavailable, returning fallback:', err?.message || err);
+      return {
+        audioBase64: '',
+        mimeType: '',
+        spokenText,
+        emotionDetected: emotion,
+        voiceNameUsed: voiceName,
+        provider: 'fallback',
+      };
     }
   }
 }

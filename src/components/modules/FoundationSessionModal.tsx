@@ -7,6 +7,8 @@ import {
   TrendingUp,
   Shield,
   Zap,
+  RotateCcw,
+  AlertTriangle,
 } from 'lucide-react';
 import { UserProfile } from '../../types';
 
@@ -15,6 +17,7 @@ interface FoundationSessionModalProps {
   onClose: () => void;
   userProfile: UserProfile;
   onSaveProfile: (profile: UserProfile) => void;
+  onResetAllData?: () => void;
   onToast: (msg: string) => void;
 }
 
@@ -23,6 +26,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
   onClose,
   userProfile,
   onSaveProfile,
+  onResetAllData,
   onToast,
 }) => {
   const [name, setName] = useState(userProfile.name);
@@ -34,8 +38,21 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
   const [topSkills, setTopSkills] = useState(userProfile.topSkills.join(', '));
   const [coreValues, setCoreValues] = useState(userProfile.coreValues.join(', '));
   const [ninetyDayTrajectory, setNinetyDayTrajectory] = useState(userProfile.ninetyDayTrajectory);
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleReset = () => {
+    if (!isConfirmingReset) {
+      setIsConfirmingReset(true);
+      return;
+    }
+    if (onResetAllData) {
+      onResetAllData();
+      setIsConfirmingReset(false);
+      onClose();
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,20 +212,55 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="pt-4 border-t border-slate-800 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-colors"
-            >
-              Calibrate & Save Trajectory
-            </button>
+          <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+            {onResetAllData ? (
+              <div>
+                {isConfirmingReset ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors"
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>Confirm Reset Everything</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsConfirmingReset(false)}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsConfirmingReset(true)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-950 hover:bg-rose-950/60 border border-slate-800 hover:border-rose-700/60 text-slate-400 hover:text-rose-300 text-xs flex items-center gap-1.5 transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Clear Data & Restart as New User</span>
+                  </button>
+                )}
+              </div>
+            ) : <div />}
+
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-colors"
+              >
+                Calibrate & Save Trajectory
+              </button>
+            </div>
           </div>
         </form>
       </div>

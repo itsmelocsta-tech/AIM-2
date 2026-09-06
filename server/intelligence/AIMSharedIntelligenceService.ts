@@ -222,6 +222,7 @@ ${orbGuidanceDirectives}
 - Energy Feasibility: User has ${params.availableHours} hours with energy ${params.energyLevel}/10. Do not create fantasy schedules.
 - Pruning Mandate: ${priorityAssessment.whatToPruneOrPostpone.join('; ')}.
 - Core Mindset Principle: "${wisdomSynthesis.guidanceSynthesis.primaryShift}".
+- ACTION CLARITY MANDATE: Never give vague guidance. On every task and time block, provide a clear, step-by-step description of what the user should physically and mentally do (setup, chronological execution steps, definition of done).
 ======================================
 `;
 

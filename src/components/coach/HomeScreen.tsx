@@ -543,7 +543,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div>
               <h2 className="text-lg font-bold text-white tracking-tight">{current.title}</h2>
               {current.description && (
-                <p className="text-xs text-slate-300 mt-1 leading-relaxed">{current.description}</p>
+                <div className="mt-2.5 text-xs text-slate-200 leading-relaxed bg-slate-950/50 p-3.5 rounded-xl border border-indigo-900/50 space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block">
+                    Action Plan (What to do):
+                  </span>
+                  <div className="whitespace-pre-line leading-relaxed text-slate-200 font-normal">
+                    {current.description}
+                  </div>
+                </div>
               )}
             </div>
 
@@ -636,7 +643,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   </div>
 
                   {item.description && (
-                    <p className="text-xs text-slate-400 line-clamp-1">{item.description}</p>
+                    <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-xs space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block">
+                        What to do:
+                      </span>
+                      <p className="text-slate-300 leading-relaxed whitespace-pre-line text-[11px]">
+                        {item.description}
+                      </p>
+                    </div>
                   )}
 
                   <div className="flex items-center gap-2 pt-1 border-t border-slate-800/60">

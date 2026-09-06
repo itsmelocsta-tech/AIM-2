@@ -1,5 +1,5 @@
 {
-  "4name": "AIM - Life Operating System",
+  "name": "AIM - Life Operating System",
   "description": "AI-powered Life Operating System with Core Wisdom Engine, Life Priority Intelligence, specialized guidance coaches, live local weather & time, daily planning, habit tracking, and goal manifestation.",
   "requestFramePermissions": ["microphone", "geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
