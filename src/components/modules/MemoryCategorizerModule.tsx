@@ -139,7 +139,7 @@ export const MemoryCategorizerModule: React.FC<MemoryCategorizerProps> = ({
                 <input
                   type="text"
                   required
-                  value={newTitle}
+                  value={newTitle || ''}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="e.g. High-Converting Sales Script Architecture"
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -149,7 +149,7 @@ export const MemoryCategorizerModule: React.FC<MemoryCategorizerProps> = ({
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">Category</label>
                 <select
-                  value={newCategory}
+                  value={newCategory || 'Personal'}
                   onChange={(e) => setNewCategory(e.target.value as AIMCategory)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                 >
@@ -167,7 +167,7 @@ export const MemoryCategorizerModule: React.FC<MemoryCategorizerProps> = ({
               <textarea
                 rows={4}
                 required
-                value={newContent}
+                value={newContent || ''}
                 onChange={(e) => setNewContent(e.target.value)}
                 placeholder="Write or paste your notes, frameworks, contracts, or ideas here..."
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -179,7 +179,7 @@ export const MemoryCategorizerModule: React.FC<MemoryCategorizerProps> = ({
                 <label className="block text-xs font-medium text-slate-300 mb-1">Tags (comma separated)</label>
                 <input
                   type="text"
-                  value={newTags}
+                  value={newTags || ''}
                   onChange={(e) => setNewTags(e.target.value)}
                   placeholder="e.g. sales, high-ticket, outreach"
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -189,7 +189,7 @@ export const MemoryCategorizerModule: React.FC<MemoryCategorizerProps> = ({
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">Priority / Importance</label>
                 <select
-                  value={newImportance}
+                  value={newImportance || 'normal'}
                   onChange={(e) => setNewImportance(e.target.value as any)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                 >
@@ -225,7 +225,7 @@ export const MemoryCategorizerModule: React.FC<MemoryCategorizerProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            value={searchQuery}
+            value={searchQuery || ''}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search all memories, tags, concepts, scripts, or assets..."
             className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 shadow-sm"

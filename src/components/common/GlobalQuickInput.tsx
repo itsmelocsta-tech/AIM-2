@@ -116,7 +116,7 @@ export const GlobalQuickInput: React.FC<GlobalQuickInputProps> = ({
               rows={3}
               required
               autoFocus
-              value={text}
+              value={text || ''}
               onChange={(e) => setText(e.target.value)}
               placeholder={
                 intentType === 'task'
@@ -131,7 +131,7 @@ export const GlobalQuickInput: React.FC<GlobalQuickInputProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-slate-400 uppercase font-semibold">Category:</span>
               <select
-                value={category}
+                value={category || 'Personal'}
                 onChange={(e) => setCategory(e.target.value as AIMCategory)}
                 className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-indigo-500"
               >

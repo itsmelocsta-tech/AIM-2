@@ -29,15 +29,15 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
   onResetAllData,
   onToast,
 }) => {
-  const [name, setName] = useState(userProfile.name);
-  const [desiredIdentity, setDesiredIdentity] = useState(userProfile.desiredIdentity);
-  const [coreMission, setCoreMission] = useState(userProfile.coreMission);
-  const [currentMonthlyIncome, setCurrentMonthlyIncome] = useState(userProfile.currentMonthlyIncome);
-  const [targetMonthlyIncome, setTargetMonthlyIncome] = useState(userProfile.targetMonthlyIncome);
-  const [primaryObstacle, setPrimaryObstacle] = useState(userProfile.primaryObstacle);
-  const [topSkills, setTopSkills] = useState(userProfile.topSkills.join(', '));
-  const [coreValues, setCoreValues] = useState(userProfile.coreValues.join(', '));
-  const [ninetyDayTrajectory, setNinetyDayTrajectory] = useState(userProfile.ninetyDayTrajectory);
+  const [name, setName] = useState(userProfile?.name || '');
+  const [desiredIdentity, setDesiredIdentity] = useState(userProfile?.desiredIdentity || '');
+  const [coreMission, setCoreMission] = useState(userProfile?.coreMission || '');
+  const [currentMonthlyIncome, setCurrentMonthlyIncome] = useState(userProfile?.currentMonthlyIncome ?? 0);
+  const [targetMonthlyIncome, setTargetMonthlyIncome] = useState(userProfile?.targetMonthlyIncome ?? 15000);
+  const [primaryObstacle, setPrimaryObstacle] = useState(userProfile?.primaryObstacle || '');
+  const [topSkills, setTopSkills] = useState((userProfile?.topSkills || []).join(', '));
+  const [coreValues, setCoreValues] = useState((userProfile?.coreValues || []).join(', '));
+  const [ninetyDayTrajectory, setNinetyDayTrajectory] = useState(userProfile?.ninetyDayTrajectory || '');
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
 
   if (!isOpen) return null;
@@ -109,7 +109,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
               <input
                 type="text"
                 required
-                value={name}
+                value={name || ''}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
               />
@@ -122,7 +122,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
               <input
                 type="number"
                 required
-                value={targetMonthlyIncome}
+                value={targetMonthlyIncome ?? 15000}
                 onChange={(e) => setTargetMonthlyIncome(Number(e.target.value))}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-emerald-400 font-bold focus:outline-none focus:border-indigo-500"
               />
@@ -136,7 +136,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
             <input
               type="text"
               required
-              value={desiredIdentity}
+              value={desiredIdentity || ''}
               onChange={(e) => setDesiredIdentity(e.target.value)}
               placeholder="e.g. Elite High-Leverage Consultant & Digital Asset Builder"
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -150,7 +150,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
             <textarea
               rows={2}
               required
-              value={coreMission}
+              value={coreMission || ''}
               onChange={(e) => setCoreMission(e.target.value)}
               placeholder="e.g. Generate $15k+/mo recurring cashflow while building scalable equity and living in peak physical vitality."
               className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -163,7 +163,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
             </label>
             <textarea
               rows={2}
-              value={primaryObstacle}
+              value={primaryObstacle || ''}
               onChange={(e) => setPrimaryObstacle(e.target.value)}
               placeholder="e.g. Inconsistent daily outreach momentum, fragmented attention during morning work hours."
               className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -177,7 +177,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
               </label>
               <input
                 type="text"
-                value={topSkills}
+                value={topSkills || ''}
                 onChange={(e) => setTopSkills(e.target.value)}
                 placeholder="Strategic Advisory, Copywriting, AI Workflows, Design"
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -190,7 +190,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
               </label>
               <input
                 type="text"
-                value={coreValues}
+                value={coreValues || ''}
                 onChange={(e) => setCoreValues(e.target.value)}
                 placeholder="Freedom, Relentless Execution, Whole-Person Health"
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -204,7 +204,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
             </label>
             <input
               type="text"
-              value={ninetyDayTrajectory}
+              value={ninetyDayTrajectory || ''}
               onChange={(e) => setNinetyDayTrajectory(e.target.value)}
               placeholder="Close 5 high-ticket retainer clients @ $3,000/mo, publish core masterclass asset."
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"

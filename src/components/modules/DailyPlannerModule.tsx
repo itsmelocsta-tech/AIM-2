@@ -42,8 +42,8 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
 }) => {
   const [plannerHorizon, setPlannerHorizon] = useState<PlannerHorizon>('today');
   const [activeMode, setActiveMode] = useState<'plan' | 'morning_align' | 'evening_review'>('plan');
-  const [energyLevel, setEnergyLevel] = useState(dailyPlan.energyLevel || 8);
-  const [availableHours, setAvailableHours] = useState(dailyPlan.availableHours || 8);
+  const [energyLevel, setEnergyLevel] = useState(dailyPlan?.energyLevel ?? 8);
+  const [availableHours, setAvailableHours] = useState(dailyPlan?.availableHours ?? 8);
   const [morningNotes, setMorningNotes] = useState('');
   const [eveningNotes, setEveningNotes] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -282,7 +282,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                 type="range"
                 min="1"
                 max="10"
-                value={energyLevel}
+                value={energyLevel ?? 8}
                 onChange={(e) => setEnergyLevel(Number(e.target.value))}
                 className="w-full accent-amber-500"
               />
@@ -295,7 +295,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                 type="range"
                 min="2"
                 max="14"
-                value={availableHours}
+                value={availableHours ?? 8}
                 onChange={(e) => setAvailableHours(Number(e.target.value))}
                 className="w-full accent-indigo-500"
               />
@@ -308,7 +308,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             </label>
             <textarea
               rows={3}
-              value={morningNotes}
+              value={morningNotes || ''}
               onChange={(e) => setMorningNotes(e.target.value)}
               placeholder="e.g. Focus on closing the $3,500 proposal with Alex, ship project deliverables, keep energy high, and hit the gym at 4:30pm."
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
@@ -357,7 +357,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             </label>
             <textarea
               rows={4}
-              value={eveningNotes}
+              value={eveningNotes || ''}
               onChange={(e) => setEveningNotes(e.target.value)}
               placeholder="e.g. Sent all 15 pitches, followed up with 2 clients. Got tired around 2pm, should take a 15 min fresh air break. Feeling excited about tomorrow."
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -500,7 +500,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               <form onSubmit={handleAddTask} className="flex gap-2 pt-2 border-t border-slate-800">
                 <input
                   type="text"
-                  value={newTaskTitle}
+                  value={newTaskTitle || ''}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
                   placeholder="+ Add another priority task..."
                   className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"

@@ -283,7 +283,7 @@ export const ChatAdvisorModule: React.FC<ChatAdvisorProps> = ({
           <form onSubmit={handleSendMessage} className="flex gap-2 items-center">
             <input
               type="text"
-              value={inputText}
+              value={inputText || ''}
               onChange={(e) => setInputText(e.target.value)}
               placeholder="Ask AIM anything: monetize a skill, solve an obstacle, map today, build a proposal..."
               className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"

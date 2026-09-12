@@ -193,7 +193,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
               <input
                 type="text"
                 required
-                value={newTitle}
+                value={newTitle || ''}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="e.g. Generate $15,000/month recurring income with 5 retainer clients"
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -207,7 +207,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
               <textarea
                 rows={2}
                 required
-                value={newWhy}
+                value={newWhy || ''}
                 onChange={(e) => setNewWhy(e.target.value)}
                 placeholder="e.g. Total financial autonomy so I can provide for my family, invest in deep creative projects, and operate from freedom rather than anxiety."
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -217,7 +217,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">Category</label>
               <select
-                value={newCategory}
+                value={newCategory || 'Finances'}
                 onChange={(e) => setNewCategory(e.target.value as AIMCategory)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
               >
@@ -233,7 +233,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
               <label className="block text-xs font-medium text-slate-300 mb-1">Target Date</label>
               <input
                 type="date"
-                value={newTargetDate}
+                value={newTargetDate || ''}
                 onChange={(e) => setNewTargetDate(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
               />
@@ -243,7 +243,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
               <label className="block text-xs font-medium text-slate-300 mb-1">Monthly Revenue Impact ($)</label>
               <input
                 type="number"
-                value={newRevenue}
+                value={newRevenue ?? 0}
                 onChange={(e) => setNewRevenue(Number(e.target.value))}
                 placeholder="5000"
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
@@ -254,7 +254,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
               <label className="block text-xs font-medium text-slate-300 mb-1">Known Obstacles (comma separated)</label>
               <input
                 type="text"
-                value={newObstacles}
+                value={newObstacles || ''}
                 onChange={(e) => setNewObstacles(e.target.value)}
                 placeholder="e.g. Scrambled daily focus, fear of cold outreach"
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"

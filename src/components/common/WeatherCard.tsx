@@ -146,7 +146,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
             <span className="inline-block w-1 h-1 rounded-full bg-slate-600" />
             <span className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
               <Clock className="w-3 h-3 text-indigo-400" />
-              <span>{effectiveTz.replace(/_/g, ' ')}</span>
+              <span>{(effectiveTz || '').replace(/_/g, ' ')}</span>
             </span>
           </div>
 

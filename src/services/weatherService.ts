@@ -294,7 +294,7 @@ class WeatherService {
         const state = data.principalSubdivisionCode || data.principalSubdivision;
         const country = data.countryCode || data.countryName;
 
-        if (city && state && country === 'US') {
+        if (city && typeof state === 'string' && country === 'US') {
           const stateShort = state.replace('US-', '');
           return `${city}, ${stateShort}`;
         }

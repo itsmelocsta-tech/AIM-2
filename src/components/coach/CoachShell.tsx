@@ -149,7 +149,7 @@ export const CoachShell: React.FC<CoachShellProps> = ({
 
               {compactContext.relevantDomains.length > 0 && (
                 <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Synthesized across: {compactContext.relevantDomains.map((d) => d.replace(/_/g, ' ')).join(', ')}</span>
+                  <span>Synthesized across: {compactContext.relevantDomains.map((d) => (d || '').replace(/_/g, ' ')).join(', ')}</span>
                   <span className="flex items-center gap-1 font-mono text-emerald-400">
                     <ShieldCheck className="w-3 h-3" />
                     {compactContext.evidenceConfidence}

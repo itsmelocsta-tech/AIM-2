@@ -442,7 +442,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
                   id="life-update-textarea"
                   ref={textareaRef}
                   rows={4}
-                  value={updateText}
+                  value={updateText || ''}
                   onChange={(e) => setUpdateText(e.target.value)}
                   placeholder="Tell me what changed…"
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 sm:p-5 text-sm sm:text-base text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none shadow-inner"
@@ -996,7 +996,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
                 </label>
                 <textarea
                   rows={4}
-                  value={editedContent}
+                  value={editedContent || ''}
                   onChange={(e) => setEditedContent(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-indigo-500"
                 />
@@ -1008,7 +1008,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
                 </label>
                 <input
                   type="text"
-                  value={revisionNote}
+                  value={revisionNote || ''}
                   onChange={(e) => setRevisionNote(e.target.value)}
                   placeholder="e.g. Corrected company name, updated date"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"

@@ -8,6 +8,7 @@ import { AIMLifePriorityEngine } from './server/priority/AIMLifePriorityEngine';
 import { AIMMomentumEngine } from './server/momentum/AIMMomentumEngine';
 import { AIMSharedIntelligenceService } from './server/intelligence/AIMSharedIntelligenceService';
 import { AIMVoiceService } from './server/voice/AIMVoiceService';
+import { AIMOsService } from './server/aimOsService';
 
 dotenv.config();
 
@@ -109,7 +110,6 @@ async function generateWithFallback(
 }
 
 const AIM_SYSTEM_INSTRUCTION = `You are AIM (Artificial Intelligence for Manifestation), an AI-powered personal Life Operating System and thinking partner.
-
 Your purpose is not simply to answer questions. Your purpose is to help the user organize their thoughts, understand their patterns, solve real-world problems, and take meaningful action toward the person they want to become.
 
 CRITICAL CONVERSATIONAL DIRECTIVES:
@@ -117,7 +117,8 @@ CRITICAL CONVERSATIONAL DIRECTIVES:
 2. GROUNDED IN SAVED USER INFORMATION: You have access to the user's saved profile, active goals, memories, today's schedule, wellness status, and recent life updates below. Tailor your responses specifically and genuinely to THIS person's actual situation, goals, obstacles, and context.
 3. CONVERSATIONAL & HUMAN: Speak naturally, warmly, like an insightful, empathetic thinking partner and trusted mentor sitting across the table. Be direct, clear, articulate, and supportive without being robotic or patronizing.
 4. NO UNSOLICITED MONETIZATION / SALES TALK: Only bring up business frameworks, sales tactics, or monetization if the user explicitly asks about business, finances, income, or career monetization. Never force sales pitches on general life, spiritual, relationship, or wellness reflections.
-5. ONE THOUGHTFUL FOLLOW-UP: End your response with ONE thoughtful, practical, reflective follow-up question or immediate next action to help the user move forward naturally.
+5. ZERO FABRICATION (DATA INTEGRITY): Never hallucinate or fabricate job listings, state data, or fake opportunities. Maintain real data integrity by only referencing real, verified information or explicitly stating when you don't have the data.
+6. ONE THOUGHTFUL FOLLOW-UP: End your response with ONE thoughtful, practical, reflective follow-up question or immediate next action to help the user move forward naturally.
 
 Keep your response articulate, warm, and concise (typically 2-4 short paragraphs, ending with one clear, reflective follow-up question).`;
 
@@ -1431,6 +1432,237 @@ app.post('/api/aim/voice/speak', async (req: Request, res: Response) => {
       provider: 'fallback',
       warning: err?.message || 'TTS synthesis failed, fall back to browser voice',
     });
+  }
+});
+
+// ==========================================
+// AIM Life Operating System - API Endpoints
+// ==========================================
+
+// Job Opportunity Scanner Endpoint
+app.post('/api/aim/jobs/scan', async (req: Request, res: Response) => {
+  try {
+    const { location, radiusMiles, storedListings, isWeekdayScheduled, userConstraints, allowDemoData } = req.body;
+    const ai = getGenAI();
+    const aimOs = AIMOsService.getInstance();
+
+    const result = await aimOs.scanOpportunities({
+      location: location || 'Fort Worth, Texas',
+      radiusMiles: radiusMiles || 35,
+      storedListings: storedListings || [],
+      isWeekdayScheduled: Boolean(isWeekdayScheduled),
+      userConstraints,
+      allowDemoData: Boolean(allowDemoData),
+      aiClient: ai,
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    console.error('[API /api/aim/jobs/scan error]:', err);
+    res.status(500).json({ error: err?.message || 'Failed to execute opportunity scan' });
+  }
+});
+
+// Job Opportunity History Endpoint
+app.get('/api/aim/jobs/history', (req: Request, res: Response) => {
+  try {
+    const aimOs = AIMOsService.getInstance();
+    res.json(aimOs.getScanHistory());
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch scan history' });
+  }
+});
+
+// Context & Check-In Conflict Resolution Endpoint
+app.post('/api/aim/context/check-in', async (req: Request, res: Response) => {
+  try {
+    const { input, context, projects } = req.body;
+    const text = (input || '').trim();
+
+    if (!text) {
+      return res.status(400).json({ error: 'Check-in input text is required' });
+    }
+
+    const lower = text.toLowerCase();
+    const conflicts: string[] = [];
+    const detectedProjectChanges: any[] = [];
+    const detectedContextChanges: any[] = [];
+
+    // Conflict detection rules:
+    if (
+      lower.includes('using my car') ||
+      lower.includes('my personal vehicle') ||
+      lower.includes('bought a car') ||
+      lower.includes('deliver in my car')
+    ) {
+      conflicts.push(
+        'Confirmed Fact Conflict: You currently do NOT have a personal vehicle and require an employer-provided vehicle. Does this update confirm you acquired a personal vehicle?'
+      );
+    }
+
+    if (lower.includes('got my cdl') || lower.includes('applying for cdl-a') || lower.includes('class a cdl')) {
+      conflicts.push(
+        'Stored Qualification Conflict: You hold a Texas non-CDL Class C license. Did you obtain a Commercial Driver License (CDL)?'
+      );
+    }
+
+    // Evaluate against active projects
+    const projs = Array.isArray(projects) ? projects : [];
+    for (const proj of projs) {
+      const pNameLower = proj.name.toLowerCase();
+      if (lower.includes(pNameLower)) {
+        if (lower.includes('pause') || lower.includes('put on hold') || lower.includes('hold on')) {
+          detectedProjectChanges.push({
+            projectId: proj.id,
+            projectName: proj.name,
+            proposedStatus: 'paused',
+            explanation: `Request to pause project "${proj.name}".`,
+            hasConflict: false,
+          });
+        } else if (lower.includes('completed') || lower.includes('finished') || lower.includes('done')) {
+          detectedProjectChanges.push({
+            projectId: proj.id,
+            projectName: proj.name,
+            proposedStatus: 'completed',
+            proposedLastAction: text,
+            explanation: `Request to mark "${proj.name}" as completed.`,
+            hasConflict: proj.priority === 1,
+            conflictDescription:
+              proj.priority === 1
+                ? 'Immediate Income is your highest-priority objective. Are you sure you want to mark it completed?'
+                : undefined,
+          });
+        } else if (lower.includes('blocked') || lower.includes('stuck') || lower.includes('cant continue')) {
+          detectedProjectChanges.push({
+            projectId: proj.id,
+            projectName: proj.name,
+            proposedStatus: 'blocked',
+            proposedBlocker: text,
+            explanation: `Reported blocker on "${proj.name}".`,
+            hasConflict: false,
+          });
+        }
+      }
+    }
+
+    // Specific key phrases
+    if (lower.includes('landing page') && (lower.includes('finished') || lower.includes('done') || lower.includes('live'))) {
+      detectedProjectChanges.push({
+        projectId: 'proj-brandnmotion',
+        projectName: 'BrandNMotion',
+        proposedLastAction: 'Finished the landing page.',
+        proposedNextAction: 'Deploy client outreach campaign with the new landing page.',
+        explanation: 'Updated BrandNMotion with completed landing page.',
+        hasConflict: false,
+      });
+    }
+
+    if (lower.includes('applied') && (lower.includes('shuttle') || lower.includes('driver') || lower.includes('job'))) {
+      detectedProjectChanges.push({
+        projectId: 'proj-immediate-income',
+        projectName: 'Immediate Income',
+        proposedLastAction: text,
+        proposedNextAction: 'Follow up with recruiter within 48 hours.',
+        explanation: 'Recorded driving job application under Immediate Income.',
+        hasConflict: false,
+      });
+    }
+
+    const hasConflict = conflicts.length > 0;
+    const summary = hasConflict
+      ? `Potential conflict detected with your confirmed operating facts:\n- ${conflicts.join('\n- ')}`
+      : `Parsed update successfully for review.`;
+
+    res.json({
+      detectedProjectChanges,
+      detectedContextChanges,
+      conflicts,
+      hasConflict,
+      userConfirmationRequired: hasConflict || detectedProjectChanges.length > 0,
+      summary,
+    });
+  } catch (err: any) {
+    console.error('[API /api/aim/context/check-in error]:', err);
+    res.status(500).json({ error: err?.message || 'Failed to process check-in' });
+  }
+});
+
+// Daily Action Recommendation Endpoint
+app.post('/api/aim/recommendations/daily', async (req: Request, res: Response) => {
+  try {
+    const { context, projects, topJobMatch } = req.body;
+
+    const projs = Array.isArray(projects) && projects.length > 0 ? projects : [];
+    const immIncome = projs.find((p: any) => p.id === 'proj-immediate-income') || projs[0];
+    const rideGuys = projs.find((p: any) => p.id === 'proj-ride-guys-detail') || projs[1];
+
+    let moneyMoveTitle = 'Search Fort Worth verified company-vehicle driver positions';
+    let moneyMoveWhy = 'Immediate income is your highest-priority objective. Searching verified employer-provided vehicle roles on official careers portals requires $0 upfront capital.';
+    let moneyMoveNeeded = 'Texas non-CDL Class C driver license, clean driving history record, contact phone/email.';
+    let moneyMoveBlocker = 'Lack of personal vehicle requires verifying that the employer provides the vehicle on duty.';
+    let moneyMoveDone = 'Submit 1 application via official employer career portal with direct confirmation number.';
+    let moneyMoveType: 'recommendation_with_verified_job' | 'recommendation_with_search_action' = 'recommendation_with_search_action';
+
+    // ZERO FABRICATION RULE: Only link a specific job if it is verified, non-mock, and active!
+    if (topJobMatch && !topJobMatch.is_mock && !topJobMatch.isMock && topJobMatch.status === 'active' && topJobMatch.provenance === 'verified') {
+      moneyMoveTitle = `Apply to ${topJobMatch.employer} (${topJobMatch.role})`;
+      moneyMoveWhy = `${topJobMatch.whyItFits || 'Matches your non-CDL experience with company vehicle provided'}. Pay: ${topJobMatch.pay}.`;
+      moneyMoveNeeded = 'Texas Class C license, direct application link, resume highlighting passenger driving.';
+      moneyMoveBlocker = topJobMatch.watchOuts?.[0] || 'Commute to vehicle dispatch location.';
+      moneyMoveDone = `Completed direct employer application at ${topJobMatch.employer} and logged in AIM History.`;
+      moneyMoveType = 'recommendation_with_verified_job';
+    }
+
+    const recommendation = {
+      whereYouAre:
+        'You are based in Fort Worth, Texas, with a clean driving record and Texas Class C license. You need immediate income, require an employer-provided vehicle for work, and are actively managing your prioritized ventures.',
+      whatChanged:
+        'Opportunity Scanner refreshed DFW company-vehicle driving opportunities. Priorities ranked with Immediate Income leading.',
+      highestPriorityGoal:
+        'Secure reliable immediate income through an employer-provided vehicle driving or shuttle position in the Fort Worth / DFW area.',
+      blockingProgress:
+        'Lack of personal vehicle requires 100% employer-provided work vehicle; Everfleet remains blocked by $340 deposit requirement.',
+      moneyMove: {
+        title: moneyMoveTitle,
+        whyBestMove: moneyMoveWhy,
+        timeEstimate: '45m',
+        whatIsNeeded: moneyMoveNeeded,
+        whatCouldBlockIt: moneyMoveBlocker,
+        definitionOfDone: moneyMoveDone,
+        projectId: immIncome?.id || 'proj-immediate-income',
+      },
+      supportingMove: {
+        title: 'Draft Ride Guys Auto Detail 3-tier pricing and outreach script',
+        whyBestMove:
+          'Building your own client-funded service generates local cash flow and pairs directly with your automotive expertise.',
+        timeEstimate: '30m',
+        whatIsNeeded: 'Target pricing sheet ($150-$350 tiers) and a 3-sentence text message offer.',
+        whatCouldBlockIt: 'Over-complicating website setup before securing first paying client.',
+        definitionOfDone: 'Pricing sheet written down and ready to text to 3 personal or business contacts.',
+        projectId: rideGuys?.id || 'proj-ride-guys-detail',
+      },
+      deferForNow: [
+        'Everfleet ($340 deposit and license review required — defer until capital is secured)',
+        'Cool Fruit Truck ($60,000 loan package evaluation — paused to prioritize immediate cash)',
+        'Ride Guys second-chance rideshare (concept only — defer fleet and software build)',
+        'DDS app (blueprint stage — defer active coding until income baseline is stabilized)',
+      ],
+      generatedAt: new Date().toISOString(),
+      provenance: {
+        whereYouAreSource: 'stored_user_data' as const,
+        whatChangedSource: 'stored_user_data' as const,
+        goalSource: 'stored_user_data' as const,
+        moneyMoveSource: moneyMoveType === 'recommendation_with_verified_job' ? ('verified' as const) : ('user_provided' as const),
+        moneyMoveType,
+        lastVerifiedAt: new Date().toISOString(),
+        isStale: false,
+      },
+    };
+
+    res.json(recommendation);
+  } catch (err: any) {
+    console.error('[API /api/aim/recommendations/daily error]:', err);
+    res.status(500).json({ error: err?.message || 'Failed to generate daily recommendation' });
   }
 });
 

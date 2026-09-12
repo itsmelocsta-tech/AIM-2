@@ -7,6 +7,12 @@ import {
   Heart,
   MessageSquare,
   RefreshCw,
+  Compass,
+  Layers,
+  Send,
+  Clock,
+  Sliders,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -17,6 +23,10 @@ import {
   ChatMessage,
   DriveSyncState,
   LifeUpdate,
+  PersonalOperatingContext,
+  AIMProject,
+  JobListing,
+  DailyActionRecommendation,
 } from './types';
 import {
   storageService,
@@ -28,8 +38,16 @@ import {
   DEFAULT_CHAT,
 } from './services/storage';
 import { driveService } from './services/driveService';
+import { aimContextService } from './services/aimContextService';
+import { jobScannerService } from './services/jobScannerService';
 import { Header } from './components/common/Header';
 import { CoachShell } from './components/coach/CoachShell';
+import { AimHomeModule } from './components/modules/AimHomeModule';
+import { OpportunityScannerModule } from './components/modules/OpportunityScannerModule';
+import { MyProjectsModule } from './components/modules/MyProjectsModule';
+import { CheckInModule } from './components/modules/CheckInModule';
+import { HistoryModule } from './components/modules/HistoryModule';
+import { SettingsModule } from './components/modules/SettingsModule';
 import { LifeUpdateModule } from './components/modules/LifeUpdateModule';
 import { DailyPlannerModule } from './components/modules/DailyPlannerModule';
 import { GoalManifestationModule } from './components/modules/GoalManifestationModule';
@@ -53,6 +71,58 @@ export default function App() {
   const [wellnessLogs, setWellnessLogs] = useState<WellnessLog[]>(storageService.getWellnessLogs());
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(storageService.getChatMessages());
   const [lifeUpdates, setLifeUpdates] = useState<LifeUpdate[]>(storageService.getLifeUpdates());
+
+  // AIM Life OS State
+  const [aimContext, setAimContext] = useState<PersonalOperatingContext>(() => aimContextService.getContext());
+  const [aimProjects, setAimProjects] = useState<AIMProject[]>(() => aimContextService.getProjects());
+  const [homeViewMode, setHomeViewMode] = useState<'daily_os' | 'advisor'>('daily_os');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  const topJobMatch = jobScannerService.getListings().find((j) => j.fitRating === 'strong_fit') || null;
+  const [dailyRecommendation, setDailyRecommendation] = useState<DailyActionRecommendation>(() =>
+    aimContextService.generateDailyRecommendation(aimContext, aimProjects, topJobMatch)
+  );
+
+  const handleUpdateAimContext = (updated: PersonalOperatingContext) => {
+    setAimContext(updated);
+    aimContextService.saveContext(updated);
+    setDailyRecommendation(aimContextService.generateDailyRecommendation(updated, aimProjects, topJobMatch));
+  };
+
+  const handleUpdateAimProjects = (updated: AIMProject[]) => {
+    setAimProjects(updated);
+    aimContextService.saveProjects(updated);
+    setDailyRecommendation(aimContextService.generateDailyRecommendation(aimContext, updated, topJobMatch));
+  };
+
+  const handleUpdateSingleProject = (updatedProj: AIMProject) => {
+    const updated = aimProjects.map((p) => (p.id === updatedProj.id ? updatedProj : p));
+    handleUpdateAimProjects(updated);
+  };
+
+  const handleCreateAimProject = (newProj: AIMProject) => {
+    const updated = [...aimProjects, newProj];
+    handleUpdateAimProjects(updated);
+  };
+
+  const handleRefreshRecommendation = () => {
+    const freshTopJob = jobScannerService.getListings().find((j) => j.fitRating === 'strong_fit') || null;
+    const freshRec = aimContextService.generateDailyRecommendation(aimContext, aimProjects, freshTopJob);
+    setDailyRecommendation(freshRec);
+  };
+
+  const handleJobApplied = (job: JobListing) => {
+    const immIncome = aimProjects.find((p) => p.id === 'proj-immediate-income');
+    if (immIncome) {
+      const updatedImm = {
+        ...immIncome,
+        lastCompletedAction: `Applied to ${job.employer} (${job.role})`,
+        whatChanged: `Submitted application to ${job.employer} via official portal.`,
+        lastUpdated: new Date().toISOString(),
+      };
+      handleUpdateSingleProject(updatedImm);
+    }
+  };
 
   // Drive state
   const [driveState, setDriveState] = useState<Partial<DriveSyncState>>(driveService.getStoredState());
@@ -112,6 +182,10 @@ export default function App() {
   // Full reset for new user testing
   const handleResetAllData = () => {
     storageService.clearAllData();
+    localStorage.removeItem('aim_personal_context');
+    localStorage.removeItem('aim_projects_data');
+    localStorage.removeItem('aim_job_listings');
+    localStorage.removeItem('aim_job_scan_runs');
     setUserProfile({ ...DEFAULT_PROFILE });
     setMemories([...DEFAULT_MEMORIES]);
     setGoals([...DEFAULT_GOALS]);
@@ -119,6 +193,8 @@ export default function App() {
     setWellnessLogs([...DEFAULT_WELLNESS]);
     setChatMessages([...DEFAULT_CHAT]);
     setLifeUpdates([]);
+    setAimContext(aimContextService.getContext());
+    setAimProjects(aimContextService.getProjects());
     setDriveState({
       isConnected: false,
       accessToken: null,
@@ -159,13 +235,17 @@ export default function App() {
   };
 
   const navigationTabs = [
-    { id: 'home', label: 'Home', icon: Sparkles },
-    { id: 'life-update', label: 'Life Update', icon: RefreshCw, count: lifeUpdates.length },
+    { id: 'home', label: 'Today (Life OS)', icon: Sparkles },
+    { id: 'scanner', label: 'Opportunity Scanner', icon: Compass },
+    { id: 'projects', label: '10 Projects', icon: Layers, count: aimProjects.length },
+    { id: 'check-in', label: 'Check-In', icon: Send },
+    { id: 'history', label: 'Audit History', icon: Clock },
+    { id: 'settings', label: 'OS Context', icon: Sliders },
     { id: 'planner', label: 'Daily Planner', icon: Calendar, count: dailyPlan.priorityTasks.length },
     { id: 'goals', label: 'Goals', icon: Target, count: goals.length },
     { id: 'memory', label: 'Memory Vault', icon: Brain, count: memories.length },
     { id: 'wellness', label: 'Wellness', icon: Heart, count: wellnessLogs.length },
-    { id: 'chat', label: 'Advisor Dialogue', icon: MessageSquare },
+    { id: 'chat', label: 'Advisor Orbs', icon: MessageSquare },
   ];
 
   const totalLearnedItems =
@@ -190,57 +270,143 @@ export default function App() {
         unlockedSpacesCount={totalLearnedItems}
       />
 
-      {/* Sub-Navigation Bar - Visible across spaces */}
-      {activeTab !== 'home' && (
-        <nav id="aim-primary-nav" className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 px-4 lg:px-8 py-2 sticky top-[57px] z-30 shadow-sm animate-fadeIn">
-          <div className="max-w-6xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-thin">
-            {navigationTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  id={`nav-tab-${tab.id}`}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
-                    isActive
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 font-semibold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
-                  }`}
-                >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                  <span>{tab.label}</span>
-                  {typeof tab.count === 'number' && tab.count > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 font-bold border border-indigo-800">
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-      )}
+      {/* Sub-Navigation Bar - Always accessible across all spaces */}
+      <nav id="aim-primary-nav" className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 px-3 sm:px-4 lg:px-8 py-2 sticky top-[57px] z-30 shadow-sm animate-fadeIn">
+        <div className="max-w-6xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-thin">
+          {navigationTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                id={`nav-tab-${tab.id}`}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                <span>{tab.label}</span>
+                {typeof tab.count === 'number' && tab.count > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 font-bold border border-indigo-800">
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
       {/* Main Content Area */}
       <main id="aim-main-content" className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-6">
         {activeTab === 'home' && (
-          <CoachShell
-            userProfile={userProfile}
-            dailyPlan={dailyPlan}
-            goals={goals}
-            memories={memories}
-            wellnessLogs={wellnessLogs}
-            lifeUpdates={lifeUpdates}
-            onUpdateDailyPlan={handleUpdateDailyPlan}
-            onUpdateGoals={handleUpdateGoals}
-            onUpdateMemories={handleUpdateMemories}
-            onUpdateLifeUpdates={handleUpdateLifeUpdates}
-            onUpdateProfile={handleUpdateProfile}
-            onNavigateToTab={setActiveTab}
-            onOpenLifeUpdate={(initialText) => {
-              setActiveTab('life-update');
-            }}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-1.5 max-w-sm mx-auto mb-2">
+              <button
+                id="home-view-daily-os-btn"
+                onClick={() => setHomeViewMode('daily_os')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all ${
+                  homeViewMode === 'daily_os'
+                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Today's Life OS
+              </button>
+              <button
+                id="home-view-advisor-btn"
+                onClick={() => setHomeViewMode('advisor')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all ${
+                  homeViewMode === 'advisor'
+                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Advisor Sanctuary
+              </button>
+            </div>
+
+            {homeViewMode === 'daily_os' ? (
+              <AimHomeModule
+                context={aimContext}
+                projects={aimProjects}
+                topJobMatch={topJobMatch}
+                dailyRecommendation={dailyRecommendation}
+                onRefreshRecommendation={handleRefreshRecommendation}
+                onNavigateToTab={setActiveTab}
+                onSelectProject={(id) => {
+                  setSelectedProjectId(id);
+                  setActiveTab('projects');
+                }}
+                onToast={showToast}
+              />
+            ) : (
+              <CoachShell
+                userProfile={userProfile}
+                dailyPlan={dailyPlan}
+                goals={goals}
+                memories={memories}
+                wellnessLogs={wellnessLogs}
+                lifeUpdates={lifeUpdates}
+                onUpdateDailyPlan={handleUpdateDailyPlan}
+                onUpdateGoals={handleUpdateGoals}
+                onUpdateMemories={handleUpdateMemories}
+                onUpdateLifeUpdates={handleUpdateLifeUpdates}
+                onUpdateProfile={handleUpdateProfile}
+                onNavigateToTab={setActiveTab}
+                onOpenLifeUpdate={(initialText) => {
+                  setActiveTab('life-update');
+                }}
+                onToast={showToast}
+              />
+            )}
+          </div>
+        )}
+
+        {activeTab === 'scanner' && (
+          <OpportunityScannerModule
+            context={aimContext}
+            onJobApplied={handleJobApplied}
+            onToast={showToast}
+          />
+        )}
+
+        {activeTab === 'projects' && (
+          <MyProjectsModule
+            projects={aimProjects}
+            selectedProjectId={selectedProjectId}
+            onUpdateProject={handleUpdateSingleProject}
+            onCreateProject={handleCreateAimProject}
+            onToast={showToast}
+          />
+        )}
+
+        {activeTab === 'check-in' && (
+          <CheckInModule
+            context={aimContext}
+            projects={aimProjects}
+            onApplyContextUpdate={handleUpdateAimContext}
+            onApplyProjectUpdate={handleUpdateAimProjects}
+            onToast={showToast}
+            onNavigateToHome={() => setActiveTab('home')}
+          />
+        )}
+
+        {activeTab === 'history' && (
+          <HistoryModule
+            context={aimContext}
+            projects={aimProjects}
+          />
+        )}
+
+        {activeTab === 'settings' && (
+          <SettingsModule
+            context={aimContext}
+            projects={aimProjects}
+            onUpdateContext={handleUpdateAimContext}
             onToast={showToast}
           />
         )}

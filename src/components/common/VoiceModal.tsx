@@ -320,7 +320,7 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
           <div className="flex gap-2 w-full sm:w-auto">
             <input
               type="text"
-              value={transcript}
+              value={transcript || ''}
               onChange={(e) => setTranscript(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleProcessVoiceInput(transcript);

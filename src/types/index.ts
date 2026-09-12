@@ -331,4 +331,4 @@ export interface LifeUpdateAnalysisResult {
   };
 }
 
-export * from './coach';
+export * from './aimContext';

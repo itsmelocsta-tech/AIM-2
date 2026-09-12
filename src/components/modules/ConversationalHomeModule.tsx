@@ -355,7 +355,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       // Voice summary
       if (!isVoiceMuted && result.analysis?.empoweringInsight) {
         const spokenIntro = `I've cross-referenced your disclosure. ${result.analysis.empoweringInsight}`;
-        voiceEngine.speak(spokenIntro.replace(/[*#_`]/g, ''));
+        voiceEngine.speak((spokenIntro || '').replace(/[*#_`]/g, ''));
       }
     } catch (err: any) {
       console.error('Cross reference error:', err);
@@ -495,9 +495,9 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
       onUpdateChat([...newChatHistory, aimMessage]);
 
-      if (!isVoiceMuted) {
+      if (!isVoiceMuted && aimReply) {
         setIsSpeaking(true);
-        const spokenText = aimReply.replace(/[*#_`]/g, '');
+        const spokenText = (aimReply || '').replace(/[*#_`]/g, '');
         voiceEngine.speak(spokenText, () => {
           setIsSpeaking(false);
         });
@@ -605,7 +605,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             <textarea
               ref={activeTextAreaRef}
               id="aim-current-state-textarea"
-              value={currentStateText}
+              value={currentStateText || ''}
               onChange={(e) => setCurrentStateText(e.target.value)}
               rows={8}
               placeholder="Tell AIM everything: your background, current work or income, what's going well (the good), your daily habits, the frustrations you face (the bad), and the real obstacles, fears, or bad habits holding you back (the ugly)..."
@@ -763,11 +763,11 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             <textarea
               ref={activeTextAreaRef}
               id="aim-desired-state-textarea"
-              value={desiredStateText}
+              value={desiredStateText || ''}
               onChange={(e) => setDesiredStateText(e.target.value)}
               rows={8}
               placeholder="Describe who you want to become: your target identity, income level ($10k-$30k/mo+), work freedom, physical health, daily schedule, habits, relationships, and the lifestyle you are manifesting..."
-              className="w-full bg-transparent text-sm sm:text-base text-slate-100 placeholder-slate-500 focus:outline-none resize-y leading-relaxed font-sans scrollbar-thin"
+              className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 resize-none font-normal leading-relaxed"
             />
 
             {/* Quick Inspiration Chips */}

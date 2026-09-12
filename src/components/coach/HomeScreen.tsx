@@ -385,7 +385,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           >
             <input
               type="text"
-              value={guidanceInput}
+              value={guidanceInput || ''}
               onChange={(e) => setGuidanceInput(e.target.value)}
               placeholder="Ask Guidance: 'What should I do now?' or 'Move meeting to 3pm'..."
               className="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"

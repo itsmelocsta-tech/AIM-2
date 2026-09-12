@@ -95,7 +95,7 @@ export const TodayHeader: React.FC<TodayHeaderProps> = ({
             <span className="inline-block w-1 h-1 rounded-full bg-slate-600" />
             <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
               <Globe className="w-3 h-3 text-slate-500 shrink-0" />
-              <span className="truncate max-w-[120px] sm:max-w-[180px]">{effectiveTz.replace(/_/g, ' ')}</span>
+              <span className="truncate max-w-[120px] sm:max-w-[180px]">{(effectiveTz || '').replace(/_/g, ' ')}</span>
             </span>
           </div>
           <div className="flex items-baseline gap-2.5 mt-0.5">

@@ -39,15 +39,15 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
     notes: 'Feeling energized and focused.',
   };
 
-  const [sleepHours, setSleepHours] = useState(latestLog.sleepHours);
-  const [sleepQuality, setSleepQuality] = useState(latestLog.sleepQuality);
-  const [movementMinutes, setMovementMinutes] = useState(latestLog.movementMinutes);
-  const [movementType, setMovementType] = useState(latestLog.movementType);
-  const [nutritionRating, setNutritionRating] = useState(latestLog.nutritionRating);
-  const [stressLevel, setStressLevel] = useState(latestLog.stressLevel);
-  const [focusHours, setFocusHours] = useState(latestLog.focusHours);
-  const [timeInNature, setTimeInNature] = useState(latestLog.timeInNatureMinutes);
-  const [wellnessNotes, setWellnessNotes] = useState(latestLog.notes);
+  const [sleepHours, setSleepHours] = useState(latestLog.sleepHours ?? 7.5);
+  const [sleepQuality, setSleepQuality] = useState(latestLog.sleepQuality ?? 8);
+  const [movementMinutes, setMovementMinutes] = useState(latestLog.movementMinutes ?? 45);
+  const [movementType, setMovementType] = useState(latestLog.movementType || 'Strength & Walking');
+  const [nutritionRating, setNutritionRating] = useState(latestLog.nutritionRating ?? 8);
+  const [stressLevel, setStressLevel] = useState(latestLog.stressLevel ?? 3);
+  const [focusHours, setFocusHours] = useState(latestLog.focusHours ?? 5);
+  const [timeInNature, setTimeInNature] = useState(latestLog.timeInNatureMinutes ?? 30);
+  const [wellnessNotes, setWellnessNotes] = useState(latestLog.notes || '');
 
   const handleSaveLog = (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +119,7 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
                   min="4"
                   max="11"
                   step="0.5"
-                  value={sleepHours}
+                  value={sleepHours ?? 7.5}
                   onChange={(e) => setSleepHours(Number(e.target.value))}
                   className="w-full accent-indigo-500"
                 />
@@ -138,7 +138,7 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
                   type="range"
                   min="1"
                   max="10"
-                  value={sleepQuality}
+                  value={sleepQuality ?? 8}
                   onChange={(e) => setSleepQuality(Number(e.target.value))}
                   className="w-full accent-amber-500"
                 />
@@ -158,7 +158,7 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
                   min="0"
                   max="120"
                   step="5"
-                  value={movementMinutes}
+                  value={movementMinutes ?? 45}
                   onChange={(e) => setMovementMinutes(Number(e.target.value))}
                   className="w-full accent-emerald-500"
                 />
@@ -177,7 +177,7 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
                   type="range"
                   min="1"
                   max="10"
-                  value={nutritionRating}
+                  value={nutritionRating ?? 8}
                   onChange={(e) => setNutritionRating(Number(e.target.value))}
                   className="w-full accent-rose-500"
                 />
@@ -196,7 +196,7 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
                   type="range"
                   min="1"
                   max="10"
-                  value={stressLevel}
+                  value={stressLevel ?? 3}
                   onChange={(e) => setStressLevel(Number(e.target.value))}
                   className="w-full accent-sky-500"
                 />
@@ -216,7 +216,7 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
                   min="0"
                   max="90"
                   step="5"
-                  value={timeInNature}
+                  value={timeInNature ?? 30}
                   onChange={(e) => setTimeInNature(Number(e.target.value))}
                   className="w-full accent-teal-500"
                 />
@@ -229,7 +229,7 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
               </label>
               <textarea
                 rows={2}
-                value={wellnessNotes}
+                value={wellnessNotes || ''}
                 onChange={(e) => setWellnessNotes(e.target.value)}
                 placeholder="How does your physical stamina and mental focus feel today?"
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
