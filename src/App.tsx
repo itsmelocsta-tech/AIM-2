@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Calendar,
@@ -58,25 +58,116 @@ import { DriveSyncModal } from './components/modules/DriveSyncModal';
 import { FoundationSessionModal } from './components/modules/FoundationSessionModal';
 import { VoiceModal } from './components/common/VoiceModal';
 import { GlobalQuickInput } from './components/common/GlobalQuickInput';
+import { useAuth } from './context/AuthContext';
+import { firestoreRepository } from './services/repositories/firestoreRepository';
+import { AuthModal } from './components/auth/AuthModal';
 
 export default function App() {
+  const { user } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+
   // Default to calm, conversational home
   const [activeTab, setActiveTab] = useState<string>('home');
 
   // Core Life OS State
-  const [userProfile, setUserProfile] = useState<UserProfile>(storageService.getProfile());
-  const [memories, setMemories] = useState<MemoryItem[]>(storageService.getMemories());
-  const [goals, setGoals] = useState<Goal[]>(storageService.getGoals());
-  const [dailyPlan, setDailyPlan] = useState<DailyPlan>(storageService.getDailyPlan());
-  const [wellnessLogs, setWellnessLogs] = useState<WellnessLog[]>(storageService.getWellnessLogs());
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(storageService.getChatMessages());
-  const [lifeUpdates, setLifeUpdates] = useState<LifeUpdate[]>(storageService.getLifeUpdates());
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => storageService.getProfile());
+  const [memories, setMemories] = useState<MemoryItem[]>(() => storageService.getMemories());
+  const [goals, setGoals] = useState<Goal[]>(() => storageService.getGoals());
+  const [dailyPlan, setDailyPlan] = useState<DailyPlan>(() => storageService.getDailyPlan());
+  const [wellnessLogs, setWellnessLogs] = useState<WellnessLog[]>(() => storageService.getWellnessLogs());
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => storageService.getChatMessages());
+  const [lifeUpdates, setLifeUpdates] = useState<LifeUpdate[]>(() => storageService.getLifeUpdates());
 
   // AIM Life OS State
   const [aimContext, setAimContext] = useState<PersonalOperatingContext>(() => aimContextService.getContext());
   const [aimProjects, setAimProjects] = useState<AIMProject[]>(() => aimContextService.getProjects());
   const [homeViewMode, setHomeViewMode] = useState<'daily_os' | 'advisor'>('daily_os');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  // Load user data from Firestore when auth state changes
+  useEffect(() => {
+    let isCancelled = false;
+    async function loadUserData() {
+      if (!user) return;
+      try {
+        const [remoteProfile, remoteContext, remoteProjects, remoteGoals, remoteMemories, remoteWellness, remoteLifeUpdates, remotePlan] = await Promise.all([
+          firestoreRepository.getUserProfile(user.uid),
+          firestoreRepository.getUserContext(user.uid),
+          firestoreRepository.getUserProjects(user.uid),
+          firestoreRepository.getUserGoals(user.uid),
+          firestoreRepository.getUserMemories(user.uid),
+          firestoreRepository.getUserWellness(user.uid),
+          firestoreRepository.getUserLifeUpdates(user.uid),
+          firestoreRepository.getUserDailyPlan(user.uid, new Date().toISOString().split('T')[0]),
+        ]);
+
+        if (isCancelled) return;
+
+        if (remoteProfile) {
+          setUserProfile(remoteProfile);
+          storageService.saveProfile(remoteProfile);
+        } else {
+          // Initialize fresh profile for this user
+          const initialProfile: UserProfile = {
+            id: user.uid,
+            name: user.displayName || (user.isAnonymous ? 'Guest User' : user.email?.split('@')[0] || 'AIM User'),
+            email: user.email || '',
+            location: '',
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Chicago',
+            desiredIdentity: '',
+            coreMission: '',
+            currentMonthlyIncome: 0,
+            targetMonthlyIncome: 0,
+            primaryObstacle: '',
+            topSkills: [],
+            coreValues: [],
+            ninetyDayTrajectory: '',
+            onboardingCompleted: false,
+            createdAt: new Date().toISOString(),
+          };
+          setUserProfile(initialProfile);
+          storageService.saveProfile(initialProfile);
+          await firestoreRepository.saveUserProfile(user.uid, initialProfile);
+        }
+
+        if (remoteContext) {
+          setAimContext(remoteContext);
+          aimContextService.saveContext(remoteContext);
+        }
+        if (remoteProjects && remoteProjects.length > 0) {
+          setAimProjects(remoteProjects);
+          aimContextService.saveProjects(remoteProjects);
+        }
+        if (remoteGoals && remoteGoals.length > 0) {
+          setGoals(remoteGoals);
+          storageService.saveGoals(remoteGoals);
+        }
+        if (remoteMemories && remoteMemories.length > 0) {
+          setMemories(remoteMemories);
+          storageService.saveMemories(remoteMemories);
+        }
+        if (remoteWellness && remoteWellness.length > 0) {
+          setWellnessLogs(remoteWellness);
+          storageService.saveWellnessLogs(remoteWellness);
+        }
+        if (remoteLifeUpdates && remoteLifeUpdates.length > 0) {
+          setLifeUpdates(remoteLifeUpdates);
+          storageService.saveLifeUpdates(remoteLifeUpdates);
+        }
+        if (remotePlan) {
+          setDailyPlan(remotePlan);
+          storageService.saveDailyPlan(remotePlan);
+        }
+      } catch (err) {
+        console.warn('[App] Error syncing remote user data:', err);
+      }
+    }
+
+    loadUserData();
+    return () => {
+      isCancelled = true;
+    };
+  }, [user]);
 
   const topJobMatch = jobScannerService.getListings().find((j) => j.fitRating === 'strong_fit') || null;
   const [dailyRecommendation, setDailyRecommendation] = useState<DailyActionRecommendation>(() =>
@@ -86,12 +177,18 @@ export default function App() {
   const handleUpdateAimContext = (updated: PersonalOperatingContext) => {
     setAimContext(updated);
     aimContextService.saveContext(updated);
+    if (user?.uid) {
+      firestoreRepository.saveUserContext(user.uid, updated).catch(console.warn);
+    }
     setDailyRecommendation(aimContextService.generateDailyRecommendation(updated, aimProjects, topJobMatch));
   };
 
   const handleUpdateAimProjects = (updated: AIMProject[]) => {
     setAimProjects(updated);
     aimContextService.saveProjects(updated);
+    if (user?.uid) {
+      firestoreRepository.saveUserProjects(user.uid, updated).catch(console.warn);
+    }
     setDailyRecommendation(aimContextService.generateDailyRecommendation(aimContext, updated, topJobMatch));
   };
 
@@ -147,26 +244,41 @@ export default function App() {
   const handleUpdateProfile = (profile: UserProfile) => {
     setUserProfile(profile);
     storageService.saveProfile(profile);
+    if (user?.uid) {
+      firestoreRepository.saveUserProfile(user.uid, profile).catch(console.warn);
+    }
   };
 
   const handleUpdateMemories = (mems: MemoryItem[]) => {
     setMemories(mems);
     storageService.saveMemories(mems);
+    if (user?.uid) {
+      firestoreRepository.saveUserMemories(user.uid, mems).catch(console.warn);
+    }
   };
 
   const handleUpdateGoals = (gls: Goal[]) => {
     setGoals(gls);
     storageService.saveGoals(gls);
+    if (user?.uid) {
+      firestoreRepository.saveUserGoals(user.uid, gls).catch(console.warn);
+    }
   };
 
   const handleUpdateDailyPlan = (plan: DailyPlan) => {
     setDailyPlan(plan);
     storageService.saveDailyPlan(plan);
+    if (user?.uid) {
+      firestoreRepository.saveUserDailyPlan(user.uid, plan).catch(console.warn);
+    }
   };
 
   const handleUpdateWellnessLogs = (logs: WellnessLog[]) => {
     setWellnessLogs(logs);
     storageService.saveWellnessLogs(logs);
+    if (user?.uid) {
+      firestoreRepository.saveUserWellness(user.uid, logs).catch(console.warn);
+    }
   };
 
   const handleUpdateChatMessages = (msgs: ChatMessage[]) => {
@@ -177,10 +289,16 @@ export default function App() {
   const handleUpdateLifeUpdates = (updates: LifeUpdate[]) => {
     setLifeUpdates(updates);
     storageService.saveLifeUpdates(updates);
+    if (user?.uid) {
+      firestoreRepository.saveUserLifeUpdates(user.uid, updates).catch(console.warn);
+    }
   };
 
   // Full reset for new user testing
-  const handleResetAllData = () => {
+  const handleResetAllData = async () => {
+    if (user?.uid) {
+      await firestoreRepository.deleteAllUserData(user.uid).catch(console.warn);
+    }
     storageService.clearAllData();
     localStorage.removeItem('aim_personal_context');
     localStorage.removeItem('aim_projects_data');
@@ -203,7 +321,7 @@ export default function App() {
       syncedFiles: [],
     });
     setActiveTab('home');
-    showToast('All app information cleared. Restarted as fresh new user!');
+    showToast('All data reset to a clean baseline.');
   };
 
   // Quick Action Handler from Chat
@@ -265,6 +383,9 @@ export default function App() {
         onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
         onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
         onOpenFoundationModal={() => setIsFoundationModalOpen(true)}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        isAuthenticated={Boolean(user)}
+        userEmail={user?.email || (user?.isAnonymous ? 'Guest Account' : null)}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         unlockedSpacesCount={totalLearnedItems}
@@ -527,6 +648,11 @@ export default function App() {
           })
         }
         onToast={showToast}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
       />
 
       {/* Toast Alert Pill */}

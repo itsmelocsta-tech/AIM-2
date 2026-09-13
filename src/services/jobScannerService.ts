@@ -29,13 +29,13 @@ export interface JobScannerConfig {
 }
 
 export const DEFAULT_SCANNER_CONFIG: JobScannerConfig = {
-  location: 'Fort Worth, Texas',
-  radiusMiles: 35,
-  weekdayScheduleEnabled: true,
-  scheduledTime: '07:30',
-  filterVehicleProvidedOnly: true,
-  filterNonCdlOnly: true,
-  filterNoHeavyLifting: true,
+  location: '',
+  radiusMiles: 25,
+  weekdayScheduleEnabled: false,
+  scheduledTime: '08:00',
+  filterVehicleProvidedOnly: false,
+  filterNonCdlOnly: false,
+  filterNoHeavyLifting: false,
   filterDirectEmployerOnly: false,
   filterNewSinceLastScan: false,
 };
@@ -274,7 +274,7 @@ export const VERIFIED_DFW_SEED_LISTINGS: JobListing[] = [
       'Punctuality is strictly monitored',
     ],
     whyItFits:
-      'Plays right to your professional demeanor and The Ride Guys passenger experience. Convenient local Fort Worth dispatch.',
+      'Matches professional passenger transportation criteria with convenient employer dispatch.',
     listingHash: 'sewell automotive companies:client courtesy shuttle driver:fort worth tx',
     firstSeenDate: '2026-09-06T11:00:00.000Z',
     lastSeenDate: '2026-09-07T12:00:00.000Z',
@@ -310,13 +310,13 @@ export const VERIFIED_DFW_SEED_LISTINGS: JobListing[] = [
     sourceName: 'Trinity Metro Careers',
     fitRating: 'conditional_fit',
     fitReason:
-      'High hourly pay and city transit stability with company van provided. Marked conditional due to 3-year driving history requirement which may require manual review of your 2019-2022 driving tenure because your license was reissued in Aug 2026.',
+      'Hourly pay and public transit stability with company van provided. Review required for 3-year driving history tenure.',
     watchOuts: [
-      'License reissued Aug 2026: recruiter must be informed that you have held a Texas license since at least 2019',
+      'Ensure recruiter verifies overall driving tenure length',
       'Requires passenger assistance certification during paid training',
     ],
     whyItFits:
-      'Higher pay tier ($18.50-$21.00/hr), union/public transit stability, Fort Worth central dispatch.',
+      'Provides transit stability and employer-provided vehicle dispatch.',
     listingHash: 'trinity metro:paratransit access community van operator:fort worth tx',
     firstSeenDate: '2026-09-02T08:00:00.000Z',
     lastSeenDate: '2026-09-07T12:00:00.000Z',
@@ -474,10 +474,37 @@ export const VERIFIED_DFW_SEED_LISTINGS: JobListing[] = [
   },
 ];
 
+const safeStorage = {
+  getItem(key: string): string | null {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return null;
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem(key: string, value: string): void {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // ignore
+    }
+  },
+  removeItem(key: string): void {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  },
+};
+
 export const jobScannerService = {
   isDemoDataAllowed(): boolean {
     try {
-      return localStorage.getItem(JOB_STORAGE_KEYS.ALLOW_DEMO_DATA) === 'true';
+      return safeStorage.getItem(JOB_STORAGE_KEYS.ALLOW_DEMO_DATA) === 'true';
     } catch {
       return false;
     }
@@ -485,7 +512,7 @@ export const jobScannerService = {
 
   setDemoDataAllowed(allowed: boolean): void {
     try {
-      localStorage.setItem(JOB_STORAGE_KEYS.ALLOW_DEMO_DATA, allowed ? 'true' : 'false');
+      safeStorage.setItem(JOB_STORAGE_KEYS.ALLOW_DEMO_DATA, allowed ? 'true' : 'false');
     } catch (e) {
       console.error('[jobScannerService] Failed to set allow demo data:', e);
     }
@@ -498,7 +525,7 @@ export const jobScannerService = {
   getListings(): JobListing[] {
     try {
       const allowDemo = this.isDemoDataAllowed();
-      const data = localStorage.getItem(JOB_STORAGE_KEYS.LISTINGS);
+      const data = safeStorage.getItem(JOB_STORAGE_KEYS.LISTINGS);
       if (data) {
         const parsed: JobListing[] = JSON.parse(data);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -526,7 +553,7 @@ export const jobScannerService = {
 
   saveListings(listings: JobListing[]): void {
     try {
-      localStorage.setItem(JOB_STORAGE_KEYS.LISTINGS, JSON.stringify(listings));
+      safeStorage.setItem(JOB_STORAGE_KEYS.LISTINGS, JSON.stringify(listings));
     } catch (e) {
       console.error('[jobScannerService] Failed to save listings:', e);
     }
@@ -534,7 +561,7 @@ export const jobScannerService = {
 
   getScanRuns(): JobScanRun[] {
     try {
-      const data = localStorage.getItem(JOB_STORAGE_KEYS.SCAN_RUNS);
+      const data = safeStorage.getItem(JOB_STORAGE_KEYS.SCAN_RUNS);
       return data ? JSON.parse(data) : [];
     } catch {
       return [];
@@ -543,7 +570,7 @@ export const jobScannerService = {
 
   saveScanRuns(runs: JobScanRun[]): void {
     try {
-      localStorage.setItem(JOB_STORAGE_KEYS.SCAN_RUNS, JSON.stringify(runs));
+      safeStorage.setItem(JOB_STORAGE_KEYS.SCAN_RUNS, JSON.stringify(runs));
     } catch (e) {
       console.error('[jobScannerService] Failed to save scan runs:', e);
     }
@@ -551,7 +578,7 @@ export const jobScannerService = {
 
   getMaterialChanges(): JobMaterialChange[] {
     try {
-      const data = localStorage.getItem(JOB_STORAGE_KEYS.MATERIAL_CHANGES);
+      const data = safeStorage.getItem(JOB_STORAGE_KEYS.MATERIAL_CHANGES);
       return data ? JSON.parse(data) : [];
     } catch {
       return [];
@@ -560,7 +587,7 @@ export const jobScannerService = {
 
   saveMaterialChanges(changes: JobMaterialChange[]): void {
     try {
-      localStorage.setItem(JOB_STORAGE_KEYS.MATERIAL_CHANGES, JSON.stringify(changes));
+      safeStorage.setItem(JOB_STORAGE_KEYS.MATERIAL_CHANGES, JSON.stringify(changes));
     } catch (e) {
       console.error('[jobScannerService] Failed to save material changes:', e);
     }
@@ -568,7 +595,7 @@ export const jobScannerService = {
 
   getConfig(): JobScannerConfig {
     try {
-      const data = localStorage.getItem(JOB_STORAGE_KEYS.SCANNER_CONFIG);
+      const data = safeStorage.getItem(JOB_STORAGE_KEYS.SCANNER_CONFIG);
       return data ? JSON.parse(data) : DEFAULT_SCANNER_CONFIG;
     } catch {
       return DEFAULT_SCANNER_CONFIG;
@@ -577,7 +604,7 @@ export const jobScannerService = {
 
   saveConfig(config: JobScannerConfig): void {
     try {
-      localStorage.setItem(JOB_STORAGE_KEYS.SCANNER_CONFIG, JSON.stringify(config));
+      safeStorage.setItem(JOB_STORAGE_KEYS.SCANNER_CONFIG, JSON.stringify(config));
     } catch (e) {
       console.error('[jobScannerService] Failed to save config:', e);
     }
@@ -585,66 +612,71 @@ export const jobScannerService = {
 
   /**
    * Evaluates candidate job listing against user constraints:
-   * 1. Personal vehicle required? -> EXCLUDED
-   * 2. CDL required? -> EXCLUDED
-   * 3. Heavy lifting (>45 lbs) or warehouse/construction manual labor? -> EXCLUDED
-   * 4. Driving history requirement >= 36 months when license reissued Aug 2026? -> CONDITIONAL FIT with warning
-   * 5. Employer provided vehicle on duty + Class C + customer service? -> STRONG FIT
+   * 1. Personal vehicle required while user has no vehicle -> EXCLUDED
+   * 2. CDL required while user is non-CDL -> EXCLUDED
+   * 3. Heavy lifting / manual labor against preferences -> EXCLUDED
+   * 4. Driving history requirement check against profile
+   * 5. Vehicle provided -> STRONG / POSSIBLE FIT
    */
   evaluateFit(
     job: Partial<JobListing>,
     userContext?: PersonalOperatingContext
   ): { fitRating: JobFitRating; fitReason: string; watchOuts: string[] } {
     const watchOuts: string[] = [];
+    const hasPersonalCar = userContext?.transportation?.hasPersonalVehicle ?? (userContext?.hasPersonalVehicle ?? true);
+    const cdlQualified = userContext?.transportation?.cdlQualified ?? false;
 
     // Personal vehicle check
-    if (job.vehiclePolicy === 'personal_required') {
+    if (job.vehiclePolicy === 'personal_required' && !hasPersonalCar) {
       return {
         fitRating: 'excluded',
-        fitReason: 'EXCLUDED: Requires applicant to provide their own personal vehicle. You do not currently have a personal car.',
+        fitReason: 'EXCLUDED: Requires applicant to supply their own vehicle, which conflicts with your vehicle access profile.',
         watchOuts: ['Requires personal vehicle'],
       };
     }
 
     // CDL check
-    if (job.cdlRequired || (job.licenseRequired && job.licenseRequired.toLowerCase().includes('cdl'))) {
+    if ((job.cdlRequired || (job.licenseRequired && job.licenseRequired.toLowerCase().includes('cdl'))) && !cdlQualified) {
       return {
         fitRating: 'excluded',
-        fitReason: 'EXCLUDED: Requires a Commercial Driver License (CDL-A or CDL-B). You hold a Texas non-CDL Class C license.',
+        fitReason: 'EXCLUDED: Requires Commercial Driver License (CDL), which is outside your current qualification profile.',
         watchOuts: ['Commercial CDL required'],
       };
     }
 
     // Heavy labor / warehouse check
     const desc = `${job.role || ''} ${job.physicalRequirements || ''} ${job.liftingRequirements || ''}`.toLowerCase();
+    const avoidHeavyLabor = userContext?.workPreferences?.avoidHeavyLifting || userContext?.workPreferences?.avoidPrimaryManualLabor;
     if (
-      desc.includes('warehouse') ||
-      desc.includes('order picker') ||
-      desc.includes('stager') ||
-      desc.includes('construction') ||
-      desc.includes('heavy manual labor') ||
-      desc.includes('70 lbs') ||
-      desc.includes('75 lbs') ||
-      desc.includes('lift 60')
+      avoidHeavyLabor &&
+      (desc.includes('warehouse') ||
+        desc.includes('order picker') ||
+        desc.includes('construction') ||
+        desc.includes('heavy manual labor') ||
+        desc.includes('70 lbs') ||
+        desc.includes('75 lbs') ||
+        desc.includes('lift 60'))
     ) {
       return {
         fitRating: 'excluded',
-        fitReason: 'EXCLUDED: Manual freight labor, warehouse picking, or heavy lifting. Violates your preference for customer-facing driving.',
+        fitReason: 'EXCLUDED: Heavy freight labor or warehouse manual lifting matches your exclusion preferences.',
         watchOuts: ['Heavy manual or warehouse labor'],
       };
     }
 
-    // Driving history tenure check (Aug 2026 reissue note)
-    if (job.minimumLicenseTenureMonths && job.minimumLicenseTenureMonths >= 36) {
-      watchOuts.push(
-        'Requires 3+ years driving history. Your license was reissued in August 2026; provide prior DMV record or The Ride Guys (2019-2022) tenure during interview.'
-      );
-      return {
-        fitRating: 'conditional_fit',
-        fitReason:
-          'Conditional Fit: Company vehicle is provided on duty, but position lists 3+ years license history. Requires manual review of your 2019-2022 chauffeur driving record.',
-        watchOuts,
-      };
+    // Driving history tenure check
+    if (job.minimumLicenseTenureMonths && job.minimumLicenseTenureMonths >= 24) {
+      if (userContext?.transportation?.apparentHistoryUnderOneYear) {
+        watchOuts.push(
+          'Posting lists driving tenure requirement. Be prepared with prior DMV records or experience documentation if license was recently reissued.'
+        );
+        return {
+          fitRating: 'conditional_fit',
+          fitReason:
+            'Conditional Fit: Matches vehicle and license requirements, but requires tenure verification for recent reissue notes.',
+          watchOuts,
+        };
+      }
     }
 
     // Vehicle provided check
@@ -653,14 +685,14 @@ export const jobScannerService = {
         return {
           fitRating: 'strong_fit',
           fitReason:
-            'Strong Fit: Employer provides vehicle on-duty. Texas non-CDL Class C accepted. Customer-facing driving matches your 2019-2022 chauffeur background with zero personal vehicle required.',
+            'Strong Fit: Employer provides vehicle on-duty. Customer-facing role matches your specified preferences.',
           watchOuts,
         };
       }
       return {
         fitRating: 'possible_fit',
         fitReason:
-          'Possible Fit: Employer provides vehicle on-duty. Non-CDL accepted. Logistics/fleet transport with low physical strain.',
+          'Possible Fit: Employer provides vehicle on-duty. Fleet/logistics role with minimal vehicle wear.',
         watchOuts,
       };
     }

@@ -29,14 +29,14 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
 }) => {
   const [formData, setFormData] = useState<PersonalOperatingContext>(() => ({
     ...context,
-    location: context?.location || 'Fort Worth, Texas',
-    searchRadiusMiles: context?.searchRadiusMiles || 35,
+    location: context?.location || '',
+    searchRadiusMiles: context?.searchRadiusMiles || 25,
     hasPersonalVehicle: context?.hasPersonalVehicle ?? context?.transportation?.hasPersonalVehicle ?? false,
-    needsEmployerVehicle: context?.needsEmployerVehicle ?? context?.transportation?.needsEmployerVehicle ?? true,
-    driverLicenseType: context?.driverLicenseType || context?.transportation?.driverLicenseType || 'Texas non-CDL Class C',
+    needsEmployerVehicle: context?.needsEmployerVehicle ?? context?.transportation?.needsEmployerVehicle ?? false,
+    driverLicenseType: context?.driverLicenseType || context?.transportation?.driverLicenseType || '',
     cleanDrivingRecord: context?.cleanDrivingRecord ?? context?.transportation?.cleanDrivingRecord ?? true,
-    licenseReissueDateNote: context?.licenseReissueDateNote || context?.transportation?.licenseReissueDate || 'August 2026',
-    historicalDrivingExperience: context?.historicalDrivingExperience || context?.transportation?.historicalDrivingExp || 'Passenger and chauffeur driving experience through The Ride Guys (approx. 2019–2022)',
+    licenseReissueDateNote: context?.licenseReissueDateNote || context?.transportation?.licenseReissueDate || '',
+    historicalDrivingExperience: context?.historicalDrivingExperience || context?.transportation?.historicalDrivingExp || '',
     autoScanWeekdays: context?.autoScanWeekdays ?? true,
     scanTime: context?.scanTime || '07:30 AM',
   }));
@@ -121,6 +121,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
               <input
                 type="text"
                 value={formData.location || ''}
+                placeholder="e.g. Austin, TX or Chicago, IL"
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
               />
@@ -129,14 +130,14 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
             <div>
               <label className="block text-slate-400 font-semibold mb-1">Search Radius (Miles)</label>
               <select
-                value={formData.searchRadiusMiles || 35}
+                value={formData.searchRadiusMiles || 25}
                 onChange={(e) => setFormData({ ...formData, searchRadiusMiles: Number(e.target.value) })}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
               >
-                <option value={15}>15 Miles (Fort Worth core)</option>
-                <option value={25}>25 Miles (Fort Worth + Arlington)</option>
-                <option value={35}>35 Miles (Fort Worth + DFW Airport corridor)</option>
-                <option value={50}>50 Miles (Greater DFW Metroplex)</option>
+                <option value={15}>15 Miles (Local core)</option>
+                <option value={25}>25 Miles (Standard commute)</option>
+                <option value={35}>35 Miles (Extended metro area)</option>
+                <option value={50}>50 Miles (Greater regional area)</option>
               </select>
             </div>
           </div>
@@ -195,6 +196,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
               <input
                 type="text"
                 value={formData.driverLicenseType || ''}
+                placeholder="e.g. Class C, Regular, Commercial"
                 onChange={(e) => setFormData({ ...formData, driverLicenseType: e.target.value })}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
               />
@@ -202,12 +204,14 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
 
             <div>
               <label className="block text-slate-400 font-semibold mb-1">MVR Record Status</label>
-              <input
-                type="text"
-                value={formData.cleanDrivingRecord ? 'Clean Driving Record (Zero Violations)' : 'Violations on Record'}
-                readOnly
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-emerald-400 font-medium"
-              />
+              <select
+                value={formData.cleanDrivingRecord ? 'clean' : 'violations'}
+                onChange={(e) => setFormData({ ...formData, cleanDrivingRecord: e.target.value === 'clean' })}
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-medium"
+              >
+                <option value="clean">Clean Driving Record (Zero Violations)</option>
+                <option value="violations">Points / Infractions on Record</option>
+              </select>
             </div>
 
             <div>
@@ -215,16 +219,18 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
               <input
                 type="text"
                 value={formData.licenseReissueDateNote || ''}
+                placeholder="e.g. Reissued recently, original history 5+ years"
                 onChange={(e) => setFormData({ ...formData, licenseReissueDateNote: e.target.value })}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
               />
             </div>
 
             <div>
-              <label className="block text-slate-400 font-semibold mb-1">Historical Passenger Experience</label>
+              <label className="block text-slate-400 font-semibold mb-1">Historical Experience Notes</label>
               <input
                 type="text"
                 value={formData.historicalDrivingExperience || ''}
+                placeholder="e.g. Passenger transportation, courier, route delivery"
                 onChange={(e) => setFormData({ ...formData, historicalDrivingExperience: e.target.value })}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
               />
@@ -296,7 +302,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
                 <AlertTriangle className="w-4 h-4" /> Are you sure you want to reset all data?
               </div>
               <p className="text-[11px] text-red-200">
-                This will clear local edits and restore the initial 10 projects and Fort Worth context baseline.
+                This will clear edits and restore a clean operating baseline.
               </p>
               <div className="flex items-center gap-2 pt-1">
                 <button

@@ -1,5 +1,19 @@
 import { UserProfile, DailyPlan, MonetizationOffer, CoachId, CoachResponse, ScheduleItem, Goal, MemoryItem, WellnessLog, LifeUpdate } from '../types';
 import { intelligenceService, CompactOrbContext, LifePriorityAssessmentResult, WisdomSynthesisResultClient } from './intelligenceService';
+import { getIdToken } from './firebaseClient';
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  try {
+    const token = await getIdToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch {
+    // ignore
+  }
+  return headers;
+}
 
 export const api = {
   async interactWithCoach(params: {
@@ -20,9 +34,10 @@ export const api = {
     compactContext?: CompactOrbContext;
   }): Promise<CoachResponse> {
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/aim/coach/interact', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -86,9 +101,10 @@ export const api = {
     contextCategory?: string;
   }): Promise<{ reply: string; extractedCategory?: string }> {
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/aim/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -111,9 +127,10 @@ export const api = {
     userProfile?: UserProfile;
   }): Promise<Partial<MonetizationOffer>> {
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/aim/monetize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -159,9 +176,10 @@ export const api = {
     dayNotes?: string;
   }): Promise<any> {
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/aim/plan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -214,9 +232,10 @@ export const api = {
     fullMarkdownDocument: string;
   }> {
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/aim/creative', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -242,9 +261,10 @@ export const api = {
     userProfile?: UserProfile;
   }): Promise<import('../types').CrossReferenceResult> {
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/aim/cross-reference', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -367,9 +387,10 @@ export const api = {
     recentUpdates?: import('../types').LifeUpdate[];
   }): Promise<import('../types').LifeUpdateAnalysisResult> {
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/aim/life-update-analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {

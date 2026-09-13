@@ -639,8 +639,8 @@ export class AIMOsService {
           verifiedStored.length === 0
             ? 'No verified current openings found. Real-world search suggestions provided below.'
             : `Preserved ${verifiedStored.length} verified opening(s).`,
-        searchRadiusMiles: params.radiusMiles || 35,
-        searchCenter: params.location || 'Fort Worth, Texas',
+        searchRadiusMiles: params.radiusMiles || 25,
+        searchCenter: params.location || 'Local Area',
         isMock: false,
         liveProviderConnected: false,
       };
@@ -705,9 +705,9 @@ export class AIMOsService {
       materialChangesCount: 0,
       status: 'success',
       isWeekdayScheduled: Boolean(params.isWeekdayScheduled),
-      summaryMessage: 'DEMO DATA: 3 simulated positions loaded for UI testing only. Excluded from production database.',
-      searchRadiusMiles: params.radiusMiles || 35,
-      searchCenter: params.location || 'Fort Worth, Texas',
+      summaryMessage: 'DEMO DATA: Simulated positions loaded for UI testing only. Excluded from production database.',
+      searchRadiusMiles: params.radiusMiles || 25,
+      searchCenter: params.location || 'Local Area',
       isMock: true,
       liveProviderConnected: false,
     };

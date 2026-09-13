@@ -9,6 +9,7 @@ import { AIMMomentumEngine } from './server/momentum/AIMMomentumEngine';
 import { AIMSharedIntelligenceService } from './server/intelligence/AIMSharedIntelligenceService';
 import { AIMVoiceService } from './server/voice/AIMVoiceService';
 import { AIMOsService } from './server/aimOsService';
+import { verifyAuthToken } from './server/firebaseAdmin';
 
 dotenv.config();
 
@@ -16,6 +17,7 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
+app.use('/api', verifyAuthToken);
 
 // Lazy Google GenAI Client
 let genAIClient: GoogleGenAI | null = null;
@@ -1488,29 +1490,37 @@ app.post('/api/aim/context/check-in', async (req: Request, res: Response) => {
     const detectedProjectChanges: any[] = [];
     const detectedContextChanges: any[] = [];
 
-    // Conflict detection rules:
+    // Conflict detection rules based strictly on user's actual context:
+    const hasNoCar = context && (context.hasPersonalVehicle === false || context.transportation?.hasPersonalVehicle === false);
+    const needsEmployerCar = context && (context.needsEmployerVehicle === true || context.transportation?.needsEmployerVehicle === true);
+
     if (
-      lower.includes('using my car') ||
-      lower.includes('my personal vehicle') ||
-      lower.includes('bought a car') ||
-      lower.includes('deliver in my car')
+      hasNoCar &&
+      needsEmployerCar &&
+      (lower.includes('using my car') ||
+        lower.includes('my personal vehicle') ||
+        lower.includes('bought a car') ||
+        lower.includes('deliver in my car'))
     ) {
       conflicts.push(
-        'Confirmed Fact Conflict: You currently do NOT have a personal vehicle and require an employer-provided vehicle. Does this update confirm you acquired a personal vehicle?'
+        'Vehicle Status Conflict: Your current settings indicate you do not have a personal vehicle available. Does this update confirm you acquired or are using a personal vehicle?'
       );
     }
 
-    if (lower.includes('got my cdl') || lower.includes('applying for cdl-a') || lower.includes('class a cdl')) {
+    const licenseType = context?.driverLicenseType || context?.transportation?.driverLicenseType || '';
+    const isNotCdl = licenseType && !licenseType.toLowerCase().includes('cdl a') && !context?.transportation?.cdlQualified;
+
+    if (isNotCdl && (lower.includes('got my cdl') || lower.includes('applying for cdl-a') || lower.includes('class a cdl'))) {
       conflicts.push(
-        'Stored Qualification Conflict: You hold a Texas non-CDL Class C license. Did you obtain a Commercial Driver License (CDL)?'
+        `Stored Qualification Conflict: Your profile lists license "${licenseType}". Did you obtain a Commercial Driver License (CDL)?`
       );
     }
 
-    // Evaluate against active projects
+    // Evaluate against user's actual active projects
     const projs = Array.isArray(projects) ? projects : [];
     for (const proj of projs) {
-      const pNameLower = proj.name.toLowerCase();
-      if (lower.includes(pNameLower)) {
+      const pNameLower = (proj.name || '').toLowerCase();
+      if (pNameLower && lower.includes(pNameLower)) {
         if (lower.includes('pause') || lower.includes('put on hold') || lower.includes('hold on')) {
           detectedProjectChanges.push({
             projectId: proj.id,
@@ -1529,7 +1539,7 @@ app.post('/api/aim/context/check-in', async (req: Request, res: Response) => {
             hasConflict: proj.priority === 1,
             conflictDescription:
               proj.priority === 1
-                ? 'Immediate Income is your highest-priority objective. Are you sure you want to mark it completed?'
+                ? `"${proj.name}" is your highest-priority objective. Are you sure you want to mark it completed?`
                 : undefined,
           });
         } else if (lower.includes('blocked') || lower.includes('stuck') || lower.includes('cant continue')) {
@@ -1543,29 +1553,6 @@ app.post('/api/aim/context/check-in', async (req: Request, res: Response) => {
           });
         }
       }
-    }
-
-    // Specific key phrases
-    if (lower.includes('landing page') && (lower.includes('finished') || lower.includes('done') || lower.includes('live'))) {
-      detectedProjectChanges.push({
-        projectId: 'proj-brandnmotion',
-        projectName: 'BrandNMotion',
-        proposedLastAction: 'Finished the landing page.',
-        proposedNextAction: 'Deploy client outreach campaign with the new landing page.',
-        explanation: 'Updated BrandNMotion with completed landing page.',
-        hasConflict: false,
-      });
-    }
-
-    if (lower.includes('applied') && (lower.includes('shuttle') || lower.includes('driver') || lower.includes('job'))) {
-      detectedProjectChanges.push({
-        projectId: 'proj-immediate-income',
-        projectName: 'Immediate Income',
-        proposedLastAction: text,
-        proposedNextAction: 'Follow up with recruiter within 48 hours.',
-        explanation: 'Recorded driving job application under Immediate Income.',
-        hasConflict: false,
-      });
     }
 
     const hasConflict = conflicts.length > 0;
@@ -1593,35 +1580,60 @@ app.post('/api/aim/recommendations/daily', async (req: Request, res: Response) =
     const { context, projects, topJobMatch } = req.body;
 
     const projs = Array.isArray(projects) && projects.length > 0 ? projects : [];
-    const immIncome = projs.find((p: any) => p.id === 'proj-immediate-income') || projs[0];
-    const rideGuys = projs.find((p: any) => p.id === 'proj-ride-guys-detail') || projs[1];
+    const activeProjects = projs.filter((p: any) => p.status === 'active' || p.status === 'in_progress');
+    const sortedProjects = (activeProjects.length > 0 ? activeProjects : projs).slice().sort((a: any, b: any) => (a.priority || 99) - (b.priority || 99));
 
-    let moneyMoveTitle = 'Search Fort Worth verified company-vehicle driver positions';
-    let moneyMoveWhy = 'Immediate income is your highest-priority objective. Searching verified employer-provided vehicle roles on official careers portals requires $0 upfront capital.';
-    let moneyMoveNeeded = 'Texas non-CDL Class C driver license, clean driving history record, contact phone/email.';
-    let moneyMoveBlocker = 'Lack of personal vehicle requires verifying that the employer provides the vehicle on duty.';
-    let moneyMoveDone = 'Submit 1 application via official employer career portal with direct confirmation number.';
+    const primaryProject = sortedProjects[0] || null;
+    const secondaryProject = sortedProjects[1] || null;
+
+    let moneyMoveTitle = primaryProject ? `Execute next step on ${primaryProject.name}` : 'Define your primary focus and active project';
+    let moneyMoveWhy = primaryProject ? (primaryProject.purpose || primaryProject.goal || 'Top priority focus.') : 'Establishing a concrete goal anchors your daily operating actions.';
+    let moneyMoveNeeded = primaryProject?.nextAction || 'Open your Projects tab and create your primary active objective.';
+    let moneyMoveBlocker = primaryProject?.blockers?.[0] || 'Unscheduled time blocks or distraction.';
+    let moneyMoveDone = primaryProject ? `Completed: ${primaryProject.nextAction}` : 'Logged first active project.';
     let moneyMoveType: 'recommendation_with_verified_job' | 'recommendation_with_search_action' = 'recommendation_with_search_action';
+    let primaryProjectId = primaryProject?.id || 'general-focus';
 
     // ZERO FABRICATION RULE: Only link a specific job if it is verified, non-mock, and active!
-    if (topJobMatch && !topJobMatch.is_mock && !topJobMatch.isMock && topJobMatch.status === 'active' && topJobMatch.provenance === 'verified') {
+    if (topJobMatch && !topJobMatch.is_mock && !topJobMatch.isMock && topJobMatch.status === 'active' && topJobMatch.provenance === 'verified_live') {
       moneyMoveTitle = `Apply to ${topJobMatch.employer} (${topJobMatch.role})`;
-      moneyMoveWhy = `${topJobMatch.whyItFits || 'Matches your non-CDL experience with company vehicle provided'}. Pay: ${topJobMatch.pay}.`;
-      moneyMoveNeeded = 'Texas Class C license, direct application link, resume highlighting passenger driving.';
+      moneyMoveWhy = `${topJobMatch.whyItFits || 'Matches your specified profile requirements'}. Pay: ${topJobMatch.pay}.`;
+      moneyMoveNeeded = `Application requirements: ${topJobMatch.licenseRequired || 'Resume and credentials'}.`;
       moneyMoveBlocker = topJobMatch.watchOuts?.[0] || 'Commute to vehicle dispatch location.';
-      moneyMoveDone = `Completed direct employer application at ${topJobMatch.employer} and logged in AIM History.`;
+      moneyMoveDone = `Completed direct employer application at ${topJobMatch.employer} and logged in History.`;
       moneyMoveType = 'recommendation_with_verified_job';
+      if (primaryProject) primaryProjectId = primaryProject.id;
     }
 
+    const supportingTitle = secondaryProject ? `Advance supporting project: ${secondaryProject.name}` : 'Schedule focused deep-work time blocks';
+    const supportingWhy = secondaryProject ? (secondaryProject.purpose || secondaryProject.goal || 'Secondary momentum builder.') : 'Protecting uninterrupted focus blocks ensures follow-through.';
+    const supportingNeeded = secondaryProject?.nextAction || 'Review Daily Planner and allocate calendar blocks.';
+    const supportingBlocker = secondaryProject?.blockers?.[0] || 'Context-switching during scheduled blocks.';
+    const supportingDone = secondaryProject ? `Completed checkpoint for ${secondaryProject.name}.` : 'Schedule blocks established in Daily Planner.';
+    const secondaryProjectId = secondaryProject?.id || 'supporting-focus';
+
+    const deferItems: string[] = [];
+    const pausedProjects = projs.filter((p: any) => p.status === 'paused' || p.status === 'waiting' || p.status === 'blocked');
+    for (const p of pausedProjects) {
+      deferItems.push(`${p.name} (${p.status}: ${p.blockers?.[0] || 'deferred to protect primary focus'})`);
+    }
+    if (deferItems.length === 0) {
+      deferItems.push('Low-leverage administrative tasks during peak morning energy hours');
+      deferItems.push('Speculative opportunities that do not advance today\'s core priorities');
+    }
+
+    const userLoc = context?.location;
+    const whereYouAre = userLoc
+      ? `Operating from ${userLoc}. Managing ${projs.length} active project(s) and personal operating constraints.`
+      : projs.length > 0
+      ? `Managing ${projs.length} active project(s) with daily operating priorities configured.`
+      : 'Welcome to AIM. Set your core location, transportation, and career preferences in Settings to personalize daily recommendations.';
+
     const recommendation = {
-      whereYouAre:
-        'You are based in Fort Worth, Texas, with a clean driving record and Texas Class C license. You need immediate income, require an employer-provided vehicle for work, and are actively managing your prioritized ventures.',
-      whatChanged:
-        'Opportunity Scanner refreshed DFW company-vehicle driving opportunities. Priorities ranked with Immediate Income leading.',
-      highestPriorityGoal:
-        'Secure reliable immediate income through an employer-provided vehicle driving or shuttle position in the Fort Worth / DFW area.',
-      blockingProgress:
-        'Lack of personal vehicle requires 100% employer-provided work vehicle; Everfleet remains blocked by $340 deposit requirement.',
+      whereYouAre,
+      whatChanged: 'Daily Operating System evaluated current project milestones and priorities.',
+      highestPriorityGoal: primaryProject?.goal || 'Establish clear daily momentum on your top priority.',
+      blockingProgress: primaryProject?.blockers?.[0] || 'Define concrete next steps to avoid start friction.',
       moneyMove: {
         title: moneyMoveTitle,
         whyBestMove: moneyMoveWhy,
@@ -1629,30 +1641,24 @@ app.post('/api/aim/recommendations/daily', async (req: Request, res: Response) =
         whatIsNeeded: moneyMoveNeeded,
         whatCouldBlockIt: moneyMoveBlocker,
         definitionOfDone: moneyMoveDone,
-        projectId: immIncome?.id || 'proj-immediate-income',
+        projectId: primaryProjectId,
       },
       supportingMove: {
-        title: 'Draft Ride Guys Auto Detail 3-tier pricing and outreach script',
-        whyBestMove:
-          'Building your own client-funded service generates local cash flow and pairs directly with your automotive expertise.',
+        title: supportingTitle,
+        whyBestMove: supportingWhy,
         timeEstimate: '30m',
-        whatIsNeeded: 'Target pricing sheet ($150-$350 tiers) and a 3-sentence text message offer.',
-        whatCouldBlockIt: 'Over-complicating website setup before securing first paying client.',
-        definitionOfDone: 'Pricing sheet written down and ready to text to 3 personal or business contacts.',
-        projectId: rideGuys?.id || 'proj-ride-guys-detail',
+        whatIsNeeded: supportingNeeded,
+        whatCouldBlockIt: supportingBlocker,
+        definitionOfDone: supportingDone,
+        projectId: secondaryProjectId,
       },
-      deferForNow: [
-        'Everfleet ($340 deposit and license review required — defer until capital is secured)',
-        'Cool Fruit Truck ($60,000 loan package evaluation — paused to prioritize immediate cash)',
-        'Ride Guys second-chance rideshare (concept only — defer fleet and software build)',
-        'DDS app (blueprint stage — defer active coding until income baseline is stabilized)',
-      ],
+      deferForNow: deferItems.slice(0, 4),
       generatedAt: new Date().toISOString(),
       provenance: {
         whereYouAreSource: 'stored_user_data' as const,
         whatChangedSource: 'stored_user_data' as const,
         goalSource: 'stored_user_data' as const,
-        moneyMoveSource: moneyMoveType === 'recommendation_with_verified_job' ? ('verified' as const) : ('user_provided' as const),
+        moneyMoveSource: moneyMoveType === 'recommendation_with_verified_job' ? ('verified_live' as const) : ('user_provided' as const),
         moneyMoveType,
         lastVerifiedAt: new Date().toISOString(),
         isStale: false,

@@ -1,0 +1,165 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "title": { "type": "string" },
+        "email": { "type": "string" },
+        "location": { "type": "string" },
+        "timeZone": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id"]
+    },
+    "PersonalOperatingContext": {
+      "title": "PersonalOperatingContext",
+      "description": "User personal operating constraints and preferences",
+      "type": "object",
+      "properties": {
+        "location": { "type": "string" },
+        "searchRadiusMiles": { "type": "number" },
+        "hasPersonalVehicle": { "type": "boolean" },
+        "needsEmployerVehicle": { "type": "boolean" },
+        "driverLicenseType": { "type": "string" },
+        "cleanDrivingRecord": { "type": "boolean" },
+        "licenseReissueDateNote": { "type": "string" },
+        "historicalDrivingExperience": { "type": "string" },
+        "autoScanWeekdays": { "type": "boolean" },
+        "scanTime": { "type": "string" }
+      }
+    },
+    "AIMProject": {
+      "title": "AIMProject",
+      "description": "User tracked project or venture",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "goal": { "type": "string" },
+        "purpose": { "type": "string" },
+        "status": { "type": "string" },
+        "phase": { "type": "string" },
+        "priority": { "type": "number" },
+        "progress": { "type": "number" },
+        "whatChanged": { "type": "string" },
+        "lastCompletedAction": { "type": "string" },
+        "nextAction": { "type": "string" },
+        "category": { "type": "string" },
+        "lastUpdated": { "type": "string" }
+      },
+      "required": ["id", "name", "status"]
+    },
+    "ScheduleItem": {
+      "title": "ScheduleItem",
+      "description": "User schedule or time block item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "priority": { "type": "string" },
+        "status": { "type": "string" },
+        "sourceCoachId": { "type": "string" }
+      },
+      "required": ["id", "userId", "title", "status"]
+    },
+    "MemoryItem": {
+      "title": "MemoryItem",
+      "description": "User stored memory or principle",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "importance": { "type": "string" },
+        "source": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "content"]
+    },
+    "Goal": {
+      "title": "Goal",
+      "description": "User life or career goal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "targetDate": { "type": "string" },
+        "status": { "type": "string" },
+        "progress": { "type": "number" }
+      },
+      "required": ["id", "title", "status"]
+    },
+    "WellnessLog": {
+      "title": "WellnessLog",
+      "description": "User daily wellness log entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "energyLevel": { "type": "number" },
+        "stressLevel": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "date"]
+    },
+    "LifeUpdate": {
+      "title": "LifeUpdate",
+      "description": "User periodic life checkpoint update",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "summary": { "type": "string" },
+        "category": { "type": "string" },
+        "impact": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "summary"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Individual user profile record"
+    },
+    "/users/{userId}/settings/context": {
+      "schema": "PersonalOperatingContext",
+      "description": "User operating constraints and personal preferences"
+    },
+    "/users/{userId}/projects/{projectId}": {
+      "schema": "AIMProject",
+      "description": "User tracked project or venture"
+    },
+    "/users/{userId}/schedules/{scheduleId}": {
+      "schema": "ScheduleItem",
+      "description": "User daily scheduled items and time blocks"
+    },
+    "/users/{userId}/memories/{memoryId}": {
+      "schema": "MemoryItem",
+      "description": "User stored memories and core principles"
+    },
+    "/users/{userId}/goals/{goalId}": {
+      "schema": "Goal",
+      "description": "User goals and milestones"
+    },
+    "/users/{userId}/wellness/{wellnessId}": {
+      "schema": "WellnessLog",
+      "description": "User wellness logs and metrics"
+    },
+    "/users/{userId}/life_updates/{updateId}": {
+      "schema": "LifeUpdate",
+      "description": "User life update checkpoints"
+    }
+  }
+}

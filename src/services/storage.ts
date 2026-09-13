@@ -87,11 +87,39 @@ To get started, **tell me about yourself. Don't hold back. I want the good, the 
   },
 ];
 
+// Safe local storage abstraction that works in browser and test/SSR environments
+const safeStorage = {
+  getItem(key: string): string | null {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return null;
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem(key: string, value: string): void {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // ignore
+    }
+  },
+  removeItem(key: string): void {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  },
+};
+
 // Helper storage wrapper
 export const storageService = {
   getProfile(): UserProfile {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.PROFILE);
+      const data = safeStorage.getItem(STORAGE_KEYS.PROFILE);
       return data ? JSON.parse(data) : DEFAULT_PROFILE;
     } catch {
       return DEFAULT_PROFILE;
@@ -99,12 +127,12 @@ export const storageService = {
   },
 
   saveProfile(profile: UserProfile): void {
-    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
+    safeStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
   },
 
   getCalibration(): { currentState: string; desiredState: string; result?: any } | null {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.CALIBRATION);
+      const data = safeStorage.getItem(STORAGE_KEYS.CALIBRATION);
       return data ? JSON.parse(data) : null;
     } catch {
       return null;
@@ -113,15 +141,15 @@ export const storageService = {
 
   saveCalibration(data: { currentState: string; desiredState: string; result?: any } | null): void {
     if (!data) {
-      localStorage.removeItem(STORAGE_KEYS.CALIBRATION);
+      safeStorage.removeItem(STORAGE_KEYS.CALIBRATION);
     } else {
-      localStorage.setItem(STORAGE_KEYS.CALIBRATION, JSON.stringify(data));
+      safeStorage.setItem(STORAGE_KEYS.CALIBRATION, JSON.stringify(data));
     }
   },
 
   getMemories(): MemoryItem[] {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.MEMORIES);
+      const data = safeStorage.getItem(STORAGE_KEYS.MEMORIES);
       return data ? JSON.parse(data) : DEFAULT_MEMORIES;
     } catch {
       return DEFAULT_MEMORIES;
@@ -129,12 +157,12 @@ export const storageService = {
   },
 
   saveMemories(memories: MemoryItem[]): void {
-    localStorage.setItem(STORAGE_KEYS.MEMORIES, JSON.stringify(memories));
+    safeStorage.setItem(STORAGE_KEYS.MEMORIES, JSON.stringify(memories));
   },
 
   getGoals(): Goal[] {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.GOALS);
+      const data = safeStorage.getItem(STORAGE_KEYS.GOALS);
       return data ? JSON.parse(data) : DEFAULT_GOALS;
     } catch {
       return DEFAULT_GOALS;
@@ -142,12 +170,12 @@ export const storageService = {
   },
 
   saveGoals(goals: Goal[]): void {
-    localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(goals));
+    safeStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(goals));
   },
 
   getDeals(): DealPipelineItem[] {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.DEALS);
+      const data = safeStorage.getItem(STORAGE_KEYS.DEALS);
       return data ? JSON.parse(data) : DEFAULT_DEALS;
     } catch {
       return DEFAULT_DEALS;
@@ -155,12 +183,12 @@ export const storageService = {
   },
 
   saveDeals(deals: DealPipelineItem[]): void {
-    localStorage.setItem(STORAGE_KEYS.DEALS, JSON.stringify(deals));
+    safeStorage.setItem(STORAGE_KEYS.DEALS, JSON.stringify(deals));
   },
 
   getOffers(): MonetizationOffer[] {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.OFFERS);
+      const data = safeStorage.getItem(STORAGE_KEYS.OFFERS);
       return data ? JSON.parse(data) : DEFAULT_OFFERS;
     } catch {
       return DEFAULT_OFFERS;
@@ -168,12 +196,12 @@ export const storageService = {
   },
 
   saveOffers(offers: MonetizationOffer[]): void {
-    localStorage.setItem(STORAGE_KEYS.OFFERS, JSON.stringify(offers));
+    safeStorage.setItem(STORAGE_KEYS.OFFERS, JSON.stringify(offers));
   },
 
   getDailyPlan(dateStr: string = getTodayDateStr()): DailyPlan {
     try {
-      const data = localStorage.getItem(`${STORAGE_KEYS.DAILY_PLANS}_${dateStr}`);
+      const data = safeStorage.getItem(`${STORAGE_KEYS.DAILY_PLANS}_${dateStr}`);
       return data ? JSON.parse(data) : { ...DEFAULT_DAILY_PLAN, date: dateStr };
     } catch {
       return { ...DEFAULT_DAILY_PLAN, date: dateStr };
@@ -181,12 +209,12 @@ export const storageService = {
   },
 
   saveDailyPlan(plan: DailyPlan): void {
-    localStorage.setItem(`${STORAGE_KEYS.DAILY_PLANS}_${plan.date}`, JSON.stringify(plan));
+    safeStorage.setItem(`${STORAGE_KEYS.DAILY_PLANS}_${plan.date}`, JSON.stringify(plan));
   },
 
   getWellnessLogs(): WellnessLog[] {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.WELLNESS);
+      const data = safeStorage.getItem(STORAGE_KEYS.WELLNESS);
       return data ? JSON.parse(data) : DEFAULT_WELLNESS;
     } catch {
       return DEFAULT_WELLNESS;
@@ -194,12 +222,12 @@ export const storageService = {
   },
 
   saveWellnessLogs(logs: WellnessLog[]): void {
-    localStorage.setItem(STORAGE_KEYS.WELLNESS, JSON.stringify(logs));
+    safeStorage.setItem(STORAGE_KEYS.WELLNESS, JSON.stringify(logs));
   },
 
   getChatMessages(): ChatMessage[] {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.CHAT);
+      const data = safeStorage.getItem(STORAGE_KEYS.CHAT);
       return data ? JSON.parse(data) : DEFAULT_CHAT;
     } catch {
       return DEFAULT_CHAT;
@@ -207,12 +235,12 @@ export const storageService = {
   },
 
   saveChatMessages(messages: ChatMessage[]): void {
-    localStorage.setItem(STORAGE_KEYS.CHAT, JSON.stringify(messages));
+    safeStorage.setItem(STORAGE_KEYS.CHAT, JSON.stringify(messages));
   },
 
   getLifeUpdates(): LifeUpdate[] {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.LIFE_UPDATES);
+      const data = safeStorage.getItem(STORAGE_KEYS.LIFE_UPDATES);
       return data ? JSON.parse(data) : [];
     } catch {
       return [];
@@ -220,7 +248,7 @@ export const storageService = {
   },
 
   saveLifeUpdates(updates: LifeUpdate[]): void {
-    localStorage.setItem(STORAGE_KEYS.LIFE_UPDATES, JSON.stringify(updates));
+    safeStorage.setItem(STORAGE_KEYS.LIFE_UPDATES, JSON.stringify(updates));
   },
 
   /**
@@ -229,22 +257,23 @@ export const storageService = {
    */
   clearAllData(): void {
     try {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         // Remove all AIM-specific keys
         Object.values(STORAGE_KEYS).forEach((key) => {
-          localStorage.removeItem(key);
+          safeStorage.removeItem(key);
         });
 
         // Also clean any date-keyed daily plans
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
           if (k && (k.startsWith('aim_') || k.startsWith('coach_'))) {
-            localStorage.removeItem(k);
+            safeStorage.removeItem(k);
           }
         }
 
-        // Clear session storage (greetings, ephemeral state)
-        sessionStorage.clear();
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.clear();
+        }
       }
     } catch (e) {
       console.warn('[storageService] Failed to clear all data:', e);

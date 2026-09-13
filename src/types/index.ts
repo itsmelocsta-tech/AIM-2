@@ -39,6 +39,7 @@ export interface UserProfile {
   id?: string;
   name: string;
   email: string;
+  location?: string;
   timeZone?: string;
   desiredIdentity: string;
   coreMission: string;
@@ -49,6 +50,8 @@ export interface UserProfile {
   coreValues: string[];
   ninetyDayTrajectory: string;
   onboardingCompleted: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface MemoryItem {

@@ -48,8 +48,8 @@ export const DriveSyncModal: React.FC<DriveSyncModalProps> = ({
       const newState = driveService.getStoredState();
       onUpdateDriveState(newState);
       onToast('Connected to Google Drive successfully!');
-    } catch (e) {
-      onToast('Google Drive authentication completed');
+    } catch (e: any) {
+      onToast(`Google Drive connection failed: ${e.message || 'Authentication error'}`);
     } finally {
       setIsConnecting(false);
     }
@@ -125,9 +125,11 @@ ${m.content}
       if (res.success) {
         onUpdateDriveState(driveService.getStoredState());
         onToast('Full AIM Master Blueprint saved to Google Drive!');
+      } else {
+        onToast(`Drive sync failed: ${res.message || 'Unable to save to Drive'}`);
       }
-    } catch (e) {
-      onToast('Error syncing full workspace');
+    } catch (e: any) {
+      onToast(`Error syncing workspace: ${e.message || 'Failed to sync'}`);
     } finally {
       setIsSyncingAll(false);
     }

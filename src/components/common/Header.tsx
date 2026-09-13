@@ -7,6 +7,8 @@ import {
   Sliders,
   Compass,
   Clock,
+  ShieldCheck,
+  User as UserIcon,
 } from 'lucide-react';
 import { UserProfile, DriveSyncState } from '../../types';
 import { WeatherPill } from './WeatherPill';
@@ -19,6 +21,9 @@ interface HeaderProps {
   onOpenVoiceModal: () => void;
   onOpenQuickCapture: () => void;
   onOpenFoundationModal: () => void;
+  onOpenAuthModal?: () => void;
+  isAuthenticated?: boolean;
+  userEmail?: string | null;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   unlockedSpacesCount?: number;
@@ -31,6 +36,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenVoiceModal,
   onOpenQuickCapture,
   onOpenFoundationModal,
+  onOpenAuthModal,
+  isAuthenticated = false,
+  userEmail = null,
   activeTab,
   setActiveTab,
   unlockedSpacesCount = 0,
@@ -151,6 +159,25 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Sliders className="w-3.5 h-3.5" />
           </button>
+
+          {/* Account & Security Modal Trigger */}
+          {onOpenAuthModal && (
+            <button
+              id="aim-account-btn"
+              onClick={onOpenAuthModal}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-xl font-medium border transition-colors ${
+                isAuthenticated
+                  ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/60 hover:bg-indigo-900/40'
+                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800 hover:text-slate-200'
+              }`}
+              title={isAuthenticated ? `Account: ${userEmail || 'Active'}` : 'Sign In to AIM'}
+            >
+              <ShieldCheck className={`w-3.5 h-3.5 ${isAuthenticated ? 'text-indigo-400' : 'text-slate-400'}`} />
+              <span className="hidden lg:inline">
+                {isAuthenticated ? (userEmail ? userEmail.split('@')[0] : 'Account') : 'Sign In'}
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </header>
