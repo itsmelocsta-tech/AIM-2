@@ -1,3 +1,4 @@
+import { authenticatedFetch } from './authenticatedFetch';
 import { UserProfile, CoachId, ScheduleItem } from '../types';
 
 export interface CompactOrbContext {
@@ -93,7 +94,7 @@ class IntelligenceService {
         activeScheduleItems: contextExtra?.currentSchedule || [],
       };
 
-      const res = await fetch('/api/aim/intelligence/priority-assessment', {
+      const res = await authenticatedFetch('/api/aim/intelligence/priority-assessment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -155,7 +156,7 @@ class IntelligenceService {
         userEnergyLevel: params.energyLevel ?? 7,
       };
 
-      const res = await fetch('/api/aim/intelligence/wisdom-synthesis', {
+      const res = await authenticatedFetch('/api/aim/intelligence/wisdom-synthesis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

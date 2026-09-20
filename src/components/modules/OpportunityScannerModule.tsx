@@ -1,3 +1,4 @@
+import { authenticatedFetch, AuthenticationError } from '../../services/authenticatedFetch';
 import React, { useState } from 'react';
 import {
   Compass,
@@ -90,7 +91,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
       // Call server endpoint or fallback to service
       let responseData: any = null;
       try {
-        const res = await fetch('/api/aim/jobs/scan', {
+        const res = await authenticatedFetch('/api/aim/jobs/scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -106,6 +107,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
           responseData = await res.json();
         }
       } catch (err) {
+        if (err instanceof AuthenticationError) throw err;
         console.warn('Live API scan fallback to client service:', err);
       }
 

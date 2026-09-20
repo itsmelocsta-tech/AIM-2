@@ -66,6 +66,12 @@ export default function App() {
   const { user } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
+  useEffect(() => {
+    const requestSignIn = () => setIsAuthModalOpen(true);
+    window.addEventListener('aim:authentication-required', requestSignIn);
+    return () => window.removeEventListener('aim:authentication-required', requestSignIn);
+  }, []);
+
   // Default to calm, conversational home
   const [activeTab, setActiveTab] = useState<string>('home');
 

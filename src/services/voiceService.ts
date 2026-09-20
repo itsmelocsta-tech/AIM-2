@@ -1,3 +1,4 @@
+import { authenticatedFetch } from './authenticatedFetch';
 import {
   VoiceState,
   SpeakerState,
@@ -430,7 +431,7 @@ export class VoiceEngine {
       this.setSpeakerState('speaking');
       if (normalizedOptions?.onStart) normalizedOptions.onStart();
 
-      const response = await fetch('/api/aim/voice/speak', {
+      const response = await authenticatedFetch('/api/aim/voice/speak', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
