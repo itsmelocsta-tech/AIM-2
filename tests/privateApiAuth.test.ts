@@ -39,7 +39,7 @@ describe('private API authentication', () => {
   });
 
   it.each(['expired', 'revoked', 'forged'])('rejects %s tokens', async reason => {
-    mocks.verify.mockRejectedValue(new Error(reason));
+    mocks.verify.mockRejectedValue(Object.assign(new Error(reason), { code: reason === 'expired' ? 'auth/id-token-expired' : reason === 'revoked' ? 'auth/id-token-revoked' : 'auth/invalid-id-token' }));
     await withServer(async base => {
       expect((await fetch(`${base}/api/aim/voice/format-spoken`, {
         method: 'POST', headers: { Authorization: 'Bearer bad-token' },
@@ -81,5 +81,15 @@ describe('private API authentication', () => {
     await withServer(async base => {
       expect((await fetch(`${base}/api/health`)).status).toBe(200);
     });
+  });
+});
+
+it('reports verifier infrastructure failures as 503 without accepting the request', async () => {
+  mocks.verify.mockRejectedValue(Object.assign(new Error('permission denied'), { code: 'auth/insufficient-permission' }));
+  await withServer(async base => {
+    const res = await fetch(`${base}/api/aim/voice/format-spoken`, {
+      method: 'POST', headers: { Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(503);
   });
 });

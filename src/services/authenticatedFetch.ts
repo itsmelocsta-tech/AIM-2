@@ -15,7 +15,15 @@ export async function authenticatedFetch(path: string, init: RequestInit = {}): 
   if (!path.startsWith('/api/aim/')) {
     throw new Error('authenticatedFetch only accepts private AIM API paths');
   }
-  const token = await getIdToken();
+  let token: string | null;
+  try {
+    token = await getIdToken();
+  } catch (error: any) {
+    if (['auth/user-token-expired', 'auth/invalid-user-token', 'auth/user-disabled', 'auth/user-not-found'].includes(error?.code)) {
+      throw new AuthenticationError();
+    }
+    throw new Error('Unable to verify your session. Check your connection and try again.');
+  }
   if (!token) throw new AuthenticationError();
   const headers = new Headers(init.headers);
   headers.set('Authorization', `Bearer ${token}`);

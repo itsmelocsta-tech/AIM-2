@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 
 let appInstance: App | null = null;
 
-export function getFirebaseAdminApp(): App {
+export function getFirebaseAdminApp(): App | null {
   if (!appInstance) {
     const existing = getApps();
     if (existing.length > 0) {
@@ -20,7 +20,7 @@ export function getFirebaseAdminApp(): App {
       }
     }
   }
-  return appInstance!;
+  return appInstance;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -33,15 +33,23 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     return res.status(401).json({ error: 'Authentication required. Missing or malformed Bearer token.' });
   }
 
-  const app = getFirebaseAdminApp();
-  if (!app) {
-    return res.status(500).json({ error: 'Authentication service unavailable' });
-  }
   try {
+    const app = getFirebaseAdminApp();
+    if (!app) {
+      return res.status(500).json({ error: 'Authentication service unavailable' });
+    }
     const decoded = await getAuth(app).verifyIdToken(match[1], true);
     req.user = decoded;
     return next();
-  } catch {
+  } catch (error: any) {
+    const invalidCredentials = new Set([
+      'auth/argument-error', 'auth/invalid-argument', 'auth/invalid-id-token',
+      'auth/id-token-expired', 'auth/id-token-revoked', 'auth/user-disabled',
+      'auth/user-not-found',
+    ]);
+    if (!invalidCredentials.has(error?.code)) {
+      return res.status(503).json({ error: 'Authentication service temporarily unavailable. Please try again.' });
+    }
     return res.status(401).json({ error: 'Unauthorized: Invalid, expired, or revoked authentication token' });
   }
 }

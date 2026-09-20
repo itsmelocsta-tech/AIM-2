@@ -1,4 +1,4 @@
-import { authenticatedFetch } from './authenticatedFetch';
+import { authenticatedFetch, AuthenticationError } from './authenticatedFetch';
 import { UserProfile, DailyPlan, MonetizationOffer, CoachId, CoachResponse, ScheduleItem, Goal, MemoryItem, WellnessLog, LifeUpdate } from '../types';
 import { intelligenceService, CompactOrbContext, LifePriorityAssessmentResult, WisdomSynthesisResultClient } from './intelligenceService';
 export const api = {
@@ -29,6 +29,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.error('API interactWithCoach error:', error);
       return {
         coachId: params.coachId,
@@ -94,6 +95,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.error('API chatWithAIM error:', error);
       return {
         reply: `AIM thinking partner note: ${params.message}. Let's break this down into clear action steps and momentum for today.`,
@@ -118,6 +120,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.error('API generateMonetizationOffer error:', error);
       return {
         title: 'Rapid High-Leverage Growth Sprint',
@@ -165,6 +168,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.warn('API generateDailyPlan fallback engaged:', error);
       if (params.type === 'morning') {
         return {
@@ -219,6 +223,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.error('API generateCreativeAsset error:', error);
       return {
         title: `Growth Strategy & Proposal for ${params.clientName}`,
@@ -246,6 +251,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.error('API crossReferencePathways error:', error);
       return {
         analysis: {
@@ -370,6 +376,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.error('API analyzeLifeUpdate error:', error);
       const isJobOrIncome = /job|work|income|hire|hired|fired|laid off|offer|rejected|didn't get/i.test(params.content || '');
       const isHealth = /sick|tired|energy|hospital|doctor|injury|pain|sleep/i.test(params.content || '');

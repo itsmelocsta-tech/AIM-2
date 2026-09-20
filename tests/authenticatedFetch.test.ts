@@ -52,3 +52,14 @@ it('routes all private API call sites through authenticatedFetch', () => {
   }
   scan('src');
 });
+
+it('requests reauthentication for an invalid Firebase session', async () => {
+  token.mockRejectedValue({ code: 'auth/user-token-expired' });
+  await expect(authenticatedFetch('/api/aim/chat')).rejects.toBeInstanceOf(AuthenticationError);
+  expect(request).not.toHaveBeenCalled();
+});
+it('does not ask users to sign in for a temporary token network error', async () => {
+  token.mockRejectedValue({ code: 'auth/network-request-failed' });
+  await expect(authenticatedFetch('/api/aim/chat')).rejects.toThrow('Check your connection');
+  expect(request).not.toHaveBeenCalled();
+});

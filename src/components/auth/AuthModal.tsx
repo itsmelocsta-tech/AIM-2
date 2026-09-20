@@ -1,19 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ShieldCheck, Mail, Lock, LogIn, UserPlus, X, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  reauthenticationRequired?: boolean;
+  onAuthenticated?: () => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, reauthenticationRequired = false, onAuthenticated }) => {
   const { user, signInWithGoogle, signInWithEmail, signUpWithEmail, signInAsGuest, logOut } = useAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setPassword('');
+      setError(null);
+    }
+    if (reauthenticationRequired) setMode('signin');
+  }, [isOpen, reauthenticationRequired]);
 
   if (!isOpen) return null;
 
@@ -25,6 +35,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     if (res.error) {
       setError(res.error);
     } else {
+      setPassword('');
+      onAuthenticated?.();
       onClose();
     }
   };
@@ -42,6 +54,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     if (res.error) {
       setError(res.error);
     } else {
+      setPassword('');
+      onAuthenticated?.();
       onClose();
     }
   };
@@ -54,6 +68,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     if (res.error) {
       setError(res.error);
     } else {
+      setPassword('');
+      onAuthenticated?.();
       onClose();
     }
   };
@@ -61,8 +77,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const handleSignOut = async () => {
     setError(null);
     setLoading(true);
-    await logOut();
+    const result = await logOut();
     setLoading(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    onAuthenticated?.();
     onClose();
   };
 
@@ -87,7 +108,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </div>
         </div>
 
-        {user ? (
+        {reauthenticationRequired && (
+          <p role="alert" className="mb-4 text-sm text-amber-300">Your session could not be verified. Sign in again to continue.</p>
+        )}
+        {user && !reauthenticationRequired && error && (
+          <p role="alert" className="mb-4 text-sm text-rose-300">{error}</p>
+        )}
+        {user && !reauthenticationRequired ? (
           <div className="space-y-6">
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center space-x-3">
               <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
