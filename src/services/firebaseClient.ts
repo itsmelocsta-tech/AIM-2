@@ -64,12 +64,9 @@ export async function logOut() {
 }
 
 export async function getIdToken(): Promise<string | null> {
+  await auth.authStateReady();
   if (!auth.currentUser) return null;
-  try {
-    return await auth.currentUser.getIdToken();
-  } catch {
-    return null;
-  }
+  return await auth.currentUser.getIdToken();
 }
 
 export { onAuthStateChanged };

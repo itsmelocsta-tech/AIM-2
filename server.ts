@@ -9,7 +9,7 @@ import { AIMMomentumEngine } from './server/momentum/AIMMomentumEngine';
 import { AIMSharedIntelligenceService } from './server/intelligence/AIMSharedIntelligenceService';
 import { AIMVoiceService } from './server/voice/AIMVoiceService';
 import { AIMOsService } from './server/aimOsService';
-import { verifyAuthToken } from './server/firebaseAdmin';
+import { requireAuth } from './server/firebaseAdmin';
 
 dotenv.config();
 
@@ -17,7 +17,7 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
-app.use('/api', verifyAuthToken);
+app.use('/api/aim', requireAuth);
 
 // Lazy Google GenAI Client
 let genAIClient: GoogleGenAI | null = null;
@@ -1693,4 +1693,8 @@ async function startServer() {
   });
 }
 
-startServer();
+export { app };
+
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+  startServer();
+}

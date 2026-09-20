@@ -66,6 +66,16 @@ export default function App() {
   const { user } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
+  const [reauthenticationRequired, setReauthenticationRequired] = useState(false);
+  useEffect(() => {
+    const requestSignIn = () => {
+      setReauthenticationRequired(true);
+      setIsAuthModalOpen(true);
+    };
+    window.addEventListener('aim:authentication-required', requestSignIn);
+    return () => window.removeEventListener('aim:authentication-required', requestSignIn);
+  }, []);
+
   // Default to calm, conversational home
   const [activeTab, setActiveTab] = useState<string>('home');
 
@@ -652,6 +662,8 @@ export default function App() {
 
       <AuthModal
         isOpen={isAuthModalOpen}
+        reauthenticationRequired={reauthenticationRequired}
+        onAuthenticated={() => setReauthenticationRequired(false)}
         onClose={() => setIsAuthModalOpen(false)}
       />
 

@@ -1,20 +1,6 @@
+import { authenticatedFetch, AuthenticationError } from './authenticatedFetch';
 import { UserProfile, DailyPlan, MonetizationOffer, CoachId, CoachResponse, ScheduleItem, Goal, MemoryItem, WellnessLog, LifeUpdate } from '../types';
 import { intelligenceService, CompactOrbContext, LifePriorityAssessmentResult, WisdomSynthesisResultClient } from './intelligenceService';
-import { getIdToken } from './firebaseClient';
-
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  try {
-    const token = await getIdToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-  } catch {
-    // ignore
-  }
-  return headers;
-}
-
 export const api = {
   async interactWithCoach(params: {
     coachId: CoachId;
@@ -34,10 +20,8 @@ export const api = {
     compactContext?: CompactOrbContext;
   }): Promise<CoachResponse> {
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch('/api/aim/coach/interact', {
+      const response = await authenticatedFetch('/api/aim/coach/interact', {
         method: 'POST',
-        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -45,6 +29,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.error('API interactWithCoach error:', error);
       return {
         coachId: params.coachId,
@@ -101,10 +86,8 @@ export const api = {
     contextCategory?: string;
   }): Promise<{ reply: string; extractedCategory?: string }> {
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch('/api/aim/chat', {
+      const response = await authenticatedFetch('/api/aim/chat', {
         method: 'POST',
-        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -112,6 +95,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.error('API chatWithAIM error:', error);
       return {
         reply: `AIM thinking partner note: ${params.message}. Let's break this down into clear action steps and momentum for today.`,
@@ -127,10 +111,8 @@ export const api = {
     userProfile?: UserProfile;
   }): Promise<Partial<MonetizationOffer>> {
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch('/api/aim/monetize', {
+      const response = await authenticatedFetch('/api/aim/monetize', {
         method: 'POST',
-        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -138,6 +120,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.error('API generateMonetizationOffer error:', error);
       return {
         title: 'Rapid High-Leverage Growth Sprint',
@@ -176,10 +159,8 @@ export const api = {
     dayNotes?: string;
   }): Promise<any> {
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch('/api/aim/plan', {
+      const response = await authenticatedFetch('/api/aim/plan', {
         method: 'POST',
-        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -187,6 +168,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.warn('API generateDailyPlan fallback engaged:', error);
       if (params.type === 'morning') {
         return {
@@ -232,10 +214,8 @@ export const api = {
     fullMarkdownDocument: string;
   }> {
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch('/api/aim/creative', {
+      const response = await authenticatedFetch('/api/aim/creative', {
         method: 'POST',
-        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -243,6 +223,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.error('API generateCreativeAsset error:', error);
       return {
         title: `Growth Strategy & Proposal for ${params.clientName}`,
@@ -261,10 +242,8 @@ export const api = {
     userProfile?: UserProfile;
   }): Promise<import('../types').CrossReferenceResult> {
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch('/api/aim/cross-reference', {
+      const response = await authenticatedFetch('/api/aim/cross-reference', {
         method: 'POST',
-        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -272,6 +251,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.error('API crossReferencePathways error:', error);
       return {
         analysis: {
@@ -387,10 +367,8 @@ export const api = {
     recentUpdates?: import('../types').LifeUpdate[];
   }): Promise<import('../types').LifeUpdateAnalysisResult> {
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch('/api/aim/life-update-analyze', {
+      const response = await authenticatedFetch('/api/aim/life-update-analyze', {
         method: 'POST',
-        headers,
         body: JSON.stringify(params),
       });
       if (!response.ok) {
@@ -398,6 +376,7 @@ export const api = {
       }
       return await response.json();
     } catch (error) {
+      if (error instanceof AuthenticationError) throw error;
       console.error('API analyzeLifeUpdate error:', error);
       const isJobOrIncome = /job|work|income|hire|hired|fired|laid off|offer|rejected|didn't get/i.test(params.content || '');
       const isHealth = /sick|tired|energy|hospital|doctor|injury|pain|sleep/i.test(params.content || '');

@@ -1,3 +1,4 @@
+import { authenticatedFetch, AuthenticationError } from '../../services/authenticatedFetch';
 import React, { useState } from 'react';
 import {
   Mic,
@@ -96,7 +97,7 @@ export const CheckInModule: React.FC<CheckInModuleProps> = ({
 
       // 2. Also query server check-in endpoint for deep reasoning if available
       try {
-        const res = await fetch('/api/aim/context/check-in', {
+        const res = await authenticatedFetch('/api/aim/context/check-in', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -116,6 +117,7 @@ export const CheckInModule: React.FC<CheckInModuleProps> = ({
           }
         }
       } catch (err) {
+        if (err instanceof AuthenticationError) return;
         console.warn('Server check-in fallback to local parser:', err);
       }
 
