@@ -53,6 +53,7 @@ interface ConversationalHomeModuleProps {
   onUpdateDailyPlan: (plan: DailyPlan) => void;
   onUpdateMemories: (memories: MemoryItem[]) => void;
   onUpdateGoals: (goals: Goal[]) => void;
+  onUpdateProfile: (profile: UserProfile) => void;
   onNavigateToTab: (tab: string) => void;
   onToast: (msg: string) => void;
 }
@@ -66,7 +67,7 @@ type OnboardingStep =
 
 // Pre-defined guidance constants for natural voice narration
 const STEP_1_GUIDANCE =
-  "Tell AIM everything: your background, your current work or income, what’s going well, your daily habits, the frustrations you face, and the obstacles, fears, or habits holding you back.";
+  "Good day. I’m AIM, your Life Operating System. Let’s start with where you are right now. Don’t worry about organizing it. Just tell me what life looks like today.";
 
 const STEP_2_GUIDANCE =
   "Describe who you want to become: your target identity, income level, work freedom, physical health, daily schedule, habits, relationships, and the lifestyle you are manifesting.";
@@ -82,6 +83,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
   onUpdateDailyPlan,
   onUpdateMemories,
   onUpdateGoals,
+  onUpdateProfile,
   onNavigateToTab,
   onToast,
 }) => {
@@ -382,8 +384,6 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       ninetyDayTrajectory: pathway.projected30DayOutcome || 'Master daily compounding momentum and sovereignty',
       onboardingCompleted: true,
     };
-    storageService.saveProfile(updatedProfile);
-
     // 2. Populate Initial Goals
     const newGoals: Goal[] = crossReferenceData.suggestedInitialGoals.map((g, idx) => ({
       id: 'goal-calibrated-' + (idx + 1) + '-' + Date.now(),
@@ -451,9 +451,11 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     });
 
     setTimeout(() => {
+      // Updating the live profile last closes onboarding and reveals the personalized modules.
+      onUpdateProfile(updatedProfile);
       setIsActivatingPath(false);
       setCurrentStep('active_os');
-      onToast(`Activated pathway: ${pathway.title}!`);
+      onToast(`Your starting Life OS is ready: ${pathway.title}`);
     }, 600);
   };
 
@@ -548,13 +550,13 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         <div className="space-y-2 mt-3 max-w-2xl">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950/80 text-indigo-300 border border-indigo-800">
             <Sparkles className="w-3 h-3 text-indigo-400" />
-            AIM • Life Operating System Calibration
+            Welcome to AIM
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            Tell me about yourself.
+            Good day. I’m AIM, your Life Operating System.
           </h1>
           <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed">
-            Don’t hold back. <strong className="text-indigo-300 font-medium">I want the good, the bad, and the ugly.</strong>
+            Let’s start with where you are right now. Don’t worry about organizing it—just tell me what life looks like today.
           </p>
         </div>
 

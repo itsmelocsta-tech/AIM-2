@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Sparkles,
   Calendar,
@@ -58,6 +58,8 @@ import { DriveSyncModal } from './components/modules/DriveSyncModal';
 import { FoundationSessionModal } from './components/modules/FoundationSessionModal';
 import { VoiceModal } from './components/common/VoiceModal';
 import { GlobalQuickInput } from './components/common/GlobalQuickInput';
+import { ConversationalHomeModule } from './components/modules/ConversationalHomeModule';
+import { getUnlockedModules } from './services/moduleAccessService';
 import { useAuth } from './context/AuthContext';
 import { firestoreRepository } from './services/repositories/firestoreRepository';
 import { AuthModal } from './components/auth/AuthModal';
@@ -376,6 +378,24 @@ export default function App() {
     { id: 'chat', label: 'Advisor Orbs', icon: MessageSquare },
   ];
 
+  const calibration = storageService.getCalibration();
+  const unlockedModules = useMemo(() => getUnlockedModules({
+    profile: userProfile,
+    calibrationText: [calibration?.currentState, calibration?.desiredState].filter(Boolean).join(' '),
+    context: aimContext,
+    projects: aimProjects,
+    goals,
+    memories,
+    dailyPlan,
+    wellnessLogs,
+  }), [userProfile, calibration?.currentState, calibration?.desiredState, aimContext, aimProjects, goals, memories, dailyPlan, wellnessLogs]);
+  const visibleNavigationTabs = navigationTabs.filter((tab) => unlockedModules.has(tab.id as any));
+  const isOnboarding = !userProfile.onboardingCompleted;
+
+  useEffect(() => {
+    if (!unlockedModules.has(activeTab as any)) setActiveTab('home');
+  }, [activeTab, unlockedModules]);
+
   const totalLearnedItems =
     memories.length +
     goals.length +
@@ -399,12 +419,13 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         unlockedSpacesCount={totalLearnedItems}
+        isOnboarding={isOnboarding}
       />
 
-      {/* Sub-Navigation Bar - Always accessible across all spaces */}
-      <nav id="aim-primary-nav" className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 px-3 sm:px-4 lg:px-8 py-2 sticky top-[57px] z-30 shadow-sm animate-fadeIn">
+      {/* Modules appear only after AIM understands why the user needs them. */}
+      {!isOnboarding && <nav id="aim-primary-nav" className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 px-3 sm:px-4 lg:px-8 py-2 sticky top-[57px] z-30 shadow-sm animate-fadeIn">
         <div className="max-w-6xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-thin">
-          {navigationTabs.map((tab) => {
+          {visibleNavigationTabs.map((tab, index) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -412,7 +433,8 @@ export default function App() {
                 key={tab.id}
                 id={`nav-tab-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
+                style={{ animationDelay: `${index * 90}ms`, animationFillMode: 'both' }}
+                className={`animate-fadeIn flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
                   isActive
                     ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 font-semibold'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
@@ -429,11 +451,27 @@ export default function App() {
             );
           })}
         </div>
-      </nav>
+      </nav>}
 
       {/* Main Content Area */}
       <main id="aim-main-content" className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-6">
-        {activeTab === 'home' && (
+        {isOnboarding ? (
+          <ConversationalHomeModule
+            userProfile={userProfile}
+            dailyPlan={dailyPlan}
+            goals={goals}
+            memories={memories}
+            wellnessLogs={wellnessLogs}
+            chatMessages={chatMessages}
+            onUpdateChat={handleUpdateChatMessages}
+            onUpdateDailyPlan={handleUpdateDailyPlan}
+            onUpdateMemories={handleUpdateMemories}
+            onUpdateGoals={handleUpdateGoals}
+            onUpdateProfile={handleUpdateProfile}
+            onNavigateToTab={setActiveTab}
+            onToast={showToast}
+          />
+        ) : activeTab === 'home' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-1.5 max-w-sm mx-auto mb-2">
               <button
@@ -680,4 +718,3 @@ export default function App() {
     </div>
   );
 }
-
