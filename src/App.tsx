@@ -61,9 +61,13 @@ import { GlobalQuickInput } from './components/common/GlobalQuickInput';
 import { useAuth } from './context/AuthContext';
 import { firestoreRepository } from './services/repositories/firestoreRepository';
 import { AuthModal } from './components/auth/AuthModal';
+import { ConversationalHomeModule } from './components/modules/ConversationalHomeModule';
 
 export default function App() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [loadedProfileUid, setLoadedProfileUid] = useState<string | null>(null);
+  const [profileLoadError, setProfileLoadError] = useState(false);
+  const [profileLoadAttempt, setProfileLoadAttempt] = useState(0);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
   const [reauthenticationRequired, setReauthenticationRequired] = useState(false);
@@ -97,6 +101,8 @@ export default function App() {
   // Load user data from Firestore when auth state changes
   useEffect(() => {
     let isCancelled = false;
+    setLoadedProfileUid(null);
+    setProfileLoadError(false);
     async function loadUserData() {
       if (!user) return;
       try {
@@ -170,6 +176,9 @@ export default function App() {
         }
       } catch (err) {
         console.warn('[App] Error syncing remote user data:', err);
+        if (!isCancelled) setProfileLoadError(true);
+      } finally {
+        if (!isCancelled) setLoadedProfileUid(user.uid);
       }
     }
 
@@ -177,7 +186,10 @@ export default function App() {
     return () => {
       isCancelled = true;
     };
-  }, [user]);
+  }, [user, profileLoadAttempt]);
+
+  const isOnboarding = Boolean(user && loadedProfileUid === user.uid && !profileLoadError && !userProfile.onboardingCompleted);
+  const isLoadingProfile = authLoading || Boolean(user && loadedProfileUid !== user.uid);
 
   const topJobMatch = jobScannerService.getListings().find((j) => j.fitRating === 'strong_fit') || null;
   const [dailyRecommendation, setDailyRecommendation] = useState<DailyActionRecommendation>(() =>
@@ -386,7 +398,7 @@ export default function App() {
   return (
     <div id="aim-app-root" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
       {/* Top Minimal Header with Live Weather & Time */}
-      <Header
+      {!isOnboarding && <Header
         userProfile={userProfile}
         driveState={driveState}
         onOpenDriveModal={() => setIsDriveModalOpen(true)}
@@ -399,10 +411,18 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         unlockedSpacesCount={totalLearnedItems}
-      />
+      />}
+      {isOnboarding && (
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 text-sm">
+          <span className="font-bold text-white">AIM · Getting started</span>
+          <button onClick={() => setIsAuthModalOpen(true)} className="text-indigo-300 underline">
+            Account: {user?.email || 'Guest'}
+          </button>
+        </div>
+      )}
 
       {/* Sub-Navigation Bar - Always accessible across all spaces */}
-      <nav id="aim-primary-nav" className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 px-3 sm:px-4 lg:px-8 py-2 sticky top-[57px] z-30 shadow-sm animate-fadeIn">
+      {!isOnboarding && !isLoadingProfile && <nav id="aim-primary-nav" className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 px-3 sm:px-4 lg:px-8 py-2 sticky top-[57px] z-30 shadow-sm animate-fadeIn">
         <div className="max-w-6xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-thin">
           {navigationTabs.map((tab) => {
             const Icon = tab.icon;
@@ -429,10 +449,35 @@ export default function App() {
             );
           })}
         </div>
-      </nav>
+      </nav>}
 
       {/* Main Content Area */}
       <main id="aim-main-content" className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-6">
+        {isLoadingProfile ? (
+          <p role="status" className="text-center text-slate-300 py-12">Loading your AIM profile…</p>
+        ) : profileLoadError && user ? (
+          <div role="alert" className="text-center py-12 space-y-3">
+            <p>We couldn’t load your profile. Your setup has not been changed.</p>
+            <button className="text-indigo-300 underline" onClick={() => setProfileLoadAttempt((attempt) => attempt + 1)}>Retry loading</button>
+          </div>
+        ) : isOnboarding ? (
+          <ConversationalHomeModule
+            key={user!.uid}
+            userProfile={userProfile}
+            dailyPlan={dailyPlan}
+            goals={goals}
+            memories={memories}
+            wellnessLogs={wellnessLogs}
+            chatMessages={chatMessages}
+            onUpdateProfile={handleUpdateProfile}
+            onUpdateChat={handleUpdateChatMessages}
+            onUpdateDailyPlan={handleUpdateDailyPlan}
+            onUpdateMemories={handleUpdateMemories}
+            onUpdateGoals={handleUpdateGoals}
+            onNavigateToTab={setActiveTab}
+            onToast={showToast}
+          />
+        ) : <>
         {activeTab === 'home' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-1.5 max-w-sm mx-auto mb-2">
@@ -609,6 +654,7 @@ export default function App() {
             onToast={showToast}
           />
         )}
+        </>}
       </main>
 
       {/* Modals */}
@@ -680,4 +726,3 @@ export default function App() {
     </div>
   );
 }
-
