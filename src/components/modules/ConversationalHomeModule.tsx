@@ -44,6 +44,7 @@ import { voiceEngine, SpeakerState } from '../../services/voiceService';
 
 interface ConversationalHomeModuleProps {
   userProfile: UserProfile;
+  onUpdateProfile: (profile: UserProfile) => void;
   dailyPlan: DailyPlan;
   goals: Goal[];
   memories: MemoryItem[];
@@ -66,13 +67,14 @@ type OnboardingStep =
 
 // Pre-defined guidance constants for natural voice narration
 const STEP_1_GUIDANCE =
-  "Tell AIM everything: your background, your current work or income, what’s going well, your daily habits, the frustrations you face, and the obstacles, fears, or habits holding you back.";
+  "Let's start with where you are right now. Share a few sentences about your current situation. You can add more later.";
 
 const STEP_2_GUIDANCE =
   "Describe who you want to become: your target identity, income level, work freedom, physical health, daily schedule, habits, relationships, and the lifestyle you are manifesting.";
 
 export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> = ({
   userProfile,
+  onUpdateProfile,
   dailyPlan,
   goals,
   memories,
@@ -382,7 +384,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       ninetyDayTrajectory: pathway.projected30DayOutcome || 'Master daily compounding momentum and sovereignty',
       onboardingCompleted: true,
     };
-    storageService.saveProfile(updatedProfile);
+    onUpdateProfile(updatedProfile);
 
     // 2. Populate Initial Goals
     const newGoals: Goal[] = crossReferenceData.suggestedInitialGoals.map((g, idx) => ({
@@ -551,10 +553,10 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             AIM • Life Operating System Calibration
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            Tell me about yourself.
+            Where are you right now?
           </h1>
           <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed">
-            Don’t hold back. <strong className="text-indigo-300 font-medium">I want the good, the bad, and the ugly.</strong>
+            Tell AIM what your life looks like today. <strong className="text-indigo-300 font-medium">A few sentences are enough.</strong>
           </p>
         </div>
 
