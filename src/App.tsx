@@ -38,7 +38,7 @@ import {
   DEFAULT_CHAT,
 } from './services/storage';
 import { driveService } from './services/driveService';
-import { aimContextService } from './services/aimContextService';
+import { aimContextService, DEFAULT_PERSONAL_CONTEXT } from './services/aimContextService';
 import { jobScannerService } from './services/jobScannerService';
 import { Header } from './components/common/Header';
 import { CoachShell } from './components/coach/CoachShell';
@@ -59,14 +59,17 @@ import { FoundationSessionModal } from './components/modules/FoundationSessionMo
 import { VoiceModal } from './components/common/VoiceModal';
 import { GlobalQuickInput } from './components/common/GlobalQuickInput';
 import { ConversationalHomeModule } from './components/modules/ConversationalHomeModule';
+import { FirstRunGuide } from './components/modules/FirstRunGuide';
 import { getUnlockedModules } from './services/moduleAccessService';
 import { useAuth } from './context/AuthContext';
 import { firestoreRepository } from './services/repositories/firestoreRepository';
 import { AuthModal } from './components/auth/AuthModal';
 
 export default function App() {
-  const { user } = useAuth();
+  const { user, loading: isAuthLoading } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   const [reauthenticationRequired, setReauthenticationRequired] = useState(false);
   useEffect(() => {
@@ -100,8 +103,18 @@ export default function App() {
   useEffect(() => {
     let isCancelled = false;
     async function loadUserData() {
+      setLoadedUserId(null);
+      setLoadError(false);
       if (!user) return;
       try {
+        // Local caches predate account scoping. Never show one person's cache to another.
+        if (storageService.getProfile().id !== user.uid) {
+          storageService.clearAllData();
+          setChatMessages([...DEFAULT_CHAT]);
+          setDriveState({ isConnected: false, accessToken: null, userEmail: null, lastSyncTime: null, syncedFiles: [] });
+          setSelectedProjectId(null);
+          setHomeViewMode('daily_os');
+        }
         const [remoteProfile, remoteContext, remoteProjects, remoteGoals, remoteMemories, remoteWellness, remoteLifeUpdates, remotePlan] = await Promise.all([
           firestoreRepository.getUserProfile(user.uid),
           firestoreRepository.getUserContext(user.uid),
@@ -116,8 +129,9 @@ export default function App() {
         if (isCancelled) return;
 
         if (remoteProfile) {
-          setUserProfile(remoteProfile);
-          storageService.saveProfile(remoteProfile);
+          const profile = { ...remoteProfile, id: user.uid };
+          setUserProfile(profile);
+          storageService.saveProfile(profile);
         } else {
           // Initialize fresh profile for this user
           const initialProfile: UserProfile = {
@@ -145,33 +159,22 @@ export default function App() {
         if (remoteContext) {
           setAimContext(remoteContext);
           aimContextService.saveContext(remoteContext);
+        } else {
+          setAimContext(DEFAULT_PERSONAL_CONTEXT);
         }
-        if (remoteProjects && remoteProjects.length > 0) {
-          setAimProjects(remoteProjects);
-          aimContextService.saveProjects(remoteProjects);
-        }
-        if (remoteGoals && remoteGoals.length > 0) {
-          setGoals(remoteGoals);
-          storageService.saveGoals(remoteGoals);
-        }
-        if (remoteMemories && remoteMemories.length > 0) {
-          setMemories(remoteMemories);
-          storageService.saveMemories(remoteMemories);
-        }
-        if (remoteWellness && remoteWellness.length > 0) {
-          setWellnessLogs(remoteWellness);
-          storageService.saveWellnessLogs(remoteWellness);
-        }
-        if (remoteLifeUpdates && remoteLifeUpdates.length > 0) {
-          setLifeUpdates(remoteLifeUpdates);
-          storageService.saveLifeUpdates(remoteLifeUpdates);
-        }
-        if (remotePlan) {
-          setDailyPlan(remotePlan);
-          storageService.saveDailyPlan(remotePlan);
-        }
+        setAimProjects(remoteProjects || []);
+        setGoals(remoteGoals || []);
+        setMemories(remoteMemories || []);
+        setWellnessLogs(remoteWellness || []);
+        setLifeUpdates(remoteLifeUpdates || []);
+        setDailyPlan(remotePlan || { ...DEFAULT_DAILY_PLAN, date: new Date().toISOString().split('T')[0] });
+        const savedJob = jobScannerService.getListings().find((job) => job.fitRating === 'strong_fit' && job.status === 'active' && job.provenance === 'verified' && !job.isMock && !job.is_mock) || null;
+        setDailyRecommendation(aimContextService.generateDailyRecommendation(remoteContext || DEFAULT_PERSONAL_CONTEXT, remoteProjects || [], savedJob));
+        setLoadedUserId(user.uid);
       } catch (err) {
+        if (isCancelled) return;
         console.warn('[App] Error syncing remote user data:', err);
+        setLoadError(true);
       }
     }
 
@@ -181,10 +184,8 @@ export default function App() {
     };
   }, [user]);
 
-  const topJobMatch = jobScannerService.getListings().find((j) => j.fitRating === 'strong_fit') || null;
-  const [dailyRecommendation, setDailyRecommendation] = useState<DailyActionRecommendation>(() =>
-    aimContextService.generateDailyRecommendation(aimContext, aimProjects, topJobMatch)
-  );
+  const topJobMatch = jobScannerService.getListings().find((j) => j.fitRating === 'strong_fit' && j.status === 'active' && j.provenance === 'verified' && !j.isMock && !j.is_mock) || null;
+  const [dailyRecommendation, setDailyRecommendation] = useState<DailyActionRecommendation | null>(null);
 
   const handleUpdateAimContext = (updated: PersonalOperatingContext) => {
     setAimContext(updated);
@@ -215,7 +216,7 @@ export default function App() {
   };
 
   const handleRefreshRecommendation = () => {
-    const freshTopJob = jobScannerService.getListings().find((j) => j.fitRating === 'strong_fit') || null;
+    const freshTopJob = jobScannerService.getListings().find((j) => j.fitRating === 'strong_fit' && j.status === 'active' && j.provenance === 'verified' && !j.isMock && !j.is_mock) || null;
     const freshRec = aimContextService.generateDailyRecommendation(aimContext, aimProjects, freshTopJob);
     setDailyRecommendation(freshRec);
   };
@@ -367,7 +368,7 @@ export default function App() {
   const navigationTabs = [
     { id: 'home', label: 'Today (Life OS)', icon: Sparkles },
     { id: 'scanner', label: 'Opportunity Scanner', icon: Compass },
-    { id: 'projects', label: '10 Projects', icon: Layers, count: aimProjects.length },
+    { id: 'projects', label: 'Projects', icon: Layers, count: aimProjects.length },
     { id: 'check-in', label: 'Check-In', icon: Send },
     { id: 'history', label: 'Audit History', icon: Clock },
     { id: 'settings', label: 'OS Context', icon: Sliders },
@@ -378,7 +379,7 @@ export default function App() {
     { id: 'chat', label: 'Advisor Orbs', icon: MessageSquare },
   ];
 
-  const calibration = storageService.getCalibration();
+  const calibration = storageService.getCalibration(user?.uid);
   const unlockedModules = useMemo(() => getUnlockedModules({
     profile: userProfile,
     calibrationText: [calibration?.currentState, calibration?.desiredState].filter(Boolean).join(' '),
@@ -390,7 +391,19 @@ export default function App() {
     wellnessLogs,
   }), [userProfile, calibration?.currentState, calibration?.desiredState, aimContext, aimProjects, goals, memories, dailyPlan, wellnessLogs]);
   const visibleNavigationTabs = navigationTabs.filter((tab) => unlockedModules.has(tab.id as any));
-  const isOnboarding = !userProfile.onboardingCompleted;
+  const isReady = Boolean(user && loadedUserId === user.uid);
+  const isOnboarding = !isReady || !userProfile.onboardingCompleted;
+  const guideStep = isReady && userProfile.onboardingCompleted && userProfile.firstRunGuideStep !== 'done'
+    ? userProfile.firstRunGuideStep
+    : undefined;
+  const currentTab = guideStep === 'planner' ? 'planner' : guideStep === 'check-in' ? 'check-in' : guideStep === 'intro' ? 'home' : activeTab;
+
+  const advanceGuide = () => {
+    if (!guideStep) return;
+    const next = guideStep === 'intro' ? 'planner' : guideStep === 'planner' ? 'check-in' : 'done';
+    handleUpdateProfile({ ...userProfile, firstRunGuideStep: next });
+    if (next === 'done') setActiveTab('home');
+  };
 
   useEffect(() => {
     if (!unlockedModules.has(activeTab as any)) setActiveTab('home');
@@ -416,18 +429,18 @@ export default function App() {
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         isAuthenticated={Boolean(user)}
         userEmail={user?.email || (user?.isAnonymous ? 'Guest Account' : null)}
-        activeTab={activeTab}
+        activeTab={currentTab}
         setActiveTab={setActiveTab}
         unlockedSpacesCount={totalLearnedItems}
-        isOnboarding={isOnboarding}
+        isOnboarding={isOnboarding || Boolean(guideStep)}
       />
 
       {/* Modules appear only after AIM understands why the user needs them. */}
-      {!isOnboarding && <nav id="aim-primary-nav" className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 px-3 sm:px-4 lg:px-8 py-2 sticky top-[57px] z-30 shadow-sm animate-fadeIn">
+      {!isOnboarding && !guideStep && <nav id="aim-primary-nav" className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 px-3 sm:px-4 lg:px-8 py-2 sticky top-[57px] z-30 shadow-sm animate-fadeIn">
         <div className="max-w-6xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-thin">
           {visibleNavigationTabs.map((tab, index) => {
             const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
+            const isActive = currentTab === tab.id;
             return (
               <button
                 key={tab.id}
@@ -455,8 +468,20 @@ export default function App() {
 
       {/* Main Content Area */}
       <main id="aim-main-content" className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-6">
-        {isOnboarding ? (
+        {isAuthLoading || (user && !isReady) ? (
+          <div role="status" className="max-w-xl mx-auto mt-16 text-center text-slate-300">
+            {loadError ? 'AIM couldn’t load your space. Please refresh to try again.' : 'Getting your space ready…'}
+          </div>
+        ) : !user ? (
+          <div className="max-w-xl mx-auto mt-12 text-center space-y-5">
+            <h1 className="text-2xl font-semibold">Good day. I’m AIM.</h1>
+            <p className="text-slate-300">I’ll help you find where to start. Sign in, and we’ll take it one step at a time.</p>
+            <button type="button" onClick={() => setIsAuthModalOpen(true)} className="rounded-xl bg-indigo-600 px-6 py-3 text-white font-semibold hover:bg-indigo-500">Get started</button>
+          </div>
+        ) : isOnboarding ? (
           <ConversationalHomeModule
+            key={user.uid}
+            userId={user.uid}
             userProfile={userProfile}
             dailyPlan={dailyPlan}
             goals={goals}
@@ -471,7 +496,9 @@ export default function App() {
             onNavigateToTab={setActiveTab}
             onToast={showToast}
           />
-        ) : activeTab === 'home' && (
+        ) : currentTab === 'home' && (guideStep === 'intro' ? (
+          <FirstRunGuide step="intro" profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
+        ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-1.5 max-w-sm mx-auto mb-2">
               <button
@@ -500,6 +527,9 @@ export default function App() {
 
             {homeViewMode === 'daily_os' ? (
               <AimHomeModule
+                userProfile={userProfile}
+                dailyPlan={dailyPlan}
+                startingPoint={calibration?.currentState}
                 context={aimContext}
                 projects={aimProjects}
                 topJobMatch={topJobMatch}
@@ -533,9 +563,13 @@ export default function App() {
               />
             )}
           </div>
+        ))}
+
+        {(guideStep === 'planner' || guideStep === 'check-in') && (
+          <FirstRunGuide step={guideStep} profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
         )}
 
-        {activeTab === 'scanner' && (
+        {isReady && !guideStep && currentTab === 'scanner' && (
           <OpportunityScannerModule
             context={aimContext}
             onJobApplied={handleJobApplied}
@@ -543,7 +577,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'projects' && (
+        {isReady && !guideStep && currentTab === 'projects' && (
           <MyProjectsModule
             projects={aimProjects}
             selectedProjectId={selectedProjectId}
@@ -553,7 +587,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'check-in' && (
+        {isReady && currentTab === 'check-in' && (
           <CheckInModule
             context={aimContext}
             projects={aimProjects}
@@ -564,14 +598,14 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'history' && (
+        {isReady && !guideStep && currentTab === 'history' && (
           <HistoryModule
             context={aimContext}
             projects={aimProjects}
           />
         )}
 
-        {activeTab === 'settings' && (
+        {isReady && !guideStep && currentTab === 'settings' && (
           <SettingsModule
             context={aimContext}
             projects={aimProjects}
@@ -580,7 +614,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'life-update' && (
+        {isReady && !guideStep && currentTab === 'life-update' && (
           <LifeUpdateModule
             userProfile={userProfile}
             dailyPlan={dailyPlan}
@@ -598,7 +632,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'planner' && (
+        {isReady && currentTab === 'planner' && (
           <DailyPlannerModule
             dailyPlan={dailyPlan}
             userProfile={userProfile}
@@ -608,7 +642,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'goals' && (
+        {isReady && !guideStep && currentTab === 'goals' && (
           <GoalManifestationModule
             goals={goals}
             userProfile={userProfile}
@@ -617,7 +651,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'memory' && (
+        {isReady && !guideStep && currentTab === 'memory' && (
           <MemoryCategorizerModule
             memories={memories}
             onUpdateMemories={handleUpdateMemories}
@@ -625,7 +659,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'wellness' && (
+        {isReady && !guideStep && currentTab === 'wellness' && (
           <WellnessEngineModule
             wellnessLogs={wellnessLogs}
             onUpdateLogs={handleUpdateWellnessLogs}
@@ -633,7 +667,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'chat' && (
+        {isReady && !guideStep && currentTab === 'chat' && (
           <ChatAdvisorModule
             chatMessages={chatMessages}
             userProfile={userProfile}

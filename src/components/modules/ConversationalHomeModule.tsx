@@ -43,6 +43,7 @@ import { storageService } from '../../services/storage';
 import { voiceEngine, SpeakerState } from '../../services/voiceService';
 
 interface ConversationalHomeModuleProps {
+  userId: string;
   userProfile: UserProfile;
   dailyPlan: DailyPlan;
   goals: Goal[];
@@ -67,12 +68,13 @@ type OnboardingStep =
 
 // Pre-defined guidance constants for natural voice narration
 const STEP_1_GUIDANCE =
-  "Good day. I’m AIM, your Life Operating System. Let’s start with where you are right now. Don’t worry about organizing it. Just tell me what life looks like today.";
+  "Good day. I’m AIM, your Life Operating System. Let’s start with where you are right now. What matters most today? A few words are enough.";
 
 const STEP_2_GUIDANCE =
-  "Describe who you want to become: your target identity, income level, work freedom, physical health, daily schedule, habits, relationships, and the lifestyle you are manifesting.";
+  "Where do you want to be? Tell me one goal that matters most right now. You can share more whenever you're ready.";
 
 export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> = ({
+  userId,
   userProfile,
   dailyPlan,
   goals,
@@ -88,14 +90,14 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
   onToast,
 }) => {
   // Determine initial step based on profile state
-  const initialCalibration = storageService.getCalibration();
+  const initialCalibration = storageService.getCalibration(userId);
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(() => {
     if (!userProfile.onboardingCompleted) {
-      if (initialCalibration?.currentState && !initialCalibration?.desiredState) {
-        return 'who_do_you_wanna_be';
-      }
       if (initialCalibration?.result) {
         return 'pathway_selection';
+      }
+      if (initialCalibration?.currentState && !initialCalibration?.desiredState) {
+        return 'who_do_you_wanna_be';
       }
       return 'tell_about_yourself';
     }
@@ -114,6 +116,17 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
   const [crossReferenceData, setCrossReferenceData] = useState<CrossReferenceResult | null>(
     initialCalibration?.result || null
   );
+
+  // Save unfinished answers on this account only, so leaving and returning is safe.
+  useEffect(() => {
+    if (!userProfile.onboardingCompleted) {
+      storageService.saveCalibration({
+        currentState: currentStateText,
+        desiredState: desiredStateText,
+        result: crossReferenceData || undefined,
+      }, userId);
+    }
+  }, [currentStateText, desiredStateText, crossReferenceData, userId, userProfile.onboardingCompleted]);
   const [selectedPathwayId, setSelectedPathwayId] = useState<string>('option-1');
   const [isActivatingPath, setIsActivatingPath] = useState(false);
 
@@ -145,8 +158,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     if (currentStep === 'tell_about_yourself' && !hasAutoSpokenStep1Ref.current) {
       hasAutoSpokenStep1Ref.current = true;
       const timer = setTimeout(() => {
-        const textToSpeak = currentStateText.trim() || STEP_1_GUIDANCE;
-        voiceEngine.speak(textToSpeak, {
+        voiceEngine.speak(STEP_1_GUIDANCE, {
           onStateChange: (state) => setSpeakerStateStep1(state),
           onStart: () => setIsSpeaking(true),
           onEnd: () => setIsSpeaking(false),
@@ -179,7 +191,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
   // Speaker Button Click Handler for Step 1
   const handleSpeakerClickStep1 = () => {
-    const textToSpeak = currentStateText.trim() || STEP_1_GUIDANCE;
+    const textToSpeak = STEP_1_GUIDANCE;
     if (speakerStateStep1 === 'playing') {
       voiceEngine.pause();
     } else if (speakerStateStep1 === 'paused') {
@@ -196,7 +208,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
   // Speaker Button Click Handler for Step 2
   const handleSpeakerClickStep2 = () => {
-    const textToSpeak = desiredStateText.trim() || STEP_2_GUIDANCE;
+    const textToSpeak = STEP_2_GUIDANCE;
     if (speakerStateStep2 === 'playing') {
       voiceEngine.pause();
     } else if (speakerStateStep2 === 'paused') {
@@ -309,8 +321,8 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     storageService.saveCalibration({
       currentState: currentStateText.trim(),
       desiredState: desiredStateText.trim(),
-      result: crossReferenceData,
-    });
+      result: crossReferenceData || undefined,
+    }, userId);
 
     // Speak or reflect prompt
     if (!isVoiceMuted) {
@@ -330,6 +342,12 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
     setIsListening(false);
     voiceEngine.stopListening();
+    setErrorMessage(null);
+    setCrossReferenceData(null);
+    storageService.saveCalibration({
+      currentState: currentStateText.trim(),
+      desiredState: desiredStateText.trim(),
+    }, userId);
     setCurrentStep('cross_referencing');
     setIsThinking(true);
 
@@ -339,6 +357,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         desiredState: desiredStateText.trim(),
         userProfile,
       });
+      if (!result?.pathways?.length) throw new Error('AIM returned no pathways');
 
       setCrossReferenceData(result);
       if (result.recommendedOptionId) {
@@ -350,19 +369,19 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         currentState: currentStateText.trim(),
         desiredState: desiredStateText.trim(),
         result,
-      });
+      }, userId);
 
       setCurrentStep('pathway_selection');
 
       // Voice summary
       if (!isVoiceMuted && result.analysis?.empoweringInsight) {
-        const spokenIntro = `I've cross-referenced your disclosure. ${result.analysis.empoweringInsight}`;
+        const spokenIntro = `I put together a few ways forward. ${result.analysis.empoweringInsight}`;
         voiceEngine.speak((spokenIntro || '').replace(/[*#_`]/g, ''));
       }
     } catch (err: any) {
       console.error('Cross reference error:', err);
-      onToast('Error during cross-referencing. Retrying with local intelligence...');
-      setCurrentStep('pathway_selection');
+      setErrorMessage('AIM couldn’t build your plan right now. Your answers are saved. Please try again.');
+      setCurrentStep('who_do_you_wanna_be');
     } finally {
       setIsThinking(false);
     }
@@ -376,13 +395,14 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     // 1. Update User Profile
     const updatedProfile: UserProfile = {
       ...userProfile,
-      desiredIdentity: crossReferenceData.synthesizedProfile.desiredIdentity || pathway.title,
-      coreMission: crossReferenceData.synthesizedProfile.coreMission || pathway.tagline,
-      primaryObstacle: crossReferenceData.synthesizedProfile.primaryObstacle || pathway.obstaclesNeutralized[0] || 'Inertia',
-      topSkills: crossReferenceData.synthesizedProfile.topSkills || ['Strategic Vision', 'Execution'],
-      coreValues: crossReferenceData.synthesizedProfile.coreValues || ['Clarity', 'Action', 'Honesty'],
-      ninetyDayTrajectory: pathway.projected30DayOutcome || 'Master daily compounding momentum and sovereignty',
+      desiredIdentity: crossReferenceData.synthesizedProfile.desiredIdentity || desiredStateText.trim(),
+      coreMission: crossReferenceData.synthesizedProfile.coreMission || desiredStateText.trim(),
+      primaryObstacle: crossReferenceData.synthesizedProfile.primaryObstacle || '',
+      topSkills: crossReferenceData.synthesizedProfile.topSkills || [],
+      coreValues: crossReferenceData.synthesizedProfile.coreValues || [],
+      ninetyDayTrajectory: pathway.projected30DayOutcome || '',
       onboardingCompleted: true,
+      firstRunGuideStep: 'intro',
     };
     // 2. Populate Initial Goals
     const newGoals: Goal[] = crossReferenceData.suggestedInitialGoals.map((g, idx) => ({
@@ -391,7 +411,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       why: g.why,
       category: g.category,
       targetDate: new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0],
-      currentProgress: 15,
+      currentProgress: 0,
       obstacles: pathway.obstaclesNeutralized,
       milestones: g.milestones.map((m, mIdx) => ({
         id: `m-${idx}-${mIdx}`,
@@ -448,7 +468,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       currentState: currentStateText,
       desiredState: desiredStateText,
       result: crossReferenceData,
-    });
+    }, userId);
 
     setTimeout(() => {
       // Updating the live profile last closes onboarding and reveals the personalized modules.
@@ -512,18 +532,6 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     }
   };
 
-  // Helper chip appenders
-  const addPromptChip = (chipText: string, targetField: 'current' | 'desired') => {
-    if (targetField === 'current') {
-      setCurrentStateText((prev) => (prev ? `${prev}\n- ${chipText}: ` : `- ${chipText}: `));
-    } else {
-      setDesiredStateText((prev) => (prev ? `${prev}\n- ${chipText}: ` : `- ${chipText}: `));
-    }
-    if (activeTextAreaRef.current) {
-      activeTextAreaRef.current.focus();
-    }
-  };
-
   // ----------------------------------------------------
   // RENDER STEP 1: TELL ME ABOUT YOURSELF (THE GOOD, BAD & UGLY)
   // ----------------------------------------------------
@@ -550,13 +558,13 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         <div className="space-y-2 mt-3 max-w-2xl">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950/80 text-indigo-300 border border-indigo-800">
             <Sparkles className="w-3 h-3 text-indigo-400" />
-            Welcome to AIM
+            Step 1 of 3 · Where you are
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
             Good day. I’m AIM, your Life Operating System.
           </h1>
           <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed">
-            Let’s start with where you are right now. Don’t worry about organizing it—just tell me what life looks like today.
+            What matters most today? A few words are enough. We can fill in the details later.
           </p>
         </div>
 
@@ -589,7 +597,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-slate-300 flex items-center gap-1.5">
                   <Brain className="w-4 h-4 text-indigo-400" />
-                  Where You Are Today (Unlimited Space)
+                  Where you are right now
                 </span>
               </div>
               <div className="flex items-center gap-2.5">
@@ -608,72 +616,23 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               ref={activeTextAreaRef}
               id="aim-current-state-textarea"
               value={currentStateText || ''}
-              onChange={(e) => setCurrentStateText(e.target.value)}
-              rows={8}
-              placeholder="Tell AIM everything: your background, current work or income, what's going well (the good), your daily habits, the frustrations you face (the bad), and the real obstacles, fears, or bad habits holding you back (the ugly)..."
+              onChange={(e) => { setCurrentStateText(e.target.value); setCrossReferenceData(null); }}
+              rows={5}
+              placeholder="For example: I'm looking for steady work and I feel overwhelmed by everything I need to do."
               className="w-full bg-transparent text-sm sm:text-base text-slate-100 placeholder-slate-500 focus:outline-none resize-y leading-relaxed font-sans scrollbar-thin"
             />
 
-            {/* Quick Inspiration Chips */}
-            <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center gap-1.5 flex-wrap text-xs">
-              <span className="text-[11px] text-slate-400 font-medium mr-1">Quick prompts:</span>
-              <button
-                type="button"
-                onClick={() => addPromptChip('The Good (Strengths & Assets)', 'current')}
-                className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-750 transition-colors text-[11px]"
-              >
-                + The Good
-              </button>
-              <button
-                type="button"
-                onClick={() => addPromptChip('The Bad (Frustrations & Energy Drains)', 'current')}
-                className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-750 transition-colors text-[11px]"
-              >
-                + The Bad
-              </button>
-              <button
-                type="button"
-                onClick={() => addPromptChip('The Ugly (Core Bottlenecks & Self-Sabotage)', 'current')}
-                className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-750 transition-colors text-[11px]"
-              >
-                + The Ugly
-              </button>
-              <button
-                type="button"
-                onClick={() => addPromptChip('Current Income & Daily Routine', 'current')}
-                className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-750 transition-colors text-[11px]"
-              >
-                + Income & Routine
-              </button>
-            </div>
           </div>
 
           {/* Action Row */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                if (userProfile.onboardingCompleted) {
-                  setCurrentStep('active_os');
-                } else {
-                  // Pre-fill a sample baseline so they can test easily
-                  setCurrentStateText(
-                    "The Good: I have strong problem solving skills, high creativity, and I learn fast.\n\nThe Bad: My income fluctuates, and I struggle with consistent daily outreach and time management.\n\nThe Ugly: I get trapped in overthinking, procrastinate on high-stakes tasks, and stay up too late which ruins my morning energy."
-                  );
-                }
-              }}
-              className="text-xs text-slate-400 hover:text-slate-200 transition-colors py-2 px-3"
-            >
-              {userProfile.onboardingCompleted ? 'Cancel & Return to Dashboard' : 'Load Example Disclosure'}
-            </button>
-
             <button
               id="submit-step-1-btn"
               type="submit"
               disabled={!currentStateText.trim()}
               className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all active:scale-95 cursor-pointer"
             >
-              <span>Next: Where are you trying to be?</span>
+              <span>Next: Where you want to be</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -708,13 +667,13 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         <div className="space-y-2 mt-3 max-w-2xl">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800">
             <Target className="w-3 h-3 text-emerald-400" />
-            Target Identity & Destination
+            Step 2 of 3 · Where you want to be
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
             Well, who do you wanna be?
           </h1>
           <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed">
-            Or where are you trying to be, <strong className="text-emerald-300 font-medium">instead of where you are?</strong>
+            Tell me one goal that matters most right now. You can add more later.
           </p>
         </div>
 
@@ -747,7 +706,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-slate-300 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-emerald-400" />
-                  Your Desired Identity & Future State (Unlimited Space)
+                  Where you want to be
                 </span>
               </div>
               <div className="flex items-center gap-2.5">
@@ -766,44 +725,12 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               ref={activeTextAreaRef}
               id="aim-desired-state-textarea"
               value={desiredStateText || ''}
-              onChange={(e) => setDesiredStateText(e.target.value)}
-              rows={8}
-              placeholder="Describe who you want to become: your target identity, income level ($10k-$30k/mo+), work freedom, physical health, daily schedule, habits, relationships, and the lifestyle you are manifesting..."
+              onChange={(e) => { setDesiredStateText(e.target.value); setCrossReferenceData(null); setErrorMessage(null); }}
+              rows={5}
+              placeholder="For example: I want steady income and enough time to be present with my family."
               className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 resize-none font-normal leading-relaxed"
             />
 
-            {/* Quick Inspiration Chips */}
-            <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center gap-1.5 flex-wrap text-xs">
-              <span className="text-[11px] text-slate-400 font-medium mr-1">Quick prompts:</span>
-              <button
-                type="button"
-                onClick={() => addPromptChip('Desired Identity & Core Standard', 'desired')}
-                className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-750 transition-colors text-[11px]"
-              >
-                + Desired Identity
-              </button>
-              <button
-                type="button"
-                onClick={() => addPromptChip('Target Monthly Income & Financial Freedom', 'desired')}
-                className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-750 transition-colors text-[11px]"
-              >
-                + Target Income
-              </button>
-              <button
-                type="button"
-                onClick={() => addPromptChip('Ideal Daily Routine & Energy Level', 'desired')}
-                className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-750 transition-colors text-[11px]"
-              >
-                + Daily Routine
-              </button>
-              <button
-                type="button"
-                onClick={() => addPromptChip('Peak Physical & Mental Health', 'desired')}
-                className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-750 transition-colors text-[11px]"
-              >
-                + Health & Mindset
-              </button>
-            </div>
           </div>
 
           {/* Action Row */}
@@ -824,10 +751,11 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all active:scale-95 cursor-pointer"
             >
               <Zap className="w-4 h-4 text-emerald-200" />
-              <span>Cross-Reference & Pick My Best Options ⚡</span>
+              <span>Build my starting plan</span>
             </button>
           </div>
         </form>
+        {errorMessage && <p role="alert" className="mt-3 text-sm text-rose-300">{errorMessage}</p>}
       </div>
     );
   }
@@ -888,10 +816,10 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         <div className="space-y-2 max-w-3xl">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950/90 text-indigo-300 border border-indigo-800 shadow-sm">
             <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            AIM Cross-Reference Analysis
+            Step 3 of 3 · Your starting plan
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            The Best Pathways to Get You to Who You Wanna Be
+            Here’s a way forward
           </h1>
           <p className="text-sm text-slate-300 font-light leading-relaxed">
             {crossReferenceData.analysis.coreGapSummary}
@@ -1054,7 +982,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         <div className="flex items-center justify-center gap-4 pt-2 text-xs">
           <button
             type="button"
-            onClick={() => setCurrentStep('tell_about_yourself')}
+            onClick={() => { setCrossReferenceData(null); setCurrentStep('tell_about_yourself'); }}
             className="text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1"
           >
             <RotateCcw className="w-3.5 h-3.5" />

@@ -51,8 +51,8 @@ export const CheckInModule: React.FC<CheckInModuleProps> = ({
     { label: 'Change a priority', prompt: 'I want to change priority for ' },
     { label: 'Add a new project', prompt: 'I want to add a new project called ' },
     { label: 'Pause a project', prompt: 'Please pause project ' },
-    { label: 'Record a job application', prompt: 'I applied for the shuttle driver position at ' },
-    { label: 'Update my qualifications', prompt: 'I updated my driving qualification: ' },
+    { label: 'Record a job application', prompt: 'I applied for ' },
+    { label: 'Update my qualifications', prompt: 'My qualifications changed: ' },
   ];
 
   const handleChipClick = (chipPrompt: string) => {

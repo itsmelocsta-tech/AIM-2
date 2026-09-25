@@ -5,9 +5,7 @@ import {
   RefreshCw,
   AlertTriangle,
   Clock,
-  Briefcase,
   CheckCircle2,
-  Car,
   ChevronRight,
   ExternalLink,
   Target,
@@ -23,10 +21,15 @@ import {
   JobListing,
   PersonalOperatingContext,
   DailyActionRecommendation,
+  DailyPlan,
+  UserProfile,
 } from '../../types';
 import { aimContextService } from '../../services/aimContextService';
 
 interface AimHomeModuleProps {
+  userProfile: UserProfile;
+  dailyPlan: DailyPlan;
+  startingPoint?: string;
   context: PersonalOperatingContext;
   projects: AIMProject[];
   topJobMatch?: JobListing | null;
@@ -38,6 +41,9 @@ interface AimHomeModuleProps {
 }
 
 export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
+  userProfile,
+  dailyPlan,
+  startingPoint,
   context,
   projects,
   topJobMatch,
@@ -64,6 +70,23 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
   };
 
   const rec = dailyRecommendation || aimContextService.generateDailyRecommendation(context, projects, topJobMatch);
+  const primaryFocus = activeProjects[0]?.goal || userProfile.coreMission || userProfile.desiredIdentity || 'Choose your first goal';
+  const verifiedJob = topJobMatch?.status === 'active' && topJobMatch.provenance === 'verified' && !topJobMatch.isMock && !topJobMatch.is_mock ? topJobMatch : null;
+  const moneyMoveDestination = verifiedJob ? 'scanner' : projects.length > 0 ? 'projects' : 'planner';
+  const firstTask = dailyPlan.priorityTasks.find((task) => !task.completed);
+  const usingStartingPlan = !verifiedJob && projects.length === 0;
+  const mainMove = usingStartingPlan ? {
+    ...rec.moneyMove,
+    title: firstTask?.task || 'Choose your first task in Today’s Plan',
+    whyBestMove: userProfile.coreMission || 'One clear step helps you move toward the goal you shared.',
+    timeEstimate: firstTask?.timeEstimate || '15m',
+    whatIsNeeded: firstTask?.description || 'Open your planner and choose a first step.',
+    whatCouldBlockIt: userProfile.primaryObstacle || 'If something changes, tell AIM at Check-In.',
+    definitionOfDone: firstTask ? `Mark “${firstTask.task}” complete in the planner.` : 'Add a task to the planner.',
+  } : rec.moneyMove;
+  const hasIncomeGoal = /\b(income|job|money|revenue|career|business|work)\b/i.test([
+    userProfile.coreMission, userProfile.desiredIdentity, startingPoint || '',
+  ].join(' '));
 
   return (
     <div id="aim-home-screen" className="space-y-6 animate-fadeIn pb-12">
@@ -82,7 +105,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
                 </span>
               </h1>
               <p className="text-xs text-slate-400">
-                Fort Worth, Texas & DFW Metro Area • Texas Non-CDL Class C • Clean Record
+                {context.location || userProfile.location || 'Your day, at your pace'}
               </p>
             </div>
           </div>
@@ -109,30 +132,6 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
           </div>
         </div>
 
-        {/* Transportation & Vehicle Policy Callout */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
-            <Car className="w-4 h-4 text-amber-400 shrink-0" />
-            <div>
-              <div className="font-semibold text-slate-200">Work Vehicle Required</div>
-              <div className="text-[11px] text-amber-300/90">Employer must provide on-duty vehicle</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
-            <Briefcase className="w-4 h-4 text-emerald-400 shrink-0" />
-            <div>
-              <div className="font-semibold text-slate-200">No Personal Vehicle</div>
-              <div className="text-[11px] text-slate-400">Strictly excluded personal car / gig driving</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
-            <Target className="w-4 h-4 text-indigo-400 shrink-0" />
-            <div>
-              <div className="font-semibold text-slate-200">Income Urgency</div>
-              <div className="text-[11px] text-indigo-300/90">Immediate income prioritized over long-term</div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Primary OS Grid: Where you are & What changed */}
@@ -150,11 +149,11 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-200 leading-relaxed font-medium">
-              {rec.whereYouAre}
+              {usingStartingPlan && startingPoint ? startingPoint : rec.whereYouAre}
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Primary Focus: <strong className="text-white">Immediate Income</strong></span>
+            <span>Primary Focus: <strong className="text-white">{primaryFocus}</strong></span>
             <button
               onClick={() => onNavigateToTab('settings')}
               className="text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1"
@@ -177,7 +176,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-200 leading-relaxed font-medium">
-              {rec.whatChanged}
+              {usingStartingPlan && context.auditLog.length === 0 ? 'This is your starting plan. Check in when something changes.' : rec.whatChanged}
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
@@ -202,10 +201,10 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-bold text-xs uppercase tracking-wider shadow-sm">
-              Today's Money Move
+              {hasIncomeGoal ? "Today's Money Move" : "Today's First Move"}
             </span>
             <span className="text-xs text-indigo-300 font-mono font-semibold flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" /> ~{rec.moneyMove.timeEstimate}
+              <Clock className="w-3.5 h-3.5" /> ~{mainMove.timeEstimate}
             </span>
             {(rec.provenance || (rec as any).verification) && (
               <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-950/80 text-emerald-300 border border-emerald-800/60 font-mono font-bold uppercase flex items-center gap-1">
@@ -216,12 +215,12 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
           </div>
 
           <span className="text-[11px] text-slate-400">
-            Highest-probability income action
+            {hasIncomeGoal ? 'Your starting income action' : 'Your next useful step'}
           </span>
         </div>
 
         <h2 className="text-lg sm:text-xl font-extrabold text-white mb-2 leading-snug">
-          {rec.moneyMove.title}
+          {mainMove.title}
         </h2>
 
         {/* Detailed Explanation Breakdown (What, Why, Needed, Blockers, Done) */}
@@ -229,11 +228,11 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
           <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 text-xs space-y-2">
             <div>
               <span className="font-bold text-indigo-300">Why this is the best move right now:</span>
-              <p className="text-slate-300 mt-0.5 leading-relaxed">{rec.moneyMove.whyBestMove}</p>
+              <p className="text-slate-300 mt-0.5 leading-relaxed">{mainMove.whyBestMove}</p>
             </div>
             <div>
               <span className="font-bold text-slate-200">What is needed:</span>
-              <p className="text-slate-400 mt-0.5">{rec.moneyMove.whatIsNeeded}</p>
+              <p className="text-slate-400 mt-0.5">{mainMove.whatIsNeeded}</p>
             </div>
           </div>
 
@@ -243,14 +242,14 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
                 What could block it:
               </span>
-              <p className="text-slate-300 mt-0.5 leading-relaxed">{rec.moneyMove.whatCouldBlockIt}</p>
+              <p className="text-slate-300 mt-0.5 leading-relaxed">{mainMove.whatCouldBlockIt}</p>
             </div>
             <div>
               <span className="font-bold text-emerald-300 flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                 What "Done" looks like:
               </span>
-              <p className="text-slate-300 mt-0.5">{rec.moneyMove.definitionOfDone}</p>
+              <p className="text-slate-300 mt-0.5">{mainMove.definitionOfDone}</p>
             </div>
           </div>
         </div>
@@ -258,21 +257,21 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
         {/* Action Button */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
           <button
-            onClick={() => onNavigateToTab('scanner')}
+            onClick={() => onNavigateToTab(moneyMoveDestination)}
             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 transition-all group"
           >
-            <span>Execute In Opportunity Scanner</span>
+            <span>{verifiedJob ? 'View opportunity' : projects.length > 0 ? 'Open project' : 'Open planner'}</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
 
-          {topJobMatch && (
+          {verifiedJob && (
             <a
-              href={topJobMatch.directApplicationUrl}
+              href={verifiedJob.directApplicationUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs sm:text-sm border border-slate-700 transition-colors"
             >
-              <span>Apply Directly at {topJobMatch.employer}</span>
+              <span>Apply Directly at {verifiedJob.employer}</span>
               <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
             </a>
           )}
@@ -325,7 +324,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
           </div>
 
           <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between">
-            <span className="text-[11px] text-slate-400">Target Project: Ride Guys Auto Detail</span>
+            <span className="text-[11px] text-slate-400">{activeProjects[1] ? `Target Project: ${activeProjects[1].name}` : 'No supporting project chosen yet'}</span>
             <button
               onClick={() => onNavigateToTab('projects')}
               className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1"
@@ -349,7 +348,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
             </div>
 
             <p className="text-xs text-slate-400 mb-3">
-              To guarantee immediate income velocity, deliberately decline or pause work on these items:
+              To make room for your main goal, consider what can wait today:
             </p>
 
             <ul className="space-y-2 text-xs">
@@ -368,7 +367,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
               onClick={() => onNavigateToTab('projects')}
               className="text-xs text-slate-300 hover:text-white font-medium"
             >
-              Manage 10 Projects
+              Manage projects
             </button>
           </div>
         </div>
@@ -379,7 +378,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
         <div className="flex items-center justify-between gap-3 mb-3.5">
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-indigo-400" />
-            <h3 className="text-sm sm:text-base font-bold text-white">Active Projects Snapshot (10 Tracked)</h3>
+            <h3 className="text-sm sm:text-base font-bold text-white">Active Projects Snapshot ({activeProjects.length} active)</h3>
           </div>
           <button
             onClick={() => onNavigateToTab('projects')}

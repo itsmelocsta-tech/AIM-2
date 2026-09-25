@@ -50,6 +50,8 @@ export interface UserProfile {
   coreValues: string[];
   ninetyDayTrajectory: string;
   onboardingCompleted: boolean;
+  /** Only new accounts that have just finished onboarding enter this short guide. */
+  firstRunGuideStep?: 'intro' | 'planner' | 'check-in' | 'done';
   createdAt?: string;
   updatedAt?: string;
 }

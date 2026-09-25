@@ -130,20 +130,23 @@ export const storageService = {
     safeStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
   },
 
-  getCalibration(): { currentState: string; desiredState: string; result?: any } | null {
+  getCalibration(userId?: string): { currentState: string; desiredState: string; result?: any } | null {
+    if (!userId) return null;
     try {
-      const data = safeStorage.getItem(STORAGE_KEYS.CALIBRATION);
+      const data = safeStorage.getItem(`${STORAGE_KEYS.CALIBRATION}_${userId}`);
       return data ? JSON.parse(data) : null;
     } catch {
       return null;
     }
   },
 
-  saveCalibration(data: { currentState: string; desiredState: string; result?: any } | null): void {
+  saveCalibration(data: { currentState: string; desiredState: string; result?: any } | null, userId?: string): void {
+    if (!userId) return;
+    const key = `${STORAGE_KEYS.CALIBRATION}_${userId}`;
     if (!data) {
-      safeStorage.removeItem(STORAGE_KEYS.CALIBRATION);
+      safeStorage.removeItem(key);
     } else {
-      safeStorage.setItem(STORAGE_KEYS.CALIBRATION, JSON.stringify(data));
+      safeStorage.setItem(key, JSON.stringify(data));
     }
   },
 
@@ -264,7 +267,7 @@ export const storageService = {
         });
 
         // Also clean any date-keyed daily plans
-        for (let i = 0; i < localStorage.length; i++) {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
           const k = localStorage.key(i);
           if (k && (k.startsWith('aim_') || k.startsWith('coach_'))) {
             safeStorage.removeItem(k);
