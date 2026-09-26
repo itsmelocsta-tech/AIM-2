@@ -2,11 +2,25 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FirstRunGuide } from '../src/components/modules/FirstRunGuide';
+import { ConversationalHomeModule } from '../src/components/modules/ConversationalHomeModule';
 import { AimHomeModule } from '../src/components/modules/AimHomeModule';
 import { aimContextService, DEFAULT_PERSONAL_CONTEXT } from '../src/services/aimContextService';
 import { DEFAULT_DAILY_PLAN, DEFAULT_PROFILE, storageService } from '../src/services/storage';
 
 describe('guided first run', () => {
+  it('shows the first question immediately for a new account', () => {
+    const html = renderToStaticMarkup(<ConversationalHomeModule
+      userId="just-created-user" userProfile={{ ...DEFAULT_PROFILE, id: 'just-created-user' }}
+      dailyPlan={DEFAULT_DAILY_PLAN} goals={[]} memories={[]} wellnessLogs={[]}
+      chatMessages={[]} onUpdateChat={() => {}} onCommitOnboarding={async () => {}}
+      onNavigateToTab={() => {}} onToast={() => {}}
+    />);
+    expect(html).toContain('aim-onboarding-step-1');
+    expect(html).toContain('Where you are right now');
+    expect(html).toContain('aim-current-state-textarea');
+    expect(html).not.toContain('Today (Life OS)');
+  });
+
   it('shows one next action on each page and uses the user’s saved task', () => {
     const plan = { ...DEFAULT_DAILY_PLAN, priorityTasks: [{
       id: 'first', task: 'Call the training center', category: 'Career' as const,
@@ -74,5 +88,13 @@ describe('onboarding draft isolation', () => {
     storageService.clearAllData();
     expect(storageService.getCalibration('account-a')).toBeNull();
     expect(storageService.getCalibration('account-b')).toBeNull();
+  });
+
+  it('keeps a failed life update draft with its own account and clears it on reset', () => {
+    storageService.saveLifeUpdateDraft('account-a', 'My schedule changed');
+    expect(storageService.getLifeUpdateDraft('account-b')).toBe('');
+    expect(storageService.getLifeUpdateDraft('account-a')).toBe('My schedule changed');
+    storageService.clearAllData();
+    expect(storageService.getLifeUpdateDraft('account-a')).toBe('');
   });
 });

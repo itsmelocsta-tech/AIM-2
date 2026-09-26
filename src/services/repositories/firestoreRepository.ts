@@ -243,6 +243,59 @@ export const firestoreRepository = {
     await setDoc(ref, plan, { merge: true });
   },
 
+  /** Save a confirmed reroute as one cloud operation before reporting success. */
+  async saveConfirmedReroute(userId: string, data: {
+    plan: DailyPlan;
+    update: LifeUpdate;
+    memory: MemoryItem;
+    goals?: Goal[];
+    profile?: UserProfile;
+  }): Promise<void> {
+    if (!userId || !data.plan.date || !data.update.id || !data.memory.id) {
+      throw new Error('Cannot save a reroute without a user and complete plan.');
+    }
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'users', userId, 'daily_plans', data.plan.date), data.plan, { merge: true });
+    batch.set(doc(db, 'users', userId, 'life_updates', data.update.id), data.update, { merge: true });
+    batch.set(doc(db, 'users', userId, 'memories', data.memory.id), data.memory, { merge: true });
+    for (const goal of data.goals || []) {
+      if (goal.id) batch.set(doc(db, 'users', userId, 'goals', goal.id), goal, { merge: true });
+    }
+    if (data.profile) {
+      batch.set(doc(db, 'users', userId), { ...data.profile, updatedAt: new Date().toISOString() }, { merge: true });
+    }
+    await batch.commit();
+  },
+
+  /** A new account becomes onboarded only when its profile and starting plan save together. */
+  async saveConfirmedOnboarding(userId: string, data: {
+    profile: UserProfile;
+    plan: DailyPlan;
+    goals: Goal[];
+    memory: MemoryItem;
+  }): Promise<void> {
+    if (!userId || data.profile.id !== userId || !data.plan.date || !data.memory.id ||
+        !data.profile.onboardingCompleted) {
+      throw new Error('Starting plan is incomplete.');
+    }
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'users', userId), { ...data.profile, updatedAt: new Date().toISOString() }, { merge: true });
+    batch.set(doc(db, 'users', userId, 'daily_plans', data.plan.date), data.plan, { merge: true });
+    batch.set(doc(db, 'users', userId, 'memories', data.memory.id), data.memory, { merge: true });
+    for (const goal of data.goals) {
+      if (goal.id) batch.set(doc(db, 'users', userId, 'goals', goal.id), goal, { merge: true });
+    }
+    await batch.commit();
+  },
+
+  async saveLifeNote(userId: string, update: LifeUpdate, memory: MemoryItem): Promise<void> {
+    if (!userId || !update.id || !memory.id) throw new Error('Life update is incomplete.');
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'users', userId, 'life_updates', update.id), update, { merge: true });
+    batch.set(doc(db, 'users', userId, 'memories', memory.id), memory, { merge: true });
+    await batch.commit();
+  },
+
   // Account Export (Full Data Portability)
   async exportAllUserData(userId: string) {
     if (!userId) throw new Error('User ID is required for export');

@@ -1,4 +1,4 @@
-import { ScheduleItem, ScheduleItemStatus, CoachId } from '../../types';
+import { ScheduleItem, ScheduleItemStatus, CoachId, DailyPlan } from '../../types';
 import { getEffectiveTimeZone, getTodayDateString, createUtcIsoFromLocal } from '../../utils/dateTimeUtils';
 import { ensureDetailedTaskGuidance, isVagueGuidance } from '../../utils/taskGuidance';
 import { storageService } from '../storage';
@@ -92,6 +92,64 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
 }
 
 export class ScheduleRepository {
+  private syncedDayKey(userId: string, date: string): string {
+    return `aim_schedule_synced_${userId}_${date}`;
+  }
+
+  /** Keep the coach's schedule view aligned with the account's saved daily plan. */
+  public syncDayFromPlan(userId: string, plan: DailyPlan, timeZone?: string, validateOnly = false): void {
+    const tz = getEffectiveTimeZone(timeZone);
+    const now = new Date().toISOString();
+    const parseClock = (value: string): string => {
+      const match = value.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+      if (!match) throw new Error('AIM returned a time block with an unreadable time. Your plan was not changed.');
+      let hour = Number(match[1]);
+      const minute = Number(match[2] || '0');
+      if (minute > 59 || hour > (match[3] ? 12 : 23) || (match[3] && hour < 1)) {
+        throw new Error('AIM returned an invalid time block. Your plan was not changed.');
+      }
+      if (match[3]) hour = (hour % 12) + (match[3].toLowerCase() === 'pm' ? 12 : 0);
+      return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    };
+
+    const existing = this.getStoredItems();
+    const byId = new Map(existing.filter(item => item.userId === userId).map(item => [item.id, item]));
+    const items = plan.timeBlocks.map(block => {
+      const [start, end] = block.time.split(/\s*[-–—]\s*/);
+      if (!start || !end) throw new Error('AIM returned an incomplete time block. Your plan was not changed.');
+      const startAt = createUtcIsoFromLocal(plan.date, parseClock(start), tz);
+      const endAt = createUtcIsoFromLocal(plan.date, parseClock(end), tz);
+      if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
+        throw new Error('AIM returned a time block that ends before it starts. Your plan was not changed.');
+      }
+      const prior = byId.get(block.id);
+      return {
+        id: block.id, userId, title: block.title,
+        description: block.details,
+        startAt, endAt, timeZone: tz,
+        status: block.completed ? 'completed' : 'scheduled',
+        priority: prior?.priority || 'medium',
+        sourceCoachId: prior?.sourceCoachId || 'guidance',
+        createdAt: prior?.createdAt || now,
+        updatedAt: now,
+      } as ScheduleItem;
+    });
+    if (validateOnly) return;
+    const kept = existing.filter(item => {
+      if (item.userId !== userId) return true;
+      const localDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+      }).format(new Date(item.startAt));
+      return localDate !== plan.date;
+    });
+    this.saveStoredItems([...kept, ...items]);
+    try {
+      localStorage.setItem(this.syncedDayKey(userId, plan.date), '1');
+    } catch (error) {
+      console.warn('Could not mark the schedule as synced:', error);
+    }
+  }
+
   private getStoredItems(): ScheduleItem[] {
     try {
       const raw = localStorage.getItem(SCHEDULE_STORAGE_KEY);
@@ -158,6 +216,9 @@ export class ScheduleRepository {
         (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
       );
     }
+
+    // A personalized plan can intentionally have no time blocks.
+    if (localStorage.getItem(this.syncedDayKey(params.userId, dateStr))) return [];
 
     // If today has no items yet, check if DailyPlan has timeblocks to import
     const existingDailyPlan = storageService.getDailyPlan();

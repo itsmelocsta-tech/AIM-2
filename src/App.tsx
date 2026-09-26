@@ -63,6 +63,7 @@ import { FirstRunGuide } from './components/modules/FirstRunGuide';
 import { getUnlockedModules } from './services/moduleAccessService';
 import { useAuth } from './context/AuthContext';
 import { firestoreRepository } from './services/repositories/firestoreRepository';
+import { scheduleRepository } from './services/repositories/scheduleRepository';
 import { AuthModal } from './components/auth/AuthModal';
 
 export default function App() {
@@ -168,6 +169,13 @@ export default function App() {
         setWellnessLogs(remoteWellness || []);
         setLifeUpdates(remoteLifeUpdates || []);
         setDailyPlan(remotePlan || { ...DEFAULT_DAILY_PLAN, date: new Date().toISOString().split('T')[0] });
+        if (remotePlan) {
+          try {
+            scheduleRepository.syncDayFromPlan(user.uid, remotePlan, remoteProfile?.timeZone);
+          } catch (error) {
+            console.warn('[App] Could not rebuild the coach schedule from this plan:', error);
+          }
+        }
         const savedJob = jobScannerService.getListings().find((job) => job.fitRating === 'strong_fit' && job.status === 'active' && job.provenance === 'verified' && !job.isMock && !job.is_mock) || null;
         setDailyRecommendation(aimContextService.generateDailyRecommendation(remoteContext || DEFAULT_PERSONAL_CONTEXT, remoteProjects || [], savedJob));
         setLoadedUserId(user.uid);
@@ -305,6 +313,68 @@ export default function App() {
     if (user?.uid) {
       firestoreRepository.saveUserLifeUpdates(user.uid, updates).catch(console.warn);
     }
+  };
+
+  const handleCommitReroute = async (data: {
+    plan: DailyPlan;
+    update: LifeUpdate;
+    memory: MemoryItem;
+    goals?: Goal[];
+    profile?: UserProfile;
+  }) => {
+    if (!user?.uid) throw new Error('Sign in to save your plan.');
+    scheduleRepository.syncDayFromPlan(user.uid, data.plan, userProfile.timeZone, true);
+    await firestoreRepository.saveConfirmedReroute(user.uid, data);
+    scheduleRepository.syncDayFromPlan(user.uid, data.plan, userProfile.timeZone);
+    setDailyPlan(data.plan);
+    storageService.saveDailyPlan(data.plan);
+    const updatedHistory = [data.update, ...lifeUpdates];
+    setLifeUpdates(updatedHistory);
+    storageService.saveLifeUpdates(updatedHistory);
+    const updatedMemories = [data.memory, ...memories];
+    setMemories(updatedMemories);
+    storageService.saveMemories(updatedMemories);
+    if (data.goals) {
+      setGoals(data.goals);
+      storageService.saveGoals(data.goals);
+    }
+    if (data.profile) {
+      setUserProfile(data.profile);
+      storageService.saveProfile(data.profile);
+    }
+  };
+
+  const handleCommitOnboarding = async (data: {
+    profile: UserProfile;
+    plan: DailyPlan;
+    goals: Goal[];
+    memory: MemoryItem;
+  }) => {
+    if (!user?.uid || data.profile.id !== user.uid) throw new Error('Sign in to save your starting plan.');
+    scheduleRepository.syncDayFromPlan(user.uid, data.plan, data.profile.timeZone, true);
+    await firestoreRepository.saveConfirmedOnboarding(user.uid, data);
+    scheduleRepository.syncDayFromPlan(user.uid, data.plan, data.profile.timeZone);
+    setGoals(data.goals);
+    storageService.saveGoals(data.goals);
+    setDailyPlan(data.plan);
+    storageService.saveDailyPlan(data.plan);
+    const updatedMemories = [data.memory, ...memories];
+    setMemories(updatedMemories);
+    storageService.saveMemories(updatedMemories);
+    // Completing this state last sends the new account to the short first-run guide.
+    setUserProfile(data.profile);
+    storageService.saveProfile(data.profile);
+  };
+
+  const handleCommitLifeNote = async (update: LifeUpdate, memory: MemoryItem) => {
+    if (!user?.uid) throw new Error('Sign in to save your update.');
+    await firestoreRepository.saveLifeNote(user.uid, update, memory);
+    const updatedHistory = [update, ...lifeUpdates];
+    setLifeUpdates(updatedHistory);
+    storageService.saveLifeUpdates(updatedHistory);
+    const updatedMemories = [memory, ...memories];
+    setMemories(updatedMemories);
+    storageService.saveMemories(updatedMemories);
   };
 
   // Full reset for new user testing
@@ -489,10 +559,7 @@ export default function App() {
             wellnessLogs={wellnessLogs}
             chatMessages={chatMessages}
             onUpdateChat={handleUpdateChatMessages}
-            onUpdateDailyPlan={handleUpdateDailyPlan}
-            onUpdateMemories={handleUpdateMemories}
-            onUpdateGoals={handleUpdateGoals}
-            onUpdateProfile={handleUpdateProfile}
+            onCommitOnboarding={handleCommitOnboarding}
             onNavigateToTab={setActiveTab}
             onToast={showToast}
           />
@@ -619,14 +686,11 @@ export default function App() {
             userProfile={userProfile}
             dailyPlan={dailyPlan}
             goals={goals}
-            memories={memories}
             wellnessLogs={wellnessLogs}
             lifeUpdates={lifeUpdates}
             onUpdateLifeUpdates={handleUpdateLifeUpdates}
-            onUpdateDailyPlan={handleUpdateDailyPlan}
-            onUpdateGoals={handleUpdateGoals}
-            onUpdateProfile={handleUpdateProfile}
-            onUpdateMemories={handleUpdateMemories}
+            onCommitReroute={handleCommitReroute}
+            onCommitLifeNote={handleCommitLifeNote}
             onNavigateToTab={setActiveTab}
             onToast={showToast}
           />

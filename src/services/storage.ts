@@ -22,6 +22,7 @@ export const STORAGE_KEYS = {
   CHAT: 'aim_chat_messages',
   ACTIVE_TAB: 'aim_active_tab',
   CALIBRATION: 'aim_calibration_state',
+  LIFE_UPDATE_DRAFT: 'aim_life_update_draft',
   LIFE_UPDATES: 'aim_life_updates',
   COACH_CONVERSATIONS: 'aim_coach_conversations_v1',
   SCHEDULE_ITEMS: 'aim_canonical_schedule_items',
@@ -148,6 +149,17 @@ export const storageService = {
     } else {
       safeStorage.setItem(key, JSON.stringify(data));
     }
+  },
+
+  getLifeUpdateDraft(userId?: string): string {
+    return userId ? safeStorage.getItem(`${STORAGE_KEYS.LIFE_UPDATE_DRAFT}_${userId}`) || '' : '';
+  },
+
+  saveLifeUpdateDraft(userId: string | undefined, text: string): void {
+    if (!userId) return;
+    const key = `${STORAGE_KEYS.LIFE_UPDATE_DRAFT}_${userId}`;
+    if (text.trim()) safeStorage.setItem(key, text);
+    else safeStorage.removeItem(key);
   },
 
   getMemories(): MemoryItem[] {
