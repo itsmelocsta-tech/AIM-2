@@ -11,6 +11,13 @@ import {
   LifeUpdate,
 } from '../types';
 
+export interface OnboardingDraft {
+  currentState: string;
+  desiredState: string;
+  result?: any;
+  updatedAt?: number;
+}
+
 export const STORAGE_KEYS = {
   PROFILE: 'aim_user_profile',
   MEMORIES: 'aim_memories',
@@ -131,7 +138,7 @@ export const storageService = {
     safeStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
   },
 
-  getCalibration(userId?: string): { currentState: string; desiredState: string; result?: any } | null {
+  getCalibration(userId?: string): OnboardingDraft | null {
     if (!userId) return null;
     try {
       const data = safeStorage.getItem(`${STORAGE_KEYS.CALIBRATION}_${userId}`);
@@ -141,13 +148,13 @@ export const storageService = {
     }
   },
 
-  saveCalibration(data: { currentState: string; desiredState: string; result?: any } | null, userId?: string): void {
+  saveCalibration(data: OnboardingDraft | null, userId?: string): void {
     if (!userId) return;
     const key = `${STORAGE_KEYS.CALIBRATION}_${userId}`;
     if (!data) {
       safeStorage.removeItem(key);
     } else {
-      safeStorage.setItem(key, JSON.stringify(data));
+      safeStorage.setItem(key, JSON.stringify({ ...data, updatedAt: data.updatedAt ?? Date.now() }));
     }
   },
 
@@ -270,7 +277,7 @@ export const storageService = {
    * Completely clears all saved user information, history, and state across storage
    * Restores pristine new-user initial state
    */
-  clearAllData(): void {
+  clearAllData(options: { preserveOnboardingDrafts?: boolean } = {}): void {
     try {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         // Remove all AIM-specific keys
@@ -281,6 +288,7 @@ export const storageService = {
         // Also clean any date-keyed daily plans
         for (let i = localStorage.length - 1; i >= 0; i--) {
           const k = localStorage.key(i);
+          if (options.preserveOnboardingDrafts && k?.startsWith(`${STORAGE_KEYS.CALIBRATION}_`)) continue;
           if (k && (k.startsWith('aim_') || k.startsWith('coach_'))) {
             safeStorage.removeItem(k);
           }

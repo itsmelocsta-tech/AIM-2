@@ -90,6 +90,20 @@ describe('onboarding draft isolation', () => {
     expect(storageService.getCalibration('account-b')).toBeNull();
   });
 
+  it('keeps account-scoped onboarding drafts across an account switch, but removes them on explicit reset', () => {
+    storageService.saveCalibration({ currentState: 'A situation', desiredState: 'A goal' }, 'a');
+    storageService.saveCalibration({ currentState: 'B situation', desiredState: '' }, 'b');
+    storageService.saveProfile({ ...DEFAULT_PROFILE, id: 'a' });
+    storageService.clearAllData({ preserveOnboardingDrafts: true });
+    expect(storageService.getProfile().id).toBeUndefined();
+    expect(storageService.getCalibration('a')?.desiredState).toBe('A goal');
+    expect(storageService.getCalibration('b')?.currentState).toBe('B situation');
+    expect(storageService.getCalibration('c')).toBeNull();
+    storageService.clearAllData();
+    expect(storageService.getCalibration('a')).toBeNull();
+    expect(storageService.getCalibration('b')).toBeNull();
+  });
+
   it('keeps a failed life update draft with its own account and clears it on reset', () => {
     storageService.saveLifeUpdateDraft('account-a', 'My schedule changed');
     expect(storageService.getLifeUpdateDraft('account-b')).toBe('');

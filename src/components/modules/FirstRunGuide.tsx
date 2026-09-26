@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { AimOrbCanvas } from '../common/AimOrbCanvas';
 import { DailyPlan, UserProfile } from '../../types';
@@ -9,11 +9,28 @@ interface FirstRunGuideProps {
   step: GuideStep;
   profile: UserProfile;
   dailyPlan: DailyPlan;
-  onNext: () => void;
+  onNext: () => void | Promise<void>;
 }
 
 /** One short instruction at a time, on the page where the person can use it. */
 export const FirstRunGuide: React.FC<FirstRunGuideProps> = ({ step, profile, dailyPlan, onNext }) => {
+  const inFlight = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const advance = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setSaving(true);
+    setSaveError(false);
+    try {
+      await onNext();
+    } catch {
+      setSaveError(true);
+    } finally {
+      inFlight.current = false;
+      setSaving(false);
+    }
+  };
   const firstTask = dailyPlan.priorityTasks.find((task) => !task.completed)?.task;
   const content = {
     intro: {
@@ -55,13 +72,16 @@ export const FirstRunGuide: React.FC<FirstRunGuideProps> = ({ step, profile, dai
       <h1 id="aim-first-run-heading" className="text-xl sm:text-2xl font-bold text-white">{content.heading}</h1>
       <p className="mt-3 text-sm sm:text-base leading-relaxed text-slate-200 break-words">{content.message}</p>
       <p className="mt-2 text-sm text-slate-400 break-words">{content.detail}</p>
+      {saveError && <p role="alert" className="mt-3 text-sm text-amber-300">AIM couldn’t save your progress. You’re still on this step. Please retry.</p>}
       <button
         id={`aim-first-run-next-${step}`}
         type="button"
-        onClick={onNext}
+        onClick={advance}
+        disabled={saving}
+        aria-busy={saving}
         className="mt-6 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300"
       >
-        {content.action} <ArrowRight className="w-4 h-4" />
+        {saving ? 'Saving…' : saveError ? 'Retry saving progress' : content.action} <ArrowRight className="w-4 h-4" />
       </button>
     </section>
   );

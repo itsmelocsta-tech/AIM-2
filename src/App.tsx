@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { chooseOnboardingDraft, persistGuideAdvance } from './services/onboardingRecovery';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Sparkles,
   Calendar,
@@ -68,6 +69,8 @@ import { AuthModal } from './components/auth/AuthModal';
 
 export default function App() {
   const { user, loading: isAuthLoading } = useAuth();
+  const currentUserId = useRef(user?.uid);
+  currentUserId.current = user?.uid;
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -110,13 +113,13 @@ export default function App() {
       try {
         // Local caches predate account scoping. Never show one person's cache to another.
         if (storageService.getProfile().id !== user.uid) {
-          storageService.clearAllData();
+          storageService.clearAllData({ preserveOnboardingDrafts: true });
           setChatMessages([...DEFAULT_CHAT]);
           setDriveState({ isConnected: false, accessToken: null, userEmail: null, lastSyncTime: null, syncedFiles: [] });
           setSelectedProjectId(null);
           setHomeViewMode('daily_os');
         }
-        const [remoteProfile, remoteContext, remoteProjects, remoteGoals, remoteMemories, remoteWellness, remoteLifeUpdates, remotePlan] = await Promise.all([
+        const [remoteProfile, remoteContext, remoteProjects, remoteGoals, remoteMemories, remoteWellness, remoteLifeUpdates, remotePlan, remoteDraft] = await Promise.all([
           firestoreRepository.getUserProfile(user.uid),
           firestoreRepository.getUserContext(user.uid),
           firestoreRepository.getUserProjects(user.uid),
@@ -125,9 +128,12 @@ export default function App() {
           firestoreRepository.getUserWellness(user.uid),
           firestoreRepository.getUserLifeUpdates(user.uid),
           firestoreRepository.getUserDailyPlan(user.uid, new Date().toISOString().split('T')[0]),
+          firestoreRepository.getOnboardingDraft(user.uid),
         ]);
 
         if (isCancelled) return;
+
+        storageService.saveCalibration(chooseOnboardingDraft(storageService.getCalibration(user.uid), remoteDraft), user.uid);
 
         if (remoteProfile) {
           const profile = { ...remoteProfile, id: user.uid };
@@ -468,11 +474,20 @@ export default function App() {
     : undefined;
   const currentTab = guideStep === 'planner' ? 'planner' : guideStep === 'check-in' ? 'check-in' : guideStep === 'intro' ? 'home' : activeTab;
 
-  const advanceGuide = () => {
-    if (!guideStep) return;
-    const next = guideStep === 'intro' ? 'planner' : guideStep === 'planner' ? 'check-in' : 'done';
-    handleUpdateProfile({ ...userProfile, firstRunGuideStep: next });
-    if (next === 'done') setActiveTab('home');
+  const advanceGuide = async () => {
+    if (!guideStep || !user?.uid) throw new Error('Sign in to save your progress.');
+    const userId = user.uid;
+    await persistGuideAdvance(guideStep,
+      (next) => firestoreRepository.saveGuideStep(userId, next),
+      (next) => {
+        if (currentUserId.current !== userId) return;
+        setUserProfile((profile) => {
+          const updated = { ...profile, firstRunGuideStep: next };
+          storageService.saveProfile(updated);
+          return updated;
+        });
+        if (next === 'done') setActiveTab('home');
+      });
   };
 
   useEffect(() => {
@@ -564,7 +579,7 @@ export default function App() {
             onToast={showToast}
           />
         ) : currentTab === 'home' && (guideStep === 'intro' ? (
-          <FirstRunGuide step="intro" profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
+          <FirstRunGuide key={`${user?.uid}-${guideStep}`} step="intro" profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-1.5 max-w-sm mx-auto mb-2">
@@ -633,7 +648,7 @@ export default function App() {
         ))}
 
         {(guideStep === 'planner' || guideStep === 'check-in') && (
-          <FirstRunGuide step={guideStep} profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
+          <FirstRunGuide key={`${user?.uid}-${guideStep}`} step={guideStep} profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
         )}
 
         {isReady && !guideStep && currentTab === 'scanner' && (

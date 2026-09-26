@@ -1,3 +1,5 @@
+import { createDraftWriter, getOnboardingStep, withSaveTimeout } from '../../services/onboardingRecovery';
+import { firestoreRepository } from '../../services/repositories/firestoreRepository';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Mic,
@@ -90,18 +92,8 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 }) => {
   // Determine initial step based on profile state
   const initialCalibration = storageService.getCalibration(userId);
-  const [currentStep, setCurrentStep] = useState<OnboardingStep>(() => {
-    if (!userProfile.onboardingCompleted) {
-      if (initialCalibration?.result) {
-        return 'pathway_selection';
-      }
-      if (initialCalibration?.currentState && !initialCalibration?.desiredState) {
-        return 'who_do_you_wanna_be';
-      }
-      return 'tell_about_yourself';
-    }
-    return 'active_os';
-  });
+  const [currentStep, setCurrentStep] = useState<OnboardingStep>(() =>
+    getOnboardingStep(userProfile.onboardingCompleted, initialCalibration));
 
   // Onboarding Form Inputs (Unlimited space)
   const [currentStateText, setCurrentStateText] = useState(
@@ -116,16 +108,40 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     initialCalibration?.result || null
   );
 
-  // Save unfinished answers on this account only, so leaving and returning is safe.
+  const [draftStatus, setDraftStatus] = useState<'saving' | 'saved' | 'error'>('saving');
+  const [draftRetry, setDraftRetry] = useState(0);
+  const [writeDraft] = useState(() => createDraftWriter(
+    (draft) => firestoreRepository.saveOnboardingDraft(userId, draft)));
+  // Save locally immediately; serialize remote writes so older edits cannot win.
   useEffect(() => {
-    if (!userProfile.onboardingCompleted) {
-      storageService.saveCalibration({
-        currentState: currentStateText,
-        desiredState: desiredStateText,
-        result: crossReferenceData || undefined,
-      }, userId);
-    }
-  }, [currentStateText, desiredStateText, crossReferenceData, userId, userProfile.onboardingCompleted]);
+    if (userProfile.onboardingCompleted) return;
+    const previous = storageService.getCalibration(userId);
+    const content = {
+      currentState: currentStateText,
+      desiredState: desiredStateText,
+      result: crossReferenceData || undefined,
+    };
+    const unchanged = previous && previous.currentState === content.currentState &&
+      previous.desiredState === content.desiredState &&
+      JSON.stringify(previous.result) === JSON.stringify(content.result);
+    const draft = { ...content, updatedAt: unchanged ? previous.updatedAt ?? Date.now() : Date.now() };
+    storageService.saveCalibration(draft, userId);
+    let cancelled = false;
+    setDraftStatus('saving');
+    const timer = setTimeout(() => {
+      withSaveTimeout(writeDraft(draft)).then(
+        () => { if (!cancelled) setDraftStatus('saved'); },
+        () => { if (!cancelled) setDraftStatus('error'); },
+      );
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [currentStateText, desiredStateText, crossReferenceData, userId, userProfile.onboardingCompleted, draftRetry, writeDraft]);
+  const draftNotice = <div className="my-3 text-center text-sm text-slate-300" role="status">
+    {draftStatus === 'saving' ? 'Saving your answers…' : draftStatus === 'saved' ? 'Answers saved to your account.' : <>
+      <span role="alert">Answers kept on this browser. Account sync failed.</span>{' '}
+      <button type="button" className="underline text-amber-300" onClick={() => setDraftRetry((n) => n + 1)}>Retry saving answers</button>
+    </>}
+  </div>;
   const [selectedPathwayId, setSelectedPathwayId] = useState<string>('option-1');
   const [isActivatingPath, setIsActivatingPath] = useState(false);
 
@@ -537,6 +553,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         id="aim-onboarding-step-1"
         className="min-h-[calc(100vh-120px)] flex flex-col items-center justify-start px-4 py-6 max-w-3xl mx-auto text-center animate-fadeIn"
       >
+        {draftNotice}
         {/* Floating Orb */}
         <div className="relative flex items-center justify-center my-2">
           <div className="absolute w-44 h-44 rounded-full bg-indigo-600/25 blur-2xl pointer-events-none" />
@@ -646,6 +663,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         id="aim-onboarding-step-2"
         className="min-h-[calc(100vh-120px)] flex flex-col items-center justify-start px-4 py-6 max-w-3xl mx-auto text-center animate-fadeIn"
       >
+        {draftNotice}
         {/* Floating Orb */}
         <div className="relative flex items-center justify-center my-2">
           <div className="absolute w-44 h-44 rounded-full bg-emerald-600/25 blur-2xl pointer-events-none" />
@@ -765,6 +783,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         id="aim-cross-referencing-loading"
         className="min-h-[calc(100vh-140px)] flex flex-col items-center justify-center px-4 py-12 max-w-xl mx-auto text-center space-y-6 animate-fadeIn"
       >
+        {draftNotice}
         <div className="relative flex items-center justify-center">
           <div className="absolute w-60 h-60 rounded-full bg-indigo-500/30 blur-3xl animate-pulse" />
           <AimOrbCanvas size={180} isListening={false} isSpeaking={false} isThinking={true} />
@@ -808,6 +827,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         id="aim-pathway-selection-module"
         className="min-h-[calc(100vh-120px)] flex flex-col items-center justify-start px-3 sm:px-6 py-6 max-w-5xl mx-auto text-center space-y-6 animate-fadeIn"
       >
+        {draftNotice}
         {/* Header Diagnosis */}
         <div className="space-y-2 max-w-3xl">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950/90 text-indigo-300 border border-indigo-800 shadow-sm">
