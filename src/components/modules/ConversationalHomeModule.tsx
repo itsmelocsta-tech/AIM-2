@@ -1,3 +1,5 @@
+import { createDraftWriter, getOnboardingStep } from '../../services/onboardingRecovery';
+import { firestoreRepository } from '../../services/repositories/firestoreRepository';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Mic,
@@ -63,6 +65,7 @@ interface ConversationalHomeModuleProps {
 
 type OnboardingStep =
   | 'tell_about_yourself' // Step 1: Good, Bad, and Ugly
+  | 'what_to_change'
   | 'who_do_you_wanna_be' // Step 2: Target Identity & Destination
   | 'cross_referencing'   // Step 3: AI Synthesis
   | 'pathway_selection'   // Step 4: Pick best options
@@ -70,10 +73,12 @@ type OnboardingStep =
 
 // Pre-defined guidance constants for natural voice narration
 const STEP_1_GUIDANCE =
-  "Good day. I’m AIM, your Life Operating System. Let’s start with where you are right now. What matters most today? A few words are enough.";
+  "Hello, I’m AIM, your Life Operating System. Let’s keep it simple. Who are you? What’s your situation right now?";
+
+const CHANGE_GUIDANCE = "And what would you like to change about your situation?";
 
 const STEP_2_GUIDANCE =
-  "Where do you want to be? Tell me one goal that matters most right now. You can share more whenever you're ready.";
+  "And where do you want to be, or who do you want to be eventually when this is all said and done?";
 
 export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> = ({
   userId,
@@ -90,18 +95,8 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 }) => {
   // Determine initial step based on profile state
   const initialCalibration = storageService.getCalibration(userId);
-  const [currentStep, setCurrentStep] = useState<OnboardingStep>(() => {
-    if (!userProfile.onboardingCompleted) {
-      if (initialCalibration?.result) {
-        return 'pathway_selection';
-      }
-      if (initialCalibration?.currentState && !initialCalibration?.desiredState) {
-        return 'who_do_you_wanna_be';
-      }
-      return 'tell_about_yourself';
-    }
-    return 'active_os';
-  });
+  const [currentStep, setCurrentStep] = useState<OnboardingStep>(() =>
+    getOnboardingStep(userProfile.onboardingCompleted, initialCalibration));
 
   // Onboarding Form Inputs (Unlimited space)
   const [currentStateText, setCurrentStateText] = useState(
@@ -111,21 +106,49 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     initialCalibration?.desiredState || ''
   );
 
+  const [changeStateText, setChangeStateText] = useState(initialCalibration?.changeState || '');
+
   // Cross Reference Result
   const [crossReferenceData, setCrossReferenceData] = useState<CrossReferenceResult | null>(
     initialCalibration?.result || null
   );
 
-  // Save unfinished answers on this account only, so leaving and returning is safe.
+  const [draftStatus, setDraftStatus] = useState<'saving' | 'saved' | 'error'>('saving');
+  const [draftRetry, setDraftRetry] = useState(0);
+  const [writeDraft] = useState(() => createDraftWriter(
+    (draft) => firestoreRepository.saveOnboardingDraft(userId, draft)));
+  // Save locally immediately; serialize remote writes so older edits cannot win.
   useEffect(() => {
-    if (!userProfile.onboardingCompleted) {
-      storageService.saveCalibration({
-        currentState: currentStateText,
-        desiredState: desiredStateText,
-        result: crossReferenceData || undefined,
-      }, userId);
-    }
-  }, [currentStateText, desiredStateText, crossReferenceData, userId, userProfile.onboardingCompleted]);
+    if (userProfile.onboardingCompleted) return;
+    const previous = storageService.getCalibration(userId);
+    const content = {
+      currentState: currentStateText,
+      changeState: changeStateText,
+      step: currentStep,
+      desiredState: desiredStateText,
+      result: crossReferenceData || undefined,
+    };
+    const unchanged = previous && previous.currentState === content.currentState &&
+      previous.desiredState === content.desiredState && previous.changeState === content.changeState && previous.step === content.step &&
+      JSON.stringify(previous.result) === JSON.stringify(content.result);
+    const draft = { ...content, updatedAt: unchanged ? previous.updatedAt ?? Date.now() : Date.now() };
+    storageService.saveCalibration(draft, userId);
+    let cancelled = false;
+    setDraftStatus('saving');
+    const timer = setTimeout(() => {
+      writeDraft(draft).then(
+        () => { if (!cancelled) setDraftStatus('saved'); },
+        () => { if (!cancelled) setDraftStatus('error'); },
+      );
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [currentStateText, desiredStateText, changeStateText, currentStep, crossReferenceData, userId, userProfile.onboardingCompleted, draftRetry, writeDraft]);
+  const draftNotice = <div className="my-3 text-center text-sm text-slate-300" role="status">
+    {draftStatus === 'saving' ? 'Saving your answers…' : draftStatus === 'saved' ? 'Answers saved to your account.' : <>
+      <span role="alert">Answers kept on this browser. Account sync failed.</span>{' '}
+      <button type="button" className="underline text-amber-300" onClick={() => setDraftRetry((n) => n + 1)}>Retry saving answers</button>
+    </>}
+  </div>;
   const [selectedPathwayId, setSelectedPathwayId] = useState<string>('option-1');
   const [isActivatingPath, setIsActivatingPath] = useState(false);
 
@@ -171,7 +194,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
   // Auto-focus input / textarea when step changes
   useEffect(() => {
-    if (currentStep === 'tell_about_yourself' || currentStep === 'who_do_you_wanna_be') {
+    if (currentStep === 'tell_about_yourself' || currentStep === 'what_to_change' || currentStep === 'who_do_you_wanna_be') {
       setTimeout(() => {
         if (activeTextAreaRef.current) {
           activeTextAreaRef.current.focus();
@@ -207,7 +230,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
   // Speaker Button Click Handler for Step 2
   const handleSpeakerClickStep2 = () => {
-    const textToSpeak = STEP_2_GUIDANCE;
+    const textToSpeak = currentStep === 'what_to_change' ? CHANGE_GUIDANCE : STEP_2_GUIDANCE;
     if (speakerStateStep2 === 'playing') {
       voiceEngine.pause();
     } else if (speakerStateStep2 === 'paused') {
@@ -280,10 +303,14 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       const started = voiceEngine.startListening(
         (text) => {
           setLiveTranscript(text);
+          setCrossReferenceData(null);
 
           // If currently in a form step, append speech live to the textarea
           if (currentStep === 'tell_about_yourself') {
             setCurrentStateText((prev) => (prev ? prev + ' ' + text : text));
+          } else if (currentStep === 'what_to_change') {
+            setChangeStateText((prev) => (prev ? prev + ' ' + text : text));
+            setCrossReferenceData(null);
           } else if (currentStep === 'who_do_you_wanna_be') {
             setDesiredStateText((prev) => (prev ? prev + ' ' + text : text));
           }
@@ -316,25 +343,25 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       return;
     }
 
-    // Save progress
-    storageService.saveCalibration({
-      currentState: currentStateText.trim(),
-      desiredState: desiredStateText.trim(),
-      result: crossReferenceData || undefined,
-    }, userId);
+    voiceEngine.stopListening();
+    setIsListening(false);
+    setCurrentStep('what_to_change');
+    if (!isVoiceMuted) voiceEngine.speak(CHANGE_GUIDANCE);
+  };
 
-    // Speak or reflect prompt
-    if (!isVoiceMuted) {
-      voiceEngine.speak('Well, who do you wanna be? Or where are you trying to be, instead of where you are?');
-    }
-
+  const handleProceedToFuture = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!changeStateText.trim()) return;
+    voiceEngine.stopListening();
+    setIsListening(false);
     setCurrentStep('who_do_you_wanna_be');
+    if (!isVoiceMuted) voiceEngine.speak(STEP_2_GUIDANCE);
   };
 
   // Step 2 Submission -> Trigger Deep Cross-Reference
   const handleTriggerCrossReference = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!desiredStateText.trim()) {
+    if (!currentStateText.trim() || !changeStateText.trim() || !desiredStateText.trim()) {
       onToast('Please describe who you want to be or where you are trying to reach.');
       return;
     }
@@ -345,6 +372,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     setCrossReferenceData(null);
     storageService.saveCalibration({
       currentState: currentStateText.trim(),
+      changeState: changeStateText.trim(),
       desiredState: desiredStateText.trim(),
     }, userId);
     setCurrentStep('cross_referencing');
@@ -353,6 +381,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     try {
       const result = await api.crossReferencePathways({
         currentState: currentStateText.trim(),
+      changeState: changeStateText.trim(),
         desiredState: desiredStateText.trim(),
         userProfile,
       });
@@ -366,6 +395,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       // Save calibration data
       storageService.saveCalibration({
         currentState: currentStateText.trim(),
+      changeState: changeStateText.trim(),
         desiredState: desiredStateText.trim(),
         result,
       }, userId);
@@ -442,7 +472,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     const foundationalMemory: MemoryItem = {
       id: 'mem-alignment-' + Date.now(),
       title: `Foundational Alignment: ${pathway.title}`,
-      content: `CURRENT STATE DISCLOSURE:\n${currentStateText}\n\nTARGET DESTINATION & IDENTITY:\n${desiredStateText}\n\nCHOSEN PATHWAY: ${pathway.title}\n${pathway.whyItFits}\n\nFIRST 48-HOUR STEPS:\n${pathway.actionPlan48h.join('\n')}`,
+      content: `CURRENT STATE DISCLOSURE:\n${currentStateText}\n\nCHANGES REQUESTED:\n${changeStateText}\n\nTARGET DESTINATION & IDENTITY:\n${desiredStateText}\n\nCHOSEN PATHWAY: ${pathway.title}\n${pathway.whyItFits}\n\nFIRST 48-HOUR STEPS:\n${pathway.actionPlan48h.join('\n')}`,
       category: 'Goals',
       tags: ['alignment', 'identity', 'pathway'],
       createdAt: new Date().toISOString(),
@@ -462,6 +492,8 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       onUpdateChat([...chatMessages, activationMessage]);
       storageService.saveCalibration({
         currentState: currentStateText,
+      changeState: changeStateText,
+      step: currentStep,
         desiredState: desiredStateText,
         result: crossReferenceData,
       }, userId);
@@ -537,6 +569,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         id="aim-onboarding-step-1"
         className="min-h-[calc(100vh-120px)] flex flex-col items-center justify-start px-4 py-6 max-w-3xl mx-auto text-center animate-fadeIn"
       >
+        {draftNotice}
         {/* Floating Orb */}
         <div className="relative flex items-center justify-center my-2">
           <div className="absolute w-44 h-44 rounded-full bg-indigo-600/25 blur-2xl pointer-events-none" />
@@ -557,10 +590,10 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             Step 1 of 3 · Where you are
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            Good day. I’m AIM, your Life Operating System.
+            Hello, I’m AIM, your Life Operating System.
           </h1>
           <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed">
-            What matters most today? A few words are enough. We can fill in the details later.
+            Let’s keep it simple. Who are you? What’s your situation right now?
           </p>
         </div>
 
@@ -611,6 +644,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             <textarea
               ref={activeTextAreaRef}
               id="aim-current-state-textarea"
+              aria-label="Who you are and your situation"
               value={currentStateText || ''}
               onChange={(e) => { setCurrentStateText(e.target.value); setCrossReferenceData(null); }}
               rows={5}
@@ -628,7 +662,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               disabled={!currentStateText.trim()}
               className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all active:scale-95 cursor-pointer"
             >
-              <span>Next: Where you want to be</span>
+              <span>Next: What you want to change</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -640,12 +674,15 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
   // ----------------------------------------------------
   // RENDER STEP 2: WHO DO YOU WANNA BE? / WHERE ARE YOU TRYING TO BE?
   // ----------------------------------------------------
-  if (currentStep === 'who_do_you_wanna_be') {
+  if (currentStep === 'what_to_change' || currentStep === 'who_do_you_wanna_be') {
+    const changing = currentStep === 'what_to_change';
+    const answer = changing ? changeStateText : desiredStateText;
     return (
       <div
-        id="aim-onboarding-step-2"
+        id={changing ? "aim-onboarding-step-2" : "aim-onboarding-step-3"}
         className="min-h-[calc(100vh-120px)] flex flex-col items-center justify-start px-4 py-6 max-w-3xl mx-auto text-center animate-fadeIn"
       >
+        {draftNotice}
         {/* Floating Orb */}
         <div className="relative flex items-center justify-center my-2">
           <div className="absolute w-44 h-44 rounded-full bg-emerald-600/25 blur-2xl pointer-events-none" />
@@ -663,13 +700,13 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         <div className="space-y-2 mt-3 max-w-2xl">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800">
             <Target className="w-3 h-3 text-emerald-400" />
-            Step 2 of 3 · Where you want to be
+            {changing ? 'Step 2 of 3 · What you want to change' : 'Step 3 of 3 · Your future'}
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            Well, who do you wanna be?
+            {changing ? CHANGE_GUIDANCE : STEP_2_GUIDANCE}
           </h1>
           <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed">
-            Tell me one goal that matters most right now. You can add more later.
+            {changing ? 'Tell me what you want to be different. Type or speak, then tap Next.' : 'Describe the person or life you want to grow into—your finances, relationships, health, or anything else that matters to you.'}
           </p>
         </div>
 
@@ -696,13 +733,13 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         </div>
 
         {/* Unlimited Character Space Text Area */}
-        <form onSubmit={handleTriggerCrossReference} className="w-full mt-5 text-left space-y-3">
+        <form onSubmit={changing ? handleProceedToFuture : handleTriggerCrossReference} className="w-full mt-5 text-left space-y-3">
           <div className="relative bg-slate-900/90 border border-slate-800 focus-within:border-emerald-500/80 rounded-2xl p-4 shadow-xl transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-400 mb-2 pb-2 border-b border-slate-800/80 gap-2">
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-slate-300 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-emerald-400" />
-                  Where you want to be
+                  {changing ? "Changes you want" : "Your future"}
                 </span>
               </div>
               <div className="flex items-center gap-2.5">
@@ -712,18 +749,19 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
                   onClick={handleSpeakerClickStep2}
                 />
                 <span className="text-[11px] text-slate-400">
-                  {desiredStateText.length > 0 ? `${desiredStateText.length} chars` : 'Unlimited space'}
+                  {answer.length > 0 ? `${answer.length} chars` : 'Unlimited space'}
                 </span>
               </div>
             </div>
 
             <textarea
               ref={activeTextAreaRef}
-              id="aim-desired-state-textarea"
-              value={desiredStateText || ''}
-              onChange={(e) => { setDesiredStateText(e.target.value); setCrossReferenceData(null); setErrorMessage(null); }}
+              id={changing ? "aim-change-state-textarea" : "aim-desired-state-textarea"}
+              aria-label={changing ? "Changes you want" : "Your future"}
+              value={answer || ''}
+              onChange={(e) => { (changing ? setChangeStateText : setDesiredStateText)(e.target.value); setCrossReferenceData(null); setErrorMessage(null); }}
               rows={5}
-              placeholder="For example: I want steady income and enough time to be present with my family."
+              placeholder={changing ? "What would you like to change?" : "What does the life you want look like?"}
               className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 resize-none font-normal leading-relaxed"
             />
 
@@ -733,21 +771,21 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
             <button
               type="button"
-              onClick={() => setCurrentStep('tell_about_yourself')}
+              onClick={() => { voiceEngine.stopListening(); setIsListening(false); setCurrentStep(changing ? 'tell_about_yourself' : 'what_to_change'); }}
               className="w-full sm:w-auto px-4 py-2.5 text-xs text-slate-400 hover:text-slate-200 bg-slate-900 hover:bg-slate-800 rounded-xl border border-slate-800 transition-colors flex items-center justify-center gap-1.5"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Current State</span>
+              <span>{changing ? 'Back to your situation' : 'Back to what you want to change'}</span>
             </button>
 
             <button
-              id="submit-cross-reference-btn"
+              id={changing ? "next-future-btn" : "submit-cross-reference-btn"}
               type="submit"
-              disabled={!desiredStateText.trim()}
+              disabled={!answer.trim()}
               className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all active:scale-95 cursor-pointer"
             >
               <Zap className="w-4 h-4 text-emerald-200" />
-              <span>Build my starting plan</span>
+              <span>{changing ? 'Next: Your future' : 'Build my starting plan'}</span>
             </button>
           </div>
         </form>
@@ -765,6 +803,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         id="aim-cross-referencing-loading"
         className="min-h-[calc(100vh-140px)] flex flex-col items-center justify-center px-4 py-12 max-w-xl mx-auto text-center space-y-6 animate-fadeIn"
       >
+        {draftNotice}
         <div className="relative flex items-center justify-center">
           <div className="absolute w-60 h-60 rounded-full bg-indigo-500/30 blur-3xl animate-pulse" />
           <AimOrbCanvas size={180} isListening={false} isSpeaking={false} isThinking={true} />
@@ -808,11 +847,12 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         id="aim-pathway-selection-module"
         className="min-h-[calc(100vh-120px)] flex flex-col items-center justify-start px-3 sm:px-6 py-6 max-w-5xl mx-auto text-center space-y-6 animate-fadeIn"
       >
+        {draftNotice}
         {/* Header Diagnosis */}
         <div className="space-y-2 max-w-3xl">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950/90 text-indigo-300 border border-indigo-800 shadow-sm">
             <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            Step 3 of 3 · Your starting plan
+            Your starting plan
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
             Here’s a way forward

@@ -623,7 +623,7 @@ Return strictly valid JSON matching this schema:
 
 // Cross-Reference Pathway & Identity Alignment Generator
 app.post('/api/aim/cross-reference', async (req: Request, res: Response) => {
-  const { currentState, desiredState, userProfile } = req.body;
+  const { currentState, changeState, desiredState, userProfile } = req.body;
   if (typeof currentState !== 'string' || !currentState.trim() ||
       typeof desiredState !== 'string' || !desiredState.trim()) {
     return res.status(400).json({ error: 'Your current situation and goal are required.' });
@@ -634,13 +634,18 @@ app.post('/api/aim/cross-reference', async (req: Request, res: Response) => {
 
     const prompt = `Act as AIM (Artificial Intelligence for Manifestation) - an elite Life Operating System strategist, cognitive analyst, and growth architect.
 
-The user has provided two deep, honest disclosures:
+The user has provided their situation, requested changes, and desired future:
 1. WHERE THEY ARE TODAY ("The Good, The Bad, and The Ugly"):
 """
 ${currentState || 'No current state provided.'}
 """
 
-2. WHO THEY WANT TO BE / WHERE THEY ARE TRYING TO BE:
+2. WHAT THEY WANT TO CHANGE ABOUT THEIR SITUATION:
+"""
+${typeof changeState === 'string' ? changeState : 'Not provided by this older client. Do not invent it.'}
+"""
+
+3. WHO THEY WANT TO BE / WHERE THEY ARE TRYING TO BE:
 """
 ${desiredState || 'No target destination provided.'}
 """

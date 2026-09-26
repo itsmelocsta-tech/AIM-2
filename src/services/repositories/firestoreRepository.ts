@@ -1,3 +1,4 @@
+import { OnboardingDraft } from '../storage';
 import {
   doc,
   getDoc,
@@ -6,6 +7,7 @@ import {
   getDocs,
   deleteDoc,
   writeBatch,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '../firebaseClient';
 import {
@@ -21,6 +23,29 @@ import {
 } from '../../types';
 
 export const firestoreRepository = {
+  async getOnboardingDraft(userId: string): Promise<OnboardingDraft | null> {
+    const snap = await getDoc(doc(db, 'users', userId, 'settings', 'onboardingDraft'));
+    return snap.exists() ? snap.data() as OnboardingDraft : null;
+  },
+
+  async saveOnboardingDraft(userId: string, draft: OnboardingDraft): Promise<void> {
+    if (!userId) throw new Error('Sign in to save your answers.');
+    const ref = doc(db, 'users', userId, 'settings', 'onboardingDraft');
+    await runTransaction(db, async (transaction) => {
+      const existing = await transaction.get(ref);
+      // A timed-out request may complete late. Never overwrite a newer draft.
+      if (existing.exists() && (existing.data().updatedAt ?? 0) > (draft.updatedAt ?? 0)) return;
+      transaction.set(ref, JSON.parse(JSON.stringify(draft)));
+    });
+  },
+
+  async saveGuideStep(userId: string, step: NonNullable<UserProfile['firstRunGuideStep']>): Promise<void> {
+    if (!userId) throw new Error('Sign in to save your progress.');
+    await setDoc(doc(db, 'users', userId), {
+      firstRunGuideStep: step, updatedAt: new Date().toISOString(),
+    }, { merge: true });
+  },
+
   // User Profile
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     if (!userId) return null;
@@ -334,6 +359,7 @@ export const firestoreRepository = {
       snap.docs.forEach((d) => batch.delete(d.ref));
       await batch.commit();
     }
+    await deleteDoc(doc(db, 'users', userId, 'settings', 'onboardingDraft'));
     // Delete context
     await deleteDoc(doc(db, 'users', userId, 'settings', 'context')).catch(() => {});
     // Delete profile
