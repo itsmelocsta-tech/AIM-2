@@ -32,7 +32,9 @@ export function getTodayDateString(timeZone?: string): string {
     month: '2-digit',
     day: '2-digit',
   });
-  return formatter.format(now); // en-CA produces YYYY-MM-DD
+  const parts = formatter.formatToParts(now);
+  const part = (type: 'year' | 'month' | 'day') => parts.find(item => item.type === type)?.value || '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
 /**

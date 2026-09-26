@@ -26,7 +26,7 @@ it('does not invent a starting plan or reroute when the analysis service is unav
     const headers = { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' };
     const start = await fetch(`${base}/api/aim/cross-reference`, {
       method: 'POST', headers,
-      body: JSON.stringify({ currentState: 'Looking for work', desiredState: 'Steady income' }),
+      body: JSON.stringify({ currentState: 'Looking for work', changesWanted: 'Find a better job', desiredState: 'Steady income' }),
     });
     expect(start.status).toBe(503);
     expect(await start.json()).not.toHaveProperty('pathways');
@@ -37,5 +37,19 @@ it('does not invent a starting plan or reroute when the analysis service is unav
     });
     expect(reroute.status).toBe(503);
     expect(await reroute.json()).not.toHaveProperty('proposedReroute');
+  });
+});
+
+it('does not analyze two answers or an empty middle answer', async () => {
+  await withServer(async base => {
+    const headers = { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' };
+    for (const changesWanted of [undefined, '   ']) {
+      const response = await fetch(`${base}/api/aim/cross-reference`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ currentState: 'Looking for work', changesWanted, desiredState: 'Steady income' }),
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).not.toHaveProperty('pathways');
+    }
   });
 });

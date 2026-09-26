@@ -221,7 +221,7 @@ export class ScheduleRepository {
     if (localStorage.getItem(this.syncedDayKey(params.userId, dateStr))) return [];
 
     // If today has no items yet, check if DailyPlan has timeblocks to import
-    const existingDailyPlan = storageService.getDailyPlan();
+    const existingDailyPlan = storageService.getDailyPlan(dateStr);
     if (existingDailyPlan?.timeBlocks && existingDailyPlan.timeBlocks.length > 0) {
       const convertedItems: ScheduleItem[] = existingDailyPlan.timeBlocks.map((b, idx) => {
         const timeParts = b.time.split(' - ');
@@ -398,7 +398,7 @@ export class ScheduleRepository {
         return itemLocalDate === todayStr;
       });
 
-      const currentPlan = storageService.getDailyPlan();
+      const currentPlan = storageService.getDailyPlan(todayStr);
       const updatedTimeBlocks = todayItems.map((item) => {
         const startStr = new Intl.DateTimeFormat('en-US', {
           timeZone: tz,
