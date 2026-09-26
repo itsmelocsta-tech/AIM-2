@@ -213,6 +213,7 @@ export const api = {
 
   async crossReferencePathways(params: {
     currentState: string;
+    changesWanted: string;
     desiredState: string;
     userProfile?: UserProfile;
   }): Promise<import('../types').CrossReferenceResult> {

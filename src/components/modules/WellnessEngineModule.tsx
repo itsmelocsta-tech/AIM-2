@@ -13,21 +13,24 @@ import {
   Zap,
 } from 'lucide-react';
 import { WellnessLog } from '../../types';
+import { getTodayDateString } from '../../utils/dateTimeUtils';
 
 interface WellnessEngineProps {
   wellnessLogs: WellnessLog[];
+  timeZone?: string;
   onUpdateLogs: (logs: WellnessLog[]) => void;
   onToast: (msg: string) => void;
 }
 
 export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
   wellnessLogs,
+  timeZone,
   onUpdateLogs,
   onToast,
 }) => {
   const latestLog = wellnessLogs[0] || {
     id: 'well-init',
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayDateString(timeZone),
     sleepHours: 7.5,
     sleepQuality: 8,
     movementMinutes: 45,
@@ -51,7 +54,7 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
 
   const handleSaveLog = (e: React.FormEvent) => {
     e.preventDefault();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayDateString(timeZone);
     const newLog: WellnessLog = {
       id: 'well-' + Date.now(),
       date: todayStr,

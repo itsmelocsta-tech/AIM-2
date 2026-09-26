@@ -12,11 +12,28 @@ it('does not invent a pathway or life reroute when an authenticated request fail
   getToken.mockResolvedValueOnce('valid-token').mockResolvedValueOnce('valid-token');
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"error":"unavailable"}', { status: 503 })));
   try {
-    await expect(api.crossReferencePathways({ currentState: 'Looking for work', desiredState: 'Steady income' })).rejects.toThrow('503');
+    await expect(api.crossReferencePathways({ currentState: 'Looking for work', changesWanted: 'Find a better job', desiredState: 'Steady income' })).rejects.toThrow('503');
     await expect(api.analyzeLifeUpdate({
       content: 'My interview moved', currentGoals: [],
       currentDailyPlan: { ...DEFAULT_DAILY_PLAN },
     })).rejects.toThrow('503');
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it('sends all three onboarding answers to the authenticated analysis endpoint', async () => {
+  getToken.mockResolvedValueOnce('valid-token');
+  const request = vi.fn().mockResolvedValue(new Response('{"pathways":[]}', { status: 200 }));
+  vi.stubGlobal('fetch', request);
+  try {
+    await api.crossReferencePathways({
+      currentState: 'I need work', changesWanted: 'Replace irregular income', desiredState: 'A stable home',
+    });
+    const [, options] = request.mock.calls[0];
+    expect(JSON.parse(options.body)).toMatchObject({
+      currentState: 'I need work', changesWanted: 'Replace irregular income', desiredState: 'A stable home',
+    });
   } finally {
     vi.unstubAllGlobals();
   }

@@ -7,14 +7,16 @@ import { AimHomeModule } from '../src/components/modules/AimHomeModule';
 import { aimContextService, DEFAULT_PERSONAL_CONTEXT } from '../src/services/aimContextService';
 import { DEFAULT_DAILY_PLAN, DEFAULT_PROFILE, storageService } from '../src/services/storage';
 
+const renderOnboarding = (userId: string) => renderToStaticMarkup(<ConversationalHomeModule
+  userId={userId} userProfile={{ ...DEFAULT_PROFILE, id: userId }}
+  dailyPlan={DEFAULT_DAILY_PLAN} goals={[]} memories={[]} wellnessLogs={[]}
+  chatMessages={[]} onUpdateChat={() => {}} onCommitOnboarding={async () => {}}
+  onNavigateToTab={() => {}} onToast={() => {}}
+/>);
+
 describe('guided first run', () => {
   it('shows the first question immediately for a new account', () => {
-    const html = renderToStaticMarkup(<ConversationalHomeModule
-      userId="just-created-user" userProfile={{ ...DEFAULT_PROFILE, id: 'just-created-user' }}
-      dailyPlan={DEFAULT_DAILY_PLAN} goals={[]} memories={[]} wellnessLogs={[]}
-      chatMessages={[]} onUpdateChat={() => {}} onCommitOnboarding={async () => {}}
-      onNavigateToTab={() => {}} onToast={() => {}}
-    />);
+    const html = renderOnboarding('just-created-user');
     expect(html).toContain('aim-onboarding-step-1');
     expect(html).toContain('Where you are right now');
     expect(html).toContain('aim-current-state-textarea');
@@ -78,11 +80,28 @@ describe('onboarding draft isolation', () => {
   });
   afterAll(() => vi.unstubAllGlobals());
 
+  it('resumes each distinct question and requires the middle answer before the goal', () => {
+    storageService.saveCalibration({ currentState: 'I need a new job', desiredState: 'Financial stability', result: { pathways: [{ id: 'old' }] } }, 'old-draft');
+    const middle = renderOnboarding('old-draft');
+    expect(middle).toContain('aim-onboarding-step-2');
+    expect(middle).toContain('aim-changes-wanted-textarea');
+    expect(middle).toContain('What would you like to change');
+    expect(middle).not.toContain('aim-desired-state-textarea');
+
+    storageService.saveCalibration({ currentState: 'I need a new job', changesWanted: 'Find reliable work', desiredState: '' }, 'new-draft');
+    const final = renderOnboarding('new-draft');
+    expect(final).toContain('aim-onboarding-step-3');
+    expect(final).toContain('aim-desired-state-textarea');
+    expect(final).toContain('Who do you want to be');
+  });
+
   it('resumes the current account without exposing the previous account’s answers', () => {
-    storageService.saveCalibration({ currentState: 'Account A private situation', desiredState: '' }, 'account-a');
+    storageService.saveCalibration({ currentState: 'Account A private situation', changesWanted: 'Private change', desiredState: '' }, 'account-a');
     expect(storageService.getCalibration('account-b')).toBeNull();
-    storageService.saveCalibration({ currentState: 'Account B situation', desiredState: 'Account B goal' }, 'account-b');
+    storageService.saveCalibration({ currentState: 'Account B situation', changesWanted: 'Account B change', desiredState: 'Account B goal' }, 'account-b');
     expect(storageService.getCalibration('account-a')?.currentState).toBe('Account A private situation');
+    expect(storageService.getCalibration('account-a')?.changesWanted).toBe('Private change');
+    expect(storageService.getCalibration('account-b')?.changesWanted).toBe('Account B change');
     expect(storageService.getCalibration('account-b')?.desiredState).toBe('Account B goal');
     expect(storageService.getCalibration()).toBeNull();
     storageService.clearAllData();

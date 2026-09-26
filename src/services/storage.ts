@@ -10,6 +10,7 @@ import {
   AIM_CATEGORIES,
   LifeUpdate,
 } from '../types';
+import { getTodayDateString } from '../utils/dateTimeUtils';
 
 export const STORAGE_KEYS = {
   PROFILE: 'aim_user_profile',
@@ -59,7 +60,7 @@ export const DEFAULT_DEALS: DealPipelineItem[] = [];
 
 export const DEFAULT_OFFERS: MonetizationOffer[] = [];
 
-export const getTodayDateStr = () => new Date().toISOString().split('T')[0];
+export const getTodayDateStr = (timeZone?: string) => getTodayDateString(timeZone);
 
 export const DEFAULT_DAILY_PLAN: DailyPlan = {
   date: getTodayDateStr(),
@@ -131,7 +132,7 @@ export const storageService = {
     safeStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
   },
 
-  getCalibration(userId?: string): { currentState: string; desiredState: string; result?: any } | null {
+  getCalibration(userId?: string): { currentState: string; changesWanted?: string; desiredState: string; result?: any } | null {
     if (!userId) return null;
     try {
       const data = safeStorage.getItem(`${STORAGE_KEYS.CALIBRATION}_${userId}`);
@@ -141,7 +142,7 @@ export const storageService = {
     }
   },
 
-  saveCalibration(data: { currentState: string; desiredState: string; result?: any } | null, userId?: string): void {
+  saveCalibration(data: { currentState: string; changesWanted?: string; desiredState: string; result?: any } | null, userId?: string): void {
     if (!userId) return;
     const key = `${STORAGE_KEYS.CALIBRATION}_${userId}`;
     if (!data) {

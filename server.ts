@@ -623,10 +623,11 @@ Return strictly valid JSON matching this schema:
 
 // Cross-Reference Pathway & Identity Alignment Generator
 app.post('/api/aim/cross-reference', async (req: Request, res: Response) => {
-  const { currentState, desiredState, userProfile } = req.body;
+  const { currentState, changesWanted, desiredState, userProfile } = req.body;
   if (typeof currentState !== 'string' || !currentState.trim() ||
+      typeof changesWanted !== 'string' || !changesWanted.trim() ||
       typeof desiredState !== 'string' || !desiredState.trim()) {
-    return res.status(400).json({ error: 'Your current situation and goal are required.' });
+    return res.status(400).json({ error: 'Your current situation, what you want to change, and your goal are required.' });
   }
 
   try {
@@ -634,19 +635,24 @@ app.post('/api/aim/cross-reference', async (req: Request, res: Response) => {
 
     const prompt = `Act as AIM (Artificial Intelligence for Manifestation) - an elite Life Operating System strategist, cognitive analyst, and growth architect.
 
-The user has provided two deep, honest disclosures:
-1. WHERE THEY ARE TODAY ("The Good, The Bad, and The Ugly"):
+The user has answered three distinct questions. Respect the difference between a current circumstance, a desired change, and the eventual destination:
+1. WHO THEY ARE AND THEIR SITUATION RIGHT NOW:
 """
-${currentState || 'No current state provided.'}
+${currentState}
 """
 
-2. WHO THEY WANT TO BE / WHERE THEY ARE TRYING TO BE:
+2. WHAT THEY WANT TO CHANGE ABOUT THEIR SITUATION:
 """
-${desiredState || 'No target destination provided.'}
+${changesWanted}
+"""
+
+3. WHO THEY WANT TO BE / WHERE THEY WANT TO BE EVENTUALLY:
+"""
+${desiredState}
 """
 
 TASK:
-Perform a deep cross-reference analysis between where the user is (their assets, bad habits, bottlenecks, frustrations) and where they want to be (their target identity, financial goals, lifestyle, wellness).
+Perform a deep cross-reference analysis of all three answers: start from their present circumstances, prioritize the changes they explicitly asked for, and aim toward their eventual identity and goals (including any financial, relationship, health, or other goals they named).
 Identify the core gap, eliminate their bottlenecks, leverage their hidden strengths, and generate the top 3 best strategic options/pathways to get them there.
 
 Return strictly valid JSON matching this schema:

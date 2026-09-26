@@ -65,6 +65,7 @@ import { useAuth } from './context/AuthContext';
 import { firestoreRepository } from './services/repositories/firestoreRepository';
 import { scheduleRepository } from './services/repositories/scheduleRepository';
 import { AuthModal } from './components/auth/AuthModal';
+import { getTodayDateString } from './utils/dateTimeUtils';
 
 export default function App() {
   const { user, loading: isAuthLoading } = useAuth();
@@ -116,15 +117,18 @@ export default function App() {
           setSelectedProjectId(null);
           setHomeViewMode('daily_os');
         }
-        const [remoteProfile, remoteContext, remoteProjects, remoteGoals, remoteMemories, remoteWellness, remoteLifeUpdates, remotePlan] = await Promise.all([
-          firestoreRepository.getUserProfile(user.uid),
+        // Read the saved timezone before choosing which day of the user's plan to load.
+        const remoteProfile = await firestoreRepository.getUserProfile(user.uid);
+        if (isCancelled) return;
+        const today = getTodayDateString(remoteProfile?.timeZone);
+        const [remoteContext, remoteProjects, remoteGoals, remoteMemories, remoteWellness, remoteLifeUpdates, remotePlan] = await Promise.all([
           firestoreRepository.getUserContext(user.uid),
           firestoreRepository.getUserProjects(user.uid),
           firestoreRepository.getUserGoals(user.uid),
           firestoreRepository.getUserMemories(user.uid),
           firestoreRepository.getUserWellness(user.uid),
           firestoreRepository.getUserLifeUpdates(user.uid),
-          firestoreRepository.getUserDailyPlan(user.uid, new Date().toISOString().split('T')[0]),
+          firestoreRepository.getUserDailyPlan(user.uid, today),
         ]);
 
         if (isCancelled) return;
@@ -168,7 +172,7 @@ export default function App() {
         setMemories(remoteMemories || []);
         setWellnessLogs(remoteWellness || []);
         setLifeUpdates(remoteLifeUpdates || []);
-        setDailyPlan(remotePlan || { ...DEFAULT_DAILY_PLAN, date: new Date().toISOString().split('T')[0] });
+        setDailyPlan(remotePlan || { ...DEFAULT_DAILY_PLAN, date: today });
         if (remotePlan) {
           try {
             scheduleRepository.syncDayFromPlan(user.uid, remotePlan, remoteProfile?.timeZone);
@@ -390,7 +394,7 @@ export default function App() {
     setUserProfile({ ...DEFAULT_PROFILE });
     setMemories([...DEFAULT_MEMORIES]);
     setGoals([...DEFAULT_GOALS]);
-    setDailyPlan({ ...DEFAULT_DAILY_PLAN, date: new Date().toISOString().split('T')[0] });
+    setDailyPlan({ ...DEFAULT_DAILY_PLAN, date: getTodayDateString(userProfile.timeZone) });
     setWellnessLogs([...DEFAULT_WELLNESS]);
     setChatMessages([...DEFAULT_CHAT]);
     setLifeUpdates([]);
@@ -452,14 +456,14 @@ export default function App() {
   const calibration = storageService.getCalibration(user?.uid);
   const unlockedModules = useMemo(() => getUnlockedModules({
     profile: userProfile,
-    calibrationText: [calibration?.currentState, calibration?.desiredState].filter(Boolean).join(' '),
+    calibrationText: [calibration?.currentState, calibration?.changesWanted, calibration?.desiredState].filter(Boolean).join(' '),
     context: aimContext,
     projects: aimProjects,
     goals,
     memories,
     dailyPlan,
     wellnessLogs,
-  }), [userProfile, calibration?.currentState, calibration?.desiredState, aimContext, aimProjects, goals, memories, dailyPlan, wellnessLogs]);
+  }), [userProfile, calibration?.currentState, calibration?.changesWanted, calibration?.desiredState, aimContext, aimProjects, goals, memories, dailyPlan, wellnessLogs]);
   const visibleNavigationTabs = navigationTabs.filter((tab) => unlockedModules.has(tab.id as any));
   const isReady = Boolean(user && loadedUserId === user.uid);
   const isOnboarding = !isReady || !userProfile.onboardingCompleted;
@@ -727,6 +731,7 @@ export default function App() {
         {isReady && !guideStep && currentTab === 'wellness' && (
           <WellnessEngineModule
             wellnessLogs={wellnessLogs}
+            timeZone={userProfile.timeZone}
             onUpdateLogs={handleUpdateWellnessLogs}
             onToast={showToast}
           />
