@@ -14,6 +14,8 @@ import {
 export interface OnboardingDraft {
   currentState: string;
   desiredState: string;
+  changeState?: string;
+  step?: 'tell_about_yourself' | 'what_to_change' | 'who_do_you_wanna_be' | 'cross_referencing' | 'pathway_selection' | 'active_os';
   result?: any;
   updatedAt?: number;
 }

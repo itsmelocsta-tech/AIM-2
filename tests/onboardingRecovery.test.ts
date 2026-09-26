@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { chooseOnboardingDraft, createDraftWriter, getOnboardingStep, persistGuideAdvance } from '../src/services/onboardingRecovery';
 
-const draft = { currentState: 'Variable shifts', desiredState: 'Finish three demos', updatedAt: 10 };
+const draft = { currentState: 'Variable shifts', desiredState: 'Finish three demos', changeState: 'Protect creative time', updatedAt: 10 };
 afterEach(() => vi.useRealTimers());
 
 describe('onboarding recovery', () => {
@@ -11,6 +11,21 @@ describe('onboarding recovery', () => {
     expect(getOnboardingStep(false, null)).toBe('tell_about_yourself');
     expect(getOnboardingStep(false, { ...draft, result: { pathways: [{}] } })).toBe('pathway_selection');
     expect(getOnboardingStep(true, draft)).toBe('active_os');
+  });
+  it('keeps a partial first answer on question one and restores Back navigation', () => {
+    expect(getOnboardingStep(false, { ...draft, step: 'tell_about_yourself' })).toBe('tell_about_yourself');
+    expect(getOnboardingStep(false, { ...draft, step: 'what_to_change' })).toBe('what_to_change');
+    expect(getOnboardingStep(false, { currentState: 'Old answer', desiredState: 'Old goal' })).toBe('what_to_change');
+  });
+  it('retries a hung draft save rather than waiting forever behind it', async () => {
+    vi.useFakeTimers();
+    const save = vi.fn().mockImplementationOnce(() => new Promise(() => {})).mockResolvedValue(undefined);
+    const write = createDraftWriter(save, 10);
+    const first = expect(write(draft)).rejects.toThrow('timed out');
+    await vi.advanceTimersByTimeAsync(10);
+    await first;
+    await write({ ...draft, updatedAt: 20 });
+    expect(save).toHaveBeenCalledTimes(2);
   });
   it('recovers the account draft on a new device, preserving newer unsynced local edits', () => {
     expect(chooseOnboardingDraft(null, draft)).toEqual(draft);

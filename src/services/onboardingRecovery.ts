@@ -8,16 +8,22 @@ export function chooseOnboardingDraft(local: OnboardingDraft | null, remote: Onb
 
 export function getOnboardingStep(completed: boolean | undefined, draft: OnboardingDraft | null) {
   if (completed) return 'active_os' as const;
-  if (draft?.result) return 'pathway_selection' as const;
-  if (draft?.currentState.trim()) return 'who_do_you_wanna_be' as const;
-  return 'tell_about_yourself' as const;
+  if (!draft) return 'tell_about_yourself' as const;
+  // Old two-answer drafts must collect the missing change answer first.
+  if (!draft.changeState?.trim()) {
+    if (draft.step === 'tell_about_yourself' || !draft.currentState.trim()) return 'tell_about_yourself' as const;
+    return 'what_to_change' as const;
+  }
+  if (draft.step === 'tell_about_yourself' || draft.step === 'what_to_change') return draft.step;
+  if (draft.result) return 'pathway_selection' as const;
+  return 'who_do_you_wanna_be' as const;
 }
 
 // Keep rapid edits ordered, including when an earlier request fails.
-export function createDraftWriter(save: (draft: OnboardingDraft) => Promise<void>) {
+export function createDraftWriter(save: (draft: OnboardingDraft) => Promise<void>, timeoutMs = 15000) {
   let pending = Promise.resolve();
   return (draft: OnboardingDraft) => {
-    pending = pending.catch(() => {}).then(() => save(draft));
+    pending = pending.catch(() => {}).then(() => withSaveTimeout(save(draft), timeoutMs));
     return pending;
   };
 }

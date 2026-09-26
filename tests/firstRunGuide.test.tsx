@@ -90,6 +90,30 @@ describe('onboarding draft isolation', () => {
     expect(storageService.getCalibration('account-b')).toBeNull();
   });
 
+  it('renders three distinct questions and only offers plan generation on the final question', () => {
+    const render = () => renderToStaticMarkup(<ConversationalHomeModule
+      userId="three-step" userProfile={{ ...DEFAULT_PROFILE, id: 'three-step' }}
+      dailyPlan={DEFAULT_DAILY_PLAN} goals={[]} memories={[]} wellnessLogs={[]}
+      chatMessages={[]} onUpdateChat={() => {}} onCommitOnboarding={async () => {}}
+      onNavigateToTab={() => {}} onToast={() => {}}
+    />);
+    storageService.saveCalibration({ currentState: 'My situation', desiredState: '', step: 'tell_about_yourself' }, 'three-step');
+    const first = render();
+    expect(first).toContain('Who are you?');
+    expect(first).toContain('My situation');
+    expect(first).not.toContain('Build my starting plan');
+    storageService.saveCalibration({ currentState: 'My situation', changeState: 'Change my routine', desiredState: '', step: 'what_to_change' }, 'three-step');
+    const middle = render();
+    expect(middle).toContain('And what would you like to change about your situation?');
+    expect(middle).toContain('Change my routine');
+    expect(middle).not.toContain('Build my starting plan');
+    storageService.saveCalibration({ currentState: 'My situation', changeState: 'Change my routine', desiredState: 'My future', step: 'who_do_you_wanna_be' }, 'three-step');
+    const last = render();
+    expect(last).toContain('who do you want to be eventually');
+    expect(last).toContain('My future');
+    expect(last).toContain('Build my starting plan');
+  });
+
   it('keeps account-scoped onboarding drafts across an account switch, but removes them on explicit reset', () => {
     storageService.saveCalibration({ currentState: 'A situation', desiredState: 'A goal' }, 'a');
     storageService.saveCalibration({ currentState: 'B situation', desiredState: '' }, 'b');

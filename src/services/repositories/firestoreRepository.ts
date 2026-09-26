@@ -7,6 +7,7 @@ import {
   getDocs,
   deleteDoc,
   writeBatch,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '../firebaseClient';
 import {
@@ -29,8 +30,13 @@ export const firestoreRepository = {
 
   async saveOnboardingDraft(userId: string, draft: OnboardingDraft): Promise<void> {
     if (!userId) throw new Error('Sign in to save your answers.');
-    await setDoc(doc(db, 'users', userId, 'settings', 'onboardingDraft'),
-      JSON.parse(JSON.stringify(draft)));
+    const ref = doc(db, 'users', userId, 'settings', 'onboardingDraft');
+    await runTransaction(db, async (transaction) => {
+      const existing = await transaction.get(ref);
+      // A timed-out request may complete late. Never overwrite a newer draft.
+      if (existing.exists() && (existing.data().updatedAt ?? 0) > (draft.updatedAt ?? 0)) return;
+      transaction.set(ref, JSON.parse(JSON.stringify(draft)));
+    });
   },
 
   async saveGuideStep(userId: string, step: NonNullable<UserProfile['firstRunGuideStep']>): Promise<void> {
