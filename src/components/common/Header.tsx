@@ -27,6 +27,7 @@ interface HeaderProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   unlockedSpacesCount?: number;
+  isOnboarding?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -42,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   unlockedSpacesCount = 0,
+  isOnboarding = false,
 }) => {
   const effectiveTz = getEffectiveTimeZone(userProfile.timeZone);
   const [timeStr, setTimeStr] = useState(() => formatLocalTime(new Date(), effectiveTz));
@@ -79,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Center: Live Local Weather & Live Local Time */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {!isOnboarding && <div className="flex items-center gap-2 sm:gap-3">
           {/* Live Clock Pill */}
           <div
             id="aim-header-live-time"
@@ -92,10 +94,11 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Local Weather Pill */}
           <WeatherPill userTimeZone={userProfile.timeZone} />
-        </div>
+        </div>}
 
         {/* Header Right Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {!isOnboarding && <>
           {/* Active Mode Switcher: Home vs Spaces */}
           {activeTab !== 'home' ? (
             <button
@@ -159,6 +162,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Sliders className="w-3.5 h-3.5" />
           </button>
+          </>}
 
           {/* Account & Security Modal Trigger */}
           {onOpenAuthModal && (
@@ -183,4 +187,3 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
-

@@ -22,12 +22,14 @@ import { DailyPlan, PriorityTask, TimeBlock, UserProfile, Goal } from '../../typ
 import { api } from '../../services/api';
 import { driveService } from '../../services/driveService';
 import { ensureDetailedTaskGuidance } from '../../utils/taskGuidance';
+import { groundedEveningReflection, morningPlanContext, nextFinisherTask, reconcilePriorityTasks, reconcileTimeBlocks } from '../../services/finishingWorkflow';
 
 interface DailyPlannerProps {
   dailyPlan: DailyPlan;
   userProfile: UserProfile;
   goals: Goal[];
   onUpdatePlan: (plan: DailyPlan) => void;
+  onUpdateProfile: (profile: UserProfile) => void;
   onToast: (msg: string) => void;
 }
 
@@ -38,6 +40,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
   userProfile,
   goals,
   onUpdatePlan,
+  onUpdateProfile,
   onToast,
 }) => {
   const [plannerHorizon, setPlannerHorizon] = useState<PlannerHorizon>('today');
@@ -46,11 +49,22 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
   const [availableHours, setAvailableHours] = useState(dailyPlan?.availableHours ?? 8);
   const [morningNotes, setMorningNotes] = useState('');
   const [eveningNotes, setEveningNotes] = useState('');
+  const [driftTrigger, setDriftTrigger] = useState(userProfile.finishingSystem?.driftTrigger || '');
+  const [protectiveRoutine, setProtectiveRoutine] = useState(userProfile.finishingSystem?.protectiveRoutine || '');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSyncingDrive, setIsSyncingDrive] = useState(false);
 
   // New task input
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const finisherTask = nextFinisherTask(dailyPlan);
+
+  const saveFinishingSystem = () => {
+    const finishingSystem = { driftTrigger: driftTrigger.trim(), protectiveRoutine: protectiveRoutine.trim() };
+    if (finishingSystem.driftTrigger !== (userProfile.finishingSystem?.driftTrigger || '') ||
+        finishingSystem.protectiveRoutine !== (userProfile.finishingSystem?.protectiveRoutine || '')) {
+      onUpdateProfile({ ...userProfile, finishingSystem });
+    }
+  };
 
   // Toggle task completion
   const handleToggleTask = (taskId: string) => {
@@ -103,38 +117,53 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
         energyLevel,
         availableHours,
         goals: activeGoalTitles,
-        dayNotes: morningNotes,
+        dayNotes: morningPlanContext(morningNotes, driftTrigger, protectiveRoutine),
       });
 
       if (planData) {
-        const newPlan: DailyPlan = {
-          date: dailyPlan.date,
-          theme: planData.theme || 'High-Leverage Daily Execution',
-          energyLevel,
-          availableHours,
-          priorityTasks: planData.topThreePriorityTasks?.map((t: any, idx: number) => ({
+        const generatedTasks: PriorityTask[] = planData.source === 'fallback' ? [] :
+          (Array.isArray(planData.topThreePriorityTasks) ? planData.topThreePriorityTasks : [])
+            .filter((t: any) => typeof t?.task === 'string' && t.task.trim())
+            .map((t: any, idx: number) => ({
             id: 'pt-' + idx + '-' + Date.now(),
-            task: t.task,
+            task: t.task.trim(),
             description: ensureDetailedTaskGuidance(t.task, t.description),
             category: t.category || 'Business',
             timeEstimate: t.timeEstimate || '60m',
             impact: t.impact || 'High',
             completed: false,
-          })) || dailyPlan.priorityTasks,
-          timeBlocks: planData.timeBlocks?.map((b: any, idx: number) => ({
+          }));
+        const hasNewPlan = generatedTasks.length > 0;
+        const generatedBlocks: TimeBlock[] = hasNewPlan && Array.isArray(planData.timeBlocks) ? planData.timeBlocks
+          .filter((b: any) => typeof b?.title === 'string' && b.title.trim())
+          .map((b: any, idx: number) => ({
             id: 'tb-' + idx + '-' + Date.now(),
-            time: b.time,
-            title: b.title,
+            time: b.time || '',
+            title: b.title.trim(),
             details: ensureDetailedTaskGuidance(b.title, b.details),
             completed: false,
-          })) || dailyPlan.timeBlocks,
-          mindsetReminder: planData.mindsetReminder || 'Focus strictly on compounding actions.',
+          })) : [];
+        const newPlan: DailyPlan = {
+          date: dailyPlan.date,
+          theme: hasNewPlan ? planData.theme || dailyPlan.theme : dailyPlan.theme,
+          energyLevel,
+          availableHours,
+          priorityTasks: reconcilePriorityTasks(dailyPlan.priorityTasks, generatedTasks),
+          timeBlocks: reconcileTimeBlocks(dailyPlan.timeBlocks, generatedBlocks),
+          mindsetReminder: hasNewPlan ? planData.mindsetReminder || dailyPlan.mindsetReminder : dailyPlan.mindsetReminder,
           notes: morningNotes || dailyPlan.notes,
+          eveningReflection: dailyPlan.eveningReflection,
         };
 
         onUpdatePlan(newPlan);
+        saveFinishingSystem();
         setActiveMode('plan');
-        onToast('Ideal Day Master Plan generated!');
+        onToast(planData.source === 'fallback'
+          ? 'AIM could not generate a new plan. Your existing tasks were kept; you can add one below.'
+          : hasNewPlan ? 'Today’s plan is ready. Start with one task you can finish.'
+            : 'No concrete task was generated. Add one priority below to begin.');
+      } else {
+        onToast('AIM could not generate a plan. Add one priority below to begin.');
       }
     } catch (e) {
       onToast('Error generating morning plan');
@@ -147,9 +176,9 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
   const handleGenerateEveningReview = async () => {
     setIsGenerating(true);
     try {
-      const completedCount = dailyPlan.priorityTasks.filter((t) => t.completed).length;
-      const totalCount = dailyPlan.priorityTasks.length;
-      const combinedNotes = `Completed ${completedCount} of ${totalCount} priority tasks. User reflection: ${eveningNotes}`;
+      const completed = dailyPlan.priorityTasks.filter((task) => task.completed).map((task) => task.task);
+      const unfinished = dailyPlan.priorityTasks.filter((task) => !task.completed).map((task) => task.task);
+      const combinedNotes = `Confirmed completed tasks: ${JSON.stringify(completed)}. Unfinished tasks: ${JSON.stringify(unfinished)}. User reflection: ${eveningNotes.trim() || 'None provided'}. User's proposed repeatable setup: ${protectiveRoutine.trim() || 'None provided'}. Only treat confirmed completed tasks as wins.`;
 
       const reviewData = await api.generateDailyPlan({
         type: 'evening',
@@ -162,18 +191,13 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
       if (reviewData) {
         const updatedPlan: DailyPlan = {
           ...dailyPlan,
-          eveningReflection: {
-            summary: reviewData.summary || 'Solid consistency and forward progress today.',
-            winsAcknowledged: reviewData.winsAcknowledged || ['Advanced core priorities'],
-            patternsIdentified: reviewData.patternsIdentified || ['Maintained focus on revenue tasks'],
-            adjustmentsForTomorrow: reviewData.adjustmentsForTomorrow || ['Protect morning deep-work blocks'],
-            closingThought: reviewData.closingThought || 'Every focused day brings you closer to your vision.',
-          },
+          eveningReflection: groundedEveningReflection(dailyPlan, eveningNotes, protectiveRoutine, reviewData),
         };
 
         onUpdatePlan(updatedPlan);
+        saveFinishingSystem();
         setActiveMode('plan');
-        onToast('Evening Reflection & Trajectory Recalculated!');
+        onToast('Your review and tomorrow’s setup were saved.');
       }
     } catch (e) {
       onToast('Error generating evening review');
@@ -315,6 +339,21 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             />
           </div>
 
+          <div>
+            <label htmlFor="drift-trigger" className="block text-xs font-medium text-slate-300 mb-1">
+              Drifter: What tends to pull you away from finishing? (optional)
+            </label>
+            <input
+              id="drift-trigger"
+              type="text"
+              value={driftTrigger}
+              onChange={(e) => setDriftTrigger(e.target.value)}
+              placeholder="e.g. Checking messages before I finish the draft"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+            />
+            {protectiveRoutine && <p className="mt-2 text-xs text-amber-200 break-words">Your existing setup: {protectiveRoutine}</p>}
+          </div>
+
           <div className="flex justify-end gap-3">
             <button
               onClick={() => setActiveMode('plan')}
@@ -360,6 +399,20 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               value={eveningNotes || ''}
               onChange={(e) => setEveningNotes(e.target.value)}
               placeholder="e.g. Sent all 15 pitches, followed up with 2 clients. Got tired around 2pm, should take a 15 min fresh air break. Feeling excited about tomorrow."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="architect-routine" className="block text-xs font-medium text-slate-300 mb-1">
+              Architect: What will you set up to make the next finish easier? (optional)
+            </label>
+            <input
+              id="architect-routine"
+              type="text"
+              value={protectiveRoutine}
+              onChange={(e) => setProtectiveRoutine(e.target.value)}
+              placeholder="e.g. Put my draft on the calendar at 9 and capture new ideas in one note"
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
@@ -441,6 +494,23 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fadeIn">
           {/* Left Column: Top 3 Priority Tasks (5 Cols) */}
           <div className="lg:col-span-5 space-y-6">
+            <section aria-label="Drifter, Finisher, Architect workflow" className="bg-slate-900 border border-indigo-800/60 rounded-2xl p-5 space-y-3 shadow-md">
+              <h3 className="text-sm font-bold text-white">Drifter → Finisher → Architect</h3>
+              <p className="text-xs text-slate-300 leading-relaxed break-words">
+                <strong className="text-amber-300">Spot the drift:</strong>{' '}
+                {userProfile.finishingSystem?.driftTrigger || 'Name what pulls you off track in Morning Align. A distracted moment does not define you.'}
+              </p>
+              <p className="text-xs text-slate-300 leading-relaxed break-words">
+                <strong className="text-emerald-300">Finish one thing:</strong>{' '}
+                {finisherTask ? finisherTask.task : dailyPlan.priorityTasks.length
+                  ? `All ${completedTasksCount} priorities checked off. Take that win into Evening Review.`
+                  : 'Add one concrete priority below, then check it off when it is actually done.'}
+              </p>
+              <p className="text-xs text-slate-300 leading-relaxed break-words">
+                <strong className="text-indigo-300">Build the system:</strong>{' '}
+                {userProfile.finishingSystem?.protectiveRoutine || 'Use Evening Review to choose a repeatable setup for tomorrow.'}
+              </p>
+            </section>
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md space-y-5">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -457,10 +527,20 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                   <div
                     key={t.id}
                     onClick={() => handleToggleTask(t.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleToggleTask(t.id);
+                      }
+                    }}
+                    role="checkbox"
+                    tabIndex={0}
+                    aria-checked={t.completed}
+                    aria-label={`${t.task}, ${t.completed ? 'done' : 'not done'}`}
                     className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
                       t.completed
                         ? 'bg-slate-950/40 border-slate-800/60 opacity-60'
-                        : 'bg-slate-950 border-slate-800 hover:border-indigo-500/50'
+                        : `bg-slate-950 border-slate-800 hover:border-indigo-500/50 ${finisherTask?.id === t.id ? 'ring-1 ring-emerald-500/50' : ''}`
                     }`}
                   >
                     <div className="mt-0.5">
@@ -471,6 +551,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                     <div className="flex-1 text-xs">
                       <div className={`font-semibold ${t.completed ? 'line-through text-slate-400' : 'text-white'}`}>
                         {t.task}
+                        {finisherTask?.id === t.id && <span className="ml-2 text-[10px] text-emerald-300">Next to finish</span>}
                       </div>
                       <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-400">
                         <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
@@ -534,12 +615,25 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                 <p className="text-xs text-slate-300 leading-relaxed">
                   {dailyPlan.eveningReflection.summary}
                 </p>
-                <div className="space-y-1 text-xs text-slate-300">
-                  <span className="font-semibold text-slate-400 block">Identified Patterns:</span>
-                  {dailyPlan.eveningReflection.patternsIdentified.map((p, i) => (
-                    <div key={i} className="text-indigo-300 text-[11px]">• {p}</div>
-                  ))}
-                </div>
+                {dailyPlan.eveningReflection.winsAcknowledged.length > 0 && (
+                  <div className="space-y-1 text-xs text-slate-300">
+                    <span className="font-semibold text-slate-400 block">Finished today:</span>
+                    {dailyPlan.eveningReflection.winsAcknowledged.map((win, i) => <div key={i} className="break-words">• {win}</div>)}
+                  </div>
+                )}
+                {dailyPlan.eveningReflection.userNotes && <p className="text-xs text-slate-300 break-words">Your notes: {dailyPlan.eveningReflection.userNotes}</p>}
+                {dailyPlan.eveningReflection.patternsIdentified.length > 0 && (
+                  <div className="space-y-1 text-xs text-slate-300">
+                    <span className="font-semibold text-slate-400 block">Patterns to consider:</span>
+                    {dailyPlan.eveningReflection.patternsIdentified.map((p, i) => <div key={i} className="text-indigo-300 text-[11px] break-words">• {p}</div>)}
+                  </div>
+                )}
+                {dailyPlan.eveningReflection.adjustmentsForTomorrow.length > 0 && (
+                  <div className="space-y-1 text-xs text-slate-300">
+                    <span className="font-semibold text-slate-400 block">Tomorrow’s setup:</span>
+                    {dailyPlan.eveningReflection.adjustmentsForTomorrow.map((item, i) => <div key={i} className="break-words">• {item}</div>)}
+                  </div>
+                )}
               </div>
             )}
           </div>
