@@ -170,32 +170,7 @@ export const api = {
     } catch (error) {
       if (error instanceof AuthenticationError) throw error;
       console.warn('API generateDailyPlan fallback engaged:', error);
-      if (params.type === 'morning') {
-        return {
-          theme: "High-Leverage Execution & Compounding Action",
-          topThreePriorityTasks: [
-            { task: "Execute primary high-impact deliverable or client outreach", category: "Business", timeEstimate: "60m", impact: "High" },
-            { task: "Deep work session on core strategic asset", category: "Projects", timeEstimate: "90m", impact: "High" },
-            { task: "45 min physical movement & mindfulness reset", category: "Health", timeEstimate: "45m", impact: "Medium" }
-          ],
-          timeBlocks: [
-            { time: "08:30 - 10:00", title: "Deep Work Sprint: High-Leverage Priorities", details: "Direct execution on primary objective" },
-            { time: "10:30 - 12:30", title: "Core Asset Building", details: "Focused deliverable implementation" },
-            { time: "14:00 - 15:30", title: "Strategy, Coordination & Review", details: "Review trajectory and momentum" },
-            { time: "16:30 - 17:30", title: "Movement & Energy Recharge", details: "Cardio / Strength session" },
-            { time: "19:00 - 19:30", title: "Evening Alignment & Wins Review", details: "Log daily achievements in AIM" }
-          ],
-          mindsetReminder: "Focus strictly on compounding actions that move your reality forward."
-        };
-      } else {
-        return {
-          summary: "You demonstrated solid consistency today and kept your focus on core priorities.",
-          winsAcknowledged: ["Moved key goals forward", "Maintained execution discipline"],
-          patternsIdentified: ["Peak cognitive focus was utilized effectively"],
-          adjustmentsForTomorrow: ["Protect early morning deep work blocks from non-essential noise"],
-          closingThought: "Rest deeply knowing every focused day accumulates toward your ultimate vision."
-        };
-      }
+      return { source: 'fallback' };
     }
   },
 

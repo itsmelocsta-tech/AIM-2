@@ -81,7 +81,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
     whyBestMove: userProfile.coreMission || 'One clear step helps you move toward the goal you shared.',
     timeEstimate: firstTask?.timeEstimate || '15m',
     whatIsNeeded: firstTask?.description || 'Open your planner and choose a first step.',
-    whatCouldBlockIt: userProfile.primaryObstacle || 'If something changes, tell AIM at Check-In.',
+    whatCouldBlockIt: userProfile.finishingSystem?.driftTrigger || userProfile.primaryObstacle || 'If something changes, tell AIM at Check-In.',
     definitionOfDone: firstTask ? `Mark “${firstTask.task}” complete in the planner.` : 'Add a task to the planner.',
   } : rec.moneyMove;
   const hasIncomeGoal = /\b(income|job|money|revenue|career|business|work)\b/i.test([
@@ -222,6 +222,12 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
         <h2 className="text-lg sm:text-xl font-extrabold text-white mb-2 leading-snug">
           {mainMove.title}
         </h2>
+        <p className="text-xs text-indigo-200 leading-relaxed">
+          Drifter → Finisher → Architect: notice what pulls you away, finish one real step, then make the next finish easier.
+        </p>
+        {userProfile.finishingSystem?.protectiveRoutine && (
+          <p className="text-xs text-emerald-200 mt-2 break-words">Your finishing setup: {userProfile.finishingSystem.protectiveRoutine}</p>
+        )}
 
         {/* Detailed Explanation Breakdown (What, Why, Needed, Blockers, Done) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 my-4">

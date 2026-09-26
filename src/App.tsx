@@ -638,6 +638,7 @@ export default function App() {
             userProfile={userProfile}
             goals={goals}
             onUpdatePlan={handleUpdateDailyPlan}
+            onUpdateProfile={handleUpdateProfile}
             onToast={showToast}
           />
         )}

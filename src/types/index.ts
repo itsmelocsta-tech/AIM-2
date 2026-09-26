@@ -52,6 +52,11 @@ export interface UserProfile {
   onboardingCompleted: boolean;
   /** Only new accounts that have just finished onboarding enter this short guide. */
   firstRunGuideStep?: 'intro' | 'planner' | 'check-in' | 'done';
+  /** The user's own cues for returning to a task and making the next finish easier. */
+  finishingSystem?: {
+    driftTrigger: string;
+    protectiveRoutine: string;
+  };
   createdAt?: string;
   updatedAt?: string;
 }
@@ -159,6 +164,7 @@ export interface DailyPlan {
     patternsIdentified: string[];
     adjustmentsForTomorrow: string[];
     closingThought: string;
+    userNotes?: string;
   };
   notes: string;
 }
