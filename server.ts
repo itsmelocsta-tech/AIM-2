@@ -479,64 +479,10 @@ Return JSON with:
 
 // Life Update & Adaptive Plan GPS Rerouting
 app.post('/api/aim/life-update-analyze', async (req: Request, res: Response) => {
-  const { content, currentGoals, currentDailyPlan, userProfile, wellnessLogs, recentUpdates } = req.body;
-  const isJobOrIncome = /job|work|income|hire|hired|fired|laid off|offer|rejected|didn't get/i.test(content || '');
-  const isHealth = /sick|tired|energy|hospital|doctor|injury|pain|sleep/i.test(content || '');
-  const isSchedule = /late|delay|travel|flight|cancelled|reschedule|busy/i.test(content || '');
-
-  let primaryCategory = 'General life context';
-  if (isJobOrIncome) primaryCategory = 'Work and income';
-  else if (isHealth) primaryCategory = 'Health and energy';
-  else if (isSchedule) primaryCategory = 'Schedule and availability';
-
-  const defaultLifeUpdateFallback = {
-    understandingSummary: [
-      `You shared an important update: "${(content || '').substring(0, 100)}..."`,
-      isJobOrIncome
-        ? "Your income and opportunity pipeline need immediate calibration without losing momentum."
-        : isHealth
-        ? "Your physical capacity and energy need protection today; high-friction tasks will be adjusted."
-        : "Your daily focus and commitments will be aligned with this shift."
-    ],
-    importantLifeChange: content ? content.substring(0, 120) : "Life circumstances adjusted",
-    categories: [primaryCategory, 'Goals'],
-    entities: [],
-    urgency: isJobOrIncome || isHealth ? 'high' : 'medium',
-    affectedGoalIds: currentGoals?.length > 0 ? [currentGoals[0].id] : [],
-    affectedTaskIds: currentDailyPlan?.priorityTasks?.length > 0 ? [currentDailyPlan.priorityTasks[0].id] : [],
-    affectedPlanIds: [currentDailyPlan?.date || 'today'],
-    conflictsOrUncertainty: null,
-    planImpact: 'major',
-    proposedReroute: {
-      explanation: isJobOrIncome
-        ? "Got it. I have calibrated your active goals, deprioritized tasks tied to past assumptions, and prioritized rapid alternative momentum."
-        : "Understood. I have adjusted your schedule to accommodate this change while preserving all your completed wins.",
-      whatChanged: [
-        isJobOrIncome ? "Reopened active income generation stream" : "Adjusted daily timeline and priorities",
-        "Preserved all completed tasks and streak records"
-      ],
-      whatWasRemovedOrPaused: [
-        isJobOrIncome ? "Removed tasks assuming previous outcome" : "Rescheduled low-urgency non-essential tasks"
-      ],
-      newTopPriority: isJobOrIncome ? "Activate alternative outreach and monetization sprint" : "Focus on core high-leverage actions within available capacity",
-      nextSpecificAction: isJobOrIncome ? "Review and send 3 rapid outreach messages" : "Complete the highest-leverage single task for today",
-      suggestedPriorityTasks: (currentDailyPlan?.priorityTasks || []).map((t: any, i: number) => {
-        if (t.completed) return t;
-        if (i === 0 && isJobOrIncome) {
-          return { ...t, task: "Execute high-leverage outreach / fast-action opportunity", impact: 'High' };
-        }
-        return t;
-      }),
-      suggestedTimeBlocks: (currentDailyPlan?.timeBlocks || []).map((b: any) => b),
-      updatedGoals: currentGoals?.map((g: any) => ({
-        id: g.id,
-        title: g.title,
-        status: 'active',
-        recalculatedPath: "Recalibrated path forward based on latest update."
-      })),
-      updatedProfileFields: {}
-    }
-  };
+  const { content, currentGoals, currentDailyPlan, userProfile } = req.body;
+  if (typeof content !== 'string' || !content.trim() || !currentDailyPlan) {
+    return res.status(400).json({ error: 'A life update and current plan are required.' });
+  }
 
   try {
     const ai = getGenAI();
@@ -579,6 +525,9 @@ YOUR MISSION:
 3. If an update conflicts with existing facts (e.g. earlier had interview pending vs now didn't get job), note it. If there's an ambiguity, formulate a short follow-up question.
 4. REROUTE ADAPTIVELY LIKE A GPS:
    - Modify ONLY affected parts. DO NOT wipe out entire schedules or unrelated goals.
+   - Return existing IDs for tasks or time blocks that must change. For a new item, return a new ID.
+   - To remove an unfinished item, put its ID in removedTaskIds or removedTimeBlockIds and in the affected IDs.
+   - Do not claim a job lead, action, or schedule block exists unless it is present in the supplied state.
    - PRESERVE COMPLETED TASKS AND EXISTING WINS COMPLETELY.
    - Do NOT use guilt-based language or shame. Recalculate calmly with encouraging, pragmatic steps.
    - If the update is purely informational or positive reflection with no plan changes needed, set planImpact="none" and explain that nothing needs to change yet.
@@ -596,6 +545,7 @@ Return strictly valid JSON matching this schema:
   "urgency": "low" | "medium" | "high" | "critical",
   "affectedGoalIds": ["goal_id_if_any"],
   "affectedTaskIds": ["task_id_if_any"],
+  "affectedTimeBlockIds": ["time_block_id_if_any"],
   "affectedPlanIds": ["plan_date_or_id"],
   "conflictsOrUncertainty": null,
   "planImpact": "none" | "minor" | "major",
@@ -615,6 +565,8 @@ Return strictly valid JSON matching this schema:
         "completed": false
       }
     ],
+    "removedTaskIds": ["existing_unfinished_task_id_to_remove"],
+    "removedTimeBlockIds": ["existing_unfinished_time_block_id_to_remove"],
     "suggestedTimeBlocks": [
       {
         "id": "tb-rerouted-1",
@@ -639,7 +591,7 @@ Return strictly valid JSON matching this schema:
 }`;
 
     if (!ai) {
-      return res.json(defaultLifeUpdateFallback);
+      return res.status(503).json({ error: 'AIM cannot analyze life updates right now. Your plan was not changed.' });
     }
 
     const response = await generateWithFallback(ai, {
@@ -651,118 +603,31 @@ Return strictly valid JSON matching this schema:
     });
 
     const parsed = JSON.parse(response.text || '{}');
+    if (parsed?.affectedTimeBlockIds == null) parsed.affectedTimeBlockIds = [];
+    if (parsed?.affectedGoalIds == null) parsed.affectedGoalIds = [];
+    if (!['none', 'minor', 'major'].includes(parsed?.planImpact) ||
+        !Array.isArray(parsed?.affectedTaskIds) || !Array.isArray(parsed?.affectedTimeBlockIds) ||
+        !Array.isArray(parsed?.affectedGoalIds) ||
+        !parsed?.proposedReroute || !Array.isArray(parsed.proposedReroute.suggestedPriorityTasks) ||
+        !Array.isArray(parsed.proposedReroute.suggestedTimeBlocks) ||
+        parsed.proposedReroute.suggestedPriorityTasks.some((item: any) => !item?.id || !item?.task) ||
+        parsed.proposedReroute.suggestedTimeBlocks.some((item: any) => !item?.id || !item?.title)) {
+      throw new Error('Life update analysis was incomplete');
+    }
     res.json(parsed);
   } catch (error: any) {
-    console.warn('Life Update analyze endpoint resilient fallback:', error?.message);
-    res.json(defaultLifeUpdateFallback);
+    console.warn('Life Update analysis unavailable:', error?.message);
+    res.status(503).json({ error: 'AIM cannot analyze life updates right now. Your plan was not changed.' });
   }
 });
 
 // Cross-Reference Pathway & Identity Alignment Generator
 app.post('/api/aim/cross-reference', async (req: Request, res: Response) => {
   const { currentState, desiredState, userProfile } = req.body;
-  const defaultCrossReferenceFallback = {
-    analysis: {
-      coreGapSummary: "You have strong latent capabilities and clear aspirations, but scattered daily momentum and unaddressed friction are holding back your compounding power.",
-      hiddenStrengths: ["Self-awareness and honesty", "Drive to transform", "Adaptive problem-solving"],
-      primaryBottlenecks: ["Daily inconsistency", "Scattered priorities", "Hesitation to take high-stakes actions"],
-      empoweringInsight: "The fact that you can clearly articulate the bad and ugly is your greatest advantage. Awareness is the first half of transformation; structured execution is the rest."
-    },
-    recommendedOptionId: "option-1",
-    recommendedReason: "Starting with a high-velocity momentum sprint creates immediate proof and breaks psychological friction without feeling overwhelmed.",
-    pathways: [
-      {
-        "id": "option-1",
-        "title": "Rapid Momentum & Quick-Win Sprint",
-        "tagline": "Immediate high-leverage action to break inertia and generate fast proof in 7 days",
-        "pace": "Fast / Immediate",
-        "focus": "Low-friction high-impact wins, eliminating immediate friction, quick clarity",
-        "whyItFits": "Cross-referencing your situation shows that breaking inertia is the highest ROI move right now.",
-        "actionPlan48h": [
-          "Identify the single highest-friction bottleneck and remove or delegate it today",
-          "Execute one bold, direct action toward your primary target before sunset"
-        ],
-        "first7DaysMilestones": [
-          "Secure first visible win or breakthrough",
-          "Lock in a 90-minute daily uninterrupted focus block"
-        ],
-        "obstaclesNeutralized": ["Procrastination", "Overthinking", "Low momentum"],
-        "projected30DayOutcome": "Tangible progress, reignited confidence, and clear daily execution rhythm."
-      },
-      {
-        "id": "option-2",
-        "title": "Systematic Foundation & Compounding Engine",
-        "tagline": "Restructure daily rhythms, core skills, and repeatable systems for sustainable growth",
-        "pace": "Balanced & Scalable",
-        "focus": "Habit architecture, revenue/career systems, whole-person health and boundary setting",
-        "whyItFits": "Builds the sustainable daily infrastructure you need to permanently anchor your desired identity.",
-        "actionPlan48h": [
-          "Design an uncompromising morning routine (sleep, movement, hydration, priority review)",
-          "Audit daily calendar and eliminate low-value time sinks"
-        ],
-        "first7DaysMilestones": [
-          "7-day streak of disciplined morning execution",
-          "Draft first structured offer or milestone plan"
-        ],
-        "obstaclesNeutralized": ["Inconsistency", "Lack of clear roadmap", "Scattered energy"],
-        "projected30DayOutcome": "An automated, calm, high-output daily routine with predictable compounding results."
-      },
-      {
-        "id": "option-3",
-        "title": "Total Identity Shift & Bold Leap",
-        "tagline": "High-conviction transformation: cutting low-leverage anchors and stepping directly into the target standard",
-        "pace": "Intensive & Transformative",
-        "focus": "Radical standard elevation, aggressive positioning, major environment reset",
-        "whyItFits": "Directly aligns your daily reality with the person you are committed to becoming.",
-        "actionPlan48h": [
-          "Publicly or privately commit to your highest standard and prune all distracting commitments",
-          "Set a high-conviction 30-day target that forces maximum focus"
-        ],
-        "first7DaysMilestones": [
-          "Completely revamp your environment and daily inputs",
-          "Execute 3 high-leverage outreach or creation sprints"
-        ],
-        "obstaclesNeutralized": ["Playing small", "Comfort zone traps", "Hesitation"],
-        "projected30DayOutcome": "A transformed personal reality, higher earnings potential, and total clarity."
-      }
-    ],
-    synthesizedProfile: {
-      desiredIdentity: "High-Leverage Sovereign Builder",
-      coreMission: "Transform potential into compounded daily mastery and measurable freedom.",
-      primaryObstacle: "Overcoming inertia and maintaining daily focus rhythm",
-      topSkills: ["Strategic Vision", "Problem Solving", "Rapid Learning"],
-      coreValues: ["Intellectual Honesty", "Relentless Action", "Vital Health"],
-      ninetyDayTrajectory: "Achieve baseline financial stability and master daily high-energy execution."
-    },
-    suggestedInitialGoals: [
-      {
-        title: "Anchor Daily High-Leverage Deep Work Rhythm",
-        category: "Personal",
-        why: "Consistency is the fundamental engine of manifestation.",
-        milestones: ["Establish morning 90m block", "Complete 14-day consistency streak"]
-      },
-      {
-        title: "Achieve Target Financial & Career Trajectory",
-        category: "Finances",
-        why: "Provides freedom and sovereignty to focus on life's true mission.",
-        milestones: ["Package core high-value offer", "Generate first major cash milestone"]
-      }
-    ],
-    suggestedTodayTasks: [
-      {
-        task: "Calibrate top 3 daily priorities in AIM and execute the first one right now",
-        category: "Personal",
-        timeEstimate: "30m",
-        impact: "High"
-      },
-      {
-        task: "Take a 30-minute nature walk and clear your cognitive slate",
-        category: "Health",
-        timeEstimate: "30m",
-        impact: "Medium"
-      }
-    ]
-  };
+  if (typeof currentState !== 'string' || !currentState.trim() ||
+      typeof desiredState !== 'string' || !desiredState.trim()) {
+    return res.status(400).json({ error: 'Your current situation and goal are required.' });
+  }
 
   try {
     const ai = getGenAI();
@@ -889,7 +754,7 @@ Return strictly valid JSON matching this schema:
 }`;
 
     if (!ai) {
-      return res.json(defaultCrossReferenceFallback);
+      return res.status(503).json({ error: 'AIM cannot build a starting plan right now. Your answers were not changed.' });
     }
 
     const response = await generateWithFallback(ai, {
@@ -901,10 +766,22 @@ Return strictly valid JSON matching this schema:
     });
 
     const parsed = JSON.parse(response.text || '{}');
+    if (!Array.isArray(parsed?.pathways) || !parsed.pathways.length ||
+        !Array.isArray(parsed?.analysis?.hiddenStrengths) ||
+        !Array.isArray(parsed?.analysis?.primaryBottlenecks) ||
+        parsed.pathways.some((pathway: any) => !pathway?.id || !pathway?.title ||
+          !Array.isArray(pathway.actionPlan48h) || !Array.isArray(pathway.obstaclesNeutralized)) ||
+        !parsed?.synthesizedProfile?.desiredIdentity ||
+        !Array.isArray(parsed?.suggestedInitialGoals) ||
+        parsed.suggestedInitialGoals.some((goal: any) => !goal?.title || !Array.isArray(goal.milestones)) ||
+        !Array.isArray(parsed?.suggestedTodayTasks) ||
+        parsed.suggestedTodayTasks.some((task: any) => !task?.task)) {
+      throw new Error('Starting plan analysis was incomplete');
+    }
     res.json(parsed);
   } catch (error: any) {
-    console.warn('Cross-reference endpoint resilient fallback:', error?.message);
-    res.json(defaultCrossReferenceFallback);
+    console.warn('Cross-reference analysis unavailable:', error?.message);
+    res.status(503).json({ error: 'AIM cannot build a starting plan right now. Your answers were not changed.' });
   }
 });
 

@@ -51,10 +51,12 @@ interface ConversationalHomeModuleProps {
   wellnessLogs: WellnessLog[];
   chatMessages: ChatMessage[];
   onUpdateChat: (messages: ChatMessage[]) => void;
-  onUpdateDailyPlan: (plan: DailyPlan) => void;
-  onUpdateMemories: (memories: MemoryItem[]) => void;
-  onUpdateGoals: (goals: Goal[]) => void;
-  onUpdateProfile: (profile: UserProfile) => void;
+  onCommitOnboarding: (data: {
+    profile: UserProfile;
+    plan: DailyPlan;
+    goals: Goal[];
+    memory: MemoryItem;
+  }) => Promise<void>;
   onNavigateToTab: (tab: string) => void;
   onToast: (msg: string) => void;
 }
@@ -82,10 +84,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
   wellnessLogs,
   chatMessages,
   onUpdateChat,
-  onUpdateDailyPlan,
-  onUpdateMemories,
-  onUpdateGoals,
-  onUpdateProfile,
+  onCommitOnboarding,
   onNavigateToTab,
   onToast,
 }) => {
@@ -388,9 +387,10 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
   };
 
   // Activate Selected Pathway into the User's Life OS
-  const handleActivatePathway = (pathway: PathwayOption) => {
+  const handleActivatePathway = async (pathway: PathwayOption) => {
     if (!crossReferenceData) return;
     setIsActivatingPath(true);
+    setErrorMessage(null);
 
     // 1. Update User Profile
     const updatedProfile: UserProfile = {
@@ -421,8 +421,6 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       status: 'active',
       createdAt: new Date().toISOString(),
     }));
-    onUpdateGoals(newGoals);
-
     // 3. Populate Today's Priority Tasks
     const newPriorityTasks = (crossReferenceData.suggestedTodayTasks || []).map((t, idx) => ({
       id: 'task-calibrated-' + (idx + 1) + '-' + Date.now(),
@@ -433,12 +431,12 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       completed: false,
     }));
 
-    onUpdateDailyPlan({
+    const startingPlan: DailyPlan = {
       ...dailyPlan,
       theme: pathway.title,
       mindsetReminder: pathway.tagline,
       priorityTasks: newPriorityTasks,
-    });
+    };
 
     // 4. Log Memory Item of this Foundational Alignment
     const foundationalMemory: MemoryItem = {
@@ -451,8 +449,6 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       updatedAt: new Date().toISOString(),
       importance: 'critical',
     };
-    onUpdateMemories([foundationalMemory, ...memories]);
-
     // 5. Update Chat with AIM confirmation
     const activationMessage: ChatMessage = {
       id: 'msg-calibrated-' + Date.now(),
@@ -461,22 +457,22 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       timestamp: new Date().toISOString(),
       category: 'Goals',
     };
-    onUpdateChat([...chatMessages, activationMessage]);
-
-    // Save state
-    storageService.saveCalibration({
-      currentState: currentStateText,
-      desiredState: desiredStateText,
-      result: crossReferenceData,
-    }, userId);
-
-    setTimeout(() => {
-      // Updating the live profile last closes onboarding and reveals the personalized modules.
-      onUpdateProfile(updatedProfile);
+    try {
+      await onCommitOnboarding({ profile: updatedProfile, plan: startingPlan, goals: newGoals, memory: foundationalMemory });
+      onUpdateChat([...chatMessages, activationMessage]);
+      storageService.saveCalibration({
+        currentState: currentStateText,
+        desiredState: desiredStateText,
+        result: crossReferenceData,
+      }, userId);
       setIsActivatingPath(false);
       setCurrentStep('active_os');
       onToast(`Your starting Life OS is ready: ${pathway.title}`);
-    }, 600);
+    } catch (error) {
+      console.error('Could not save starting plan:', error);
+      setErrorMessage('AIM couldn’t save your starting plan yet. Your answers are still here. Please try again.');
+      setIsActivatingPath(false);
+    }
   };
 
   // Process live conversation in Active OS
@@ -869,6 +865,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
         {/* Top 3 Options Grid */}
         <div className="w-full space-y-4">
+          {errorMessage && <p role="alert" className="text-sm text-rose-300">{errorMessage}</p>}
           <div className="flex items-center justify-between text-left px-1">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <Flame className="w-5 h-5 text-amber-400" />

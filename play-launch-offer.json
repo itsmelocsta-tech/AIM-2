@@ -1,0 +1,12 @@
+{
+  "market": "US",
+  "currency": "USD",
+  "installPriceCents": 0,
+  "subscriptionProductId": "aim_premium",
+  "basePlanId": "monthly",
+  "monthlyPriceCents": 799,
+  "introductoryOfferId": "three_day_trial",
+  "freeTrialDays": 3,
+  "annualPlanAtLaunch": false,
+  "paymentsEnabled": false
+}

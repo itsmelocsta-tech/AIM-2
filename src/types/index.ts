@@ -297,6 +297,7 @@ export interface LifeUpdate {
   entities?: string[];
   affectedGoalIds: string[];
   affectedTaskIds: string[];
+  affectedTimeBlockIds?: string[];
   affectedPlanIds: string[];
   urgency: 'low' | 'medium' | 'high' | 'critical';
   userConfirmed: boolean;
@@ -321,6 +322,7 @@ export interface LifeUpdateAnalysisResult {
   urgency: 'low' | 'medium' | 'high' | 'critical';
   affectedGoalIds: string[];
   affectedTaskIds: string[];
+  affectedTimeBlockIds?: string[];
   affectedPlanIds: string[];
   conflictsOrUncertainty: string | null;
   planImpact: 'none' | 'minor' | 'major';
@@ -332,6 +334,8 @@ export interface LifeUpdateAnalysisResult {
     nextSpecificAction: string;
     suggestedPriorityTasks: PriorityTask[];
     suggestedTimeBlocks: TimeBlock[];
+    removedTaskIds?: string[];
+    removedTimeBlockIds?: string[];
     updatedGoals?: {
       id?: string;
       title?: string;

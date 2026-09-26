@@ -33,19 +33,24 @@ import {
 } from '../../types';
 import { api } from '../../services/api';
 import { voiceEngine } from '../../services/voiceService';
+import { buildReroutedDailyPlan, describeReroute } from '../../services/lifeUpdateReroute';
+import { storageService } from '../../services/storage';
 
 interface LifeUpdateModuleProps {
   userProfile: UserProfile;
   dailyPlan: DailyPlan;
   goals: Goal[];
-  memories: MemoryItem[];
   wellnessLogs: WellnessLog[];
   lifeUpdates: LifeUpdate[];
   onUpdateLifeUpdates: (updates: LifeUpdate[]) => void;
-  onUpdateDailyPlan: (plan: DailyPlan) => void;
-  onUpdateGoals: (goals: Goal[]) => void;
-  onUpdateProfile: (profile: UserProfile) => void;
-  onUpdateMemories: (memories: MemoryItem[]) => void;
+  onCommitReroute: (data: {
+    plan: DailyPlan;
+    update: LifeUpdate;
+    memory: MemoryItem;
+    goals?: Goal[];
+    profile?: UserProfile;
+  }) => Promise<void>;
+  onCommitLifeNote: (update: LifeUpdate, memory: MemoryItem) => Promise<void>;
   onNavigateToTab: (tab: string) => void;
   onToast: (msg: string) => void;
 }
@@ -54,19 +59,16 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
   userProfile,
   dailyPlan,
   goals,
-  memories,
   wellnessLogs,
   lifeUpdates,
   onUpdateLifeUpdates,
-  onUpdateDailyPlan,
-  onUpdateGoals,
-  onUpdateProfile,
-  onUpdateMemories,
+  onCommitReroute,
+  onCommitLifeNote,
   onNavigateToTab,
   onToast,
 }) => {
   // Input State
-  const [updateText, setUpdateText] = useState('');
+  const [updateText, setUpdateText] = useState(() => storageService.getLifeUpdateDraft(userProfile.id));
   const [isVoiceListening, setIsVoiceListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [micErrorMessage, setMicErrorMessage] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
   const [isEditingUnderstanding, setIsEditingUnderstanding] = useState(false);
   const [pendingUpdateRecord, setPendingUpdateRecord] = useState<LifeUpdate | null>(null);
   const [rerouteError, setRerouteError] = useState<string | null>(null);
+  const [isSavingReroute, setIsSavingReroute] = useState(false);
 
   // Edit / Revision Modal State for Existing Updates
   const [editingUpdate, setEditingUpdate] = useState<LifeUpdate | null>(null);
@@ -94,6 +97,10 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
   const [expandedUpdateId, setExpandedUpdateId] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    storageService.saveLifeUpdateDraft(userProfile.id, updateText);
+  }, [userProfile.id, updateText]);
 
   // Clean up voice on unmount
   useEffect(() => {
@@ -168,7 +175,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
       const updateId = 'lu-' + Date.now();
       const newRecord: LifeUpdate = {
         id: updateId,
-        userId: userProfile.email || 'user',
+        userId: userProfile.id || '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         inputType: voiceTranscript ? 'voice' : 'text',
@@ -179,6 +186,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
         entities: result.entities || [],
         affectedGoalIds: result.affectedGoalIds || [],
         affectedTaskIds: result.affectedTaskIds || [],
+        affectedTimeBlockIds: result.affectedTimeBlockIds || [],
         affectedPlanIds: result.affectedPlanIds || [],
         urgency: result.urgency || 'medium',
         userConfirmed: false,
@@ -204,112 +212,93 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
     }
   };
 
-  // 1. CONFIRMATION: "That's Right — Reroute"
-  const handleConfirmAndReroute = () => {
-    if (!currentAnalysis || !pendingUpdateRecord) return;
-
+  // Save the complete confirmed change before telling the user it succeeded.
+  const handleConfirmAndReroute = async () => {
+    if (!currentAnalysis || !pendingUpdateRecord || isSavingReroute) return;
+    if (currentAnalysis.planImpact === 'none') {
+      handleSaveWithoutRerouting();
+      return;
+    }
+    setIsSavingReroute(true);
+    setRerouteError(null);
     try {
+      const updatedPlan = buildReroutedDailyPlan(dailyPlan, currentAnalysis);
+      const diff = describeReroute(dailyPlan, updatedPlan);
       const proposed = currentAnalysis.proposedReroute;
-
-      // 1. Apply adaptive task updates (preserve completed tasks strictly)
-      const existingCompletedTasks = dailyPlan.priorityTasks.filter((t) => t.completed);
-      const newTasks = proposed.suggestedPriorityTasks || [];
-
-      // Merge: Keep all completed tasks intact, replace or append new uncompleted tasks
-      const mergedPriorityTasks = [
-        ...existingCompletedTasks,
-        ...newTasks.filter((nt) => !existingCompletedTasks.some((ct) => ct.task.toLowerCase() === nt.task.toLowerCase())),
-      ];
-
-      const existingCompletedBlocks = dailyPlan.timeBlocks.filter((b) => b.completed);
-      const newBlocks = proposed.suggestedTimeBlocks || dailyPlan.timeBlocks;
-      const mergedTimeBlocks = [
-        ...existingCompletedBlocks,
-        ...newBlocks.filter((nb) => !existingCompletedBlocks.some((cb) => cb.title.toLowerCase() === nb.title.toLowerCase())),
-      ];
-
-      const updatedPlan: DailyPlan = {
-        ...dailyPlan,
-        priorityTasks: mergedPriorityTasks,
-        timeBlocks: mergedTimeBlocks,
-        theme: proposed.newTopPriority ? `Focus: ${proposed.newTopPriority}` : dailyPlan.theme,
-      };
-
-      // 2. Update Goals if affected
-      if (proposed.updatedGoals && proposed.updatedGoals.length > 0) {
-        const updatedGoalsList = goals.map((g) => {
-          const match = proposed.updatedGoals?.find((ug) => ug.id === g.id || ug.title === g.title);
-          if (match) {
-            return {
-              ...g,
-              status: match.status || g.status,
-              recalculatedPath: match.recalculatedPath || g.recalculatedPath,
-            };
-          }
-          return g;
-        });
-        onUpdateGoals(updatedGoalsList);
+      const changedGoals = (Array.isArray(proposed.updatedGoals) ? proposed.updatedGoals : []).filter(goal =>
+        currentAnalysis.affectedGoalIds.includes(goal.id || '')
+      );
+      const nextGoals = changedGoals.length ? goals.map(goal => {
+        const changed = changedGoals.find(item => item.id === goal.id);
+        if (!changed || goal.status === 'completed') return goal;
+        return {
+          ...goal,
+          status: changed.status || goal.status,
+          recalculatedPath: changed.recalculatedPath || goal.recalculatedPath,
+        };
+      }) : undefined;
+      const updatedGoals = nextGoals && JSON.stringify(nextGoals) !== JSON.stringify(goals) ? nextGoals : undefined;
+      const newObstacle = proposed.updatedProfileFields?.primaryObstacle;
+      const updatedProfile = typeof newObstacle === 'string' && newObstacle.trim() &&
+        newObstacle !== userProfile.primaryObstacle
+        ? { ...userProfile, primaryObstacle: newObstacle.trim() }
+        : undefined;
+      if (!diff.changed.length && !diff.removed.length && updatedPlan.theme === dailyPlan.theme &&
+          !updatedGoals && !updatedProfile) {
+        throw new Error('AIM found no concrete changes to apply. Your plan is still intact.');
       }
 
-      // 3. Update User Profile if fields confirmed
-      if (proposed.updatedProfileFields && Object.keys(proposed.updatedProfileFields).length > 0) {
-        onUpdateProfile({
-          ...userProfile,
-          ...proposed.updatedProfileFields,
-        });
-      }
-
-      // 4. Save Confirmed Life Update Record
+      const changes = [...diff.changed];
+      if (updatedPlan.theme !== dailyPlan.theme) changes.push(`Priority focus: ${updatedPlan.theme}`);
+      if (updatedGoals) changes.push('Updated an affected goal');
+      if (updatedProfile) changes.push('Updated your stated obstacle');
       const finalizedRecord: LifeUpdate = {
         ...pendingUpdateRecord,
         userConfirmed: true,
         rerouteStatus: 'rerouted',
         confirmedSummary: editingUnderstoodPoints.join(' • ') || pendingUpdateRecord.confirmedSummary,
+        rerouteExplanation: `Updated ${changes.length} part${changes.length === 1 ? '' : 's'} of your plan based on what changed.`,
+        whatChanged: changes,
+        whatWasRemovedOrPaused: diff.removed,
+        nextSpecificAction: updatedPlan.priorityTasks.find(task => !task.completed)?.task,
         newPlanSnapshot: {
           priorityTasks: updatedPlan.priorityTasks,
           timeBlocks: updatedPlan.timeBlocks,
         },
       };
-
-      const updatedHistory = [finalizedRecord, ...lifeUpdates];
-      onUpdateLifeUpdates(updatedHistory);
-      onUpdateDailyPlan(updatedPlan);
-
-      // 5. Add to Chronological Memory Vault / Timeline
       const timelineMemory: MemoryItem = {
         id: 'mem-' + Date.now(),
         title: `Life Update: ${finalizedRecord.confirmedSummary.substring(0, 50)}`,
-        content: `**Life Update:** ${finalizedRecord.originalContent}\n\n**AIM GPS Reroute:** ${finalizedRecord.rerouteExplanation || ''}\n\n**Immediate Next Step:** ${finalizedRecord.nextSpecificAction || ''}`,
-        category: (finalizedRecord.categories[0] as any) || 'Personal',
+        content: `**Life Update:** ${finalizedRecord.originalContent}\n\n**Changes:** ${changes.join('; ')}\n\n**Next Step:** ${finalizedRecord.nextSpecificAction || 'Review today’s plan'}`,
+        category: 'Personal',
         tags: ['Life Update', 'GPS Reroute', ...finalizedRecord.categories],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         importance: finalizedRecord.urgency === 'critical' || finalizedRecord.urgency === 'high' ? 'critical' : 'high',
       };
-      onUpdateMemories([timelineMemory, ...memories]);
 
+      await onCommitReroute({
+        plan: updatedPlan, update: finalizedRecord, memory: timelineMemory,
+        goals: updatedGoals, profile: updatedProfile,
+      });
       setPendingUpdateRecord(finalizedRecord);
       setFlowState('rerouted_summary');
       setUpdateText('');
       setVoiceTranscript('');
-      onToast('Plan successfully rerouted to match your new reality!');
-    } catch (err: any) {
-      console.error('Rerouting application error:', err);
-      // Save update even if rerouting application had an edge-case failure
-      const fallbackRecord: LifeUpdate = {
-        ...pendingUpdateRecord,
-        rerouteStatus: 'failed',
-      };
-      onUpdateLifeUpdates([fallbackRecord, ...lifeUpdates]);
-      setPendingUpdateRecord(fallbackRecord);
+      onToast('Your updated plan was saved.');
+    } catch (error) {
+      console.error('Rerouting could not be saved:', error);
       setFlowState('failed');
-      setRerouteError('Your update was saved, but the plan could not be adjusted yet. Try rerouting again.');
+      setRerouteError(error instanceof Error ? error.message : 'Your plan was not changed. Please try again.');
+    } finally {
+      setIsSavingReroute(false);
     }
   };
 
   // 2. CONFIRMATION: "Save Without Changing My Plan"
-  const handleSaveWithoutRerouting = () => {
-    if (!pendingUpdateRecord) return;
+  const handleSaveWithoutRerouting = async () => {
+    if (!pendingUpdateRecord || isSavingReroute) return;
+    setIsSavingReroute(true);
 
     const savedRecord: LifeUpdate = {
       ...pendingUpdateRecord,
@@ -319,10 +308,6 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
       rerouteExplanation: 'Saved to life record. Current plan preserved unchanged.',
     };
 
-    const updatedHistory = [savedRecord, ...lifeUpdates];
-    onUpdateLifeUpdates(updatedHistory);
-
-    // Add to memories
     const timelineMemory: MemoryItem = {
       id: 'mem-' + Date.now(),
       title: `Life Note: ${savedRecord.confirmedSummary.substring(0, 50)}`,
@@ -333,12 +318,18 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
       updatedAt: new Date().toISOString(),
       importance: 'normal',
     };
-    onUpdateMemories([timelineMemory, ...memories]);
-
-    setUpdateText('');
-    setVoiceTranscript('');
-    setFlowState('input');
-    onToast('Update saved to your Life History. Your plan remains intact.');
+    try {
+      await onCommitLifeNote(savedRecord, timelineMemory);
+      setUpdateText('');
+      setVoiceTranscript('');
+      setFlowState('input');
+      onToast('Update saved to your Life History. Your plan remains intact.');
+    } catch (error) {
+      setFlowState('failed');
+      setRerouteError('AIM couldn’t save your update. Your text is still here. Please try again.');
+    } finally {
+      setIsSavingReroute(false);
+    }
   };
 
   // Edit / Revise an existing update without overwriting original history
@@ -403,6 +394,32 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
   const displayedUpdates = showPrivateOnly
     ? lifeUpdates.filter((u) => u.isPrivate)
     : lifeUpdates;
+
+  let previewChanges: string[] = [];
+  let previewRemoved: string[] = [];
+  if (currentAnalysis && flowState === 'confirming' && currentAnalysis.planImpact !== 'none') {
+    try {
+      const previewPlan = buildReroutedDailyPlan(dailyPlan, currentAnalysis);
+      const diff = describeReroute(dailyPlan, previewPlan);
+      previewChanges = [...diff.changed];
+      previewRemoved = diff.removed;
+      if (previewPlan.theme !== dailyPlan.theme) previewChanges.push(`Priority focus: ${previewPlan.theme}`);
+      for (const change of Array.isArray(currentAnalysis.proposedReroute.updatedGoals)
+        ? currentAnalysis.proposedReroute.updatedGoals : []) {
+        const goal = goals.find(item => item.id === change.id);
+        if (goal && goal.status !== 'completed' && currentAnalysis.affectedGoalIds.includes(goal.id) &&
+            (change.status && change.status !== goal.status || change.recalculatedPath && change.recalculatedPath !== goal.recalculatedPath)) {
+          previewChanges.push(`Updated goal: ${goal.title}`);
+        }
+      }
+      const newObstacle = currentAnalysis.proposedReroute.updatedProfileFields?.primaryObstacle;
+      if (typeof newObstacle === 'string' && newObstacle.trim() && newObstacle.trim() !== userProfile.primaryObstacle) {
+        previewChanges.push(`Updated obstacle: ${newObstacle.trim()}`);
+      }
+    } catch {
+      // Keep the current plan intact when the proposal is incomplete.
+    }
+  }
 
   return (
     <div id="aim-life-update-module" className="space-y-8 animate-fadeIn max-w-4xl mx-auto pb-12">
@@ -575,11 +592,13 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
               {/* Proposed Action Preview */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-2">
                 <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">
-                  Proposed GPS Reroute Strategy
+                  {currentAnalysis.planImpact === 'none' ? 'Your plan can stay as it is' : 'Changes to confirm'}
                 </span>
-                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed italic">
-                  "{currentAnalysis.proposedReroute?.explanation}"
-                </p>
+                {previewChanges.length || previewRemoved.length ? (
+                  <ul className="space-y-1 text-xs sm:text-sm text-slate-300">
+                    {[...previewChanges, ...previewRemoved].map((change, index) => <li key={index}>• {change}</li>)}
+                  </ul>
+                ) : <p className="text-xs sm:text-sm text-slate-300">No concrete changes to your plan were proposed. You can save this update without changing your plan.</p>}
               </div>
 
               {/* 3 Required Action Buttons */}
@@ -597,20 +616,22 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
                   type="button"
                   id="btn-save-without-changing"
                   onClick={handleSaveWithoutRerouting}
+                  disabled={isSavingReroute}
                   className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold transition-colors text-center"
                 >
                   Save Without Changing My Plan
                 </button>
 
-                <button
+                {currentAnalysis.planImpact !== 'none' && (previewChanges.length > 0 || previewRemoved.length > 0) && <button
                   type="button"
                   id="btn-confirm-reroute"
                   onClick={handleConfirmAndReroute}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center gap-1.5"
+                  disabled={isSavingReroute}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center gap-1.5"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>That’s Right—Reroute</span>
-                </button>
+                  <span>{isSavingReroute ? 'Saving your plan…' : 'That’s Right—Reroute'}</span>
+                </button>}
               </div>
             </div>
           )}
@@ -724,7 +745,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
                 <span>Rerouting Encountered an Issue</span>
               </div>
               <p className="text-xs text-rose-200">
-                {rerouteError || 'Your update was saved, but the plan could not be adjusted yet. Try rerouting again.'}
+                {rerouteError || 'Your plan was not changed. Your update is still in the text box. Try again.'}
               </p>
               <div className="flex gap-2">
                 <button
