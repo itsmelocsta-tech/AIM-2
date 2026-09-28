@@ -27,6 +27,7 @@ export const AimOrbCanvas: React.FC<AimOrbCanvasProps> = ({
 
     let animationFrameId: number;
     let time = 0;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     const render = () => {
       time += isThinking ? 0.06 : isSpeaking ? 0.05 : isListening ? 0.04 : 0.02;
@@ -177,12 +178,15 @@ export const AimOrbCanvas: React.FC<AimOrbCanvasProps> = ({
       ctx.stroke();
       ctx.restore();
 
-      animationFrameId = requestAnimationFrame(render);
+      if (!reducedMotion.matches && (isListening || isSpeaking || isThinking)) animationFrameId = requestAnimationFrame(render);
     };
 
+    const redraw = () => { cancelAnimationFrame(animationFrameId); render(); };
+    reducedMotion.addEventListener('change', redraw);
     render();
 
     return () => {
+      reducedMotion.removeEventListener('change', redraw);
       cancelAnimationFrame(animationFrameId);
     };
   }, [isListening, isSpeaking, isThinking]);
@@ -191,7 +195,11 @@ export const AimOrbCanvas: React.FC<AimOrbCanvasProps> = ({
     <div
       id="aim-orb-wrapper"
       onClick={onClick}
-      className={`relative flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95 ${className}`}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? 'Talk to AIM' : 'AIM'}
+      onKeyDown={onClick ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick(); } } : undefined}
+      className={`relative flex items-center justify-center cursor-pointer transition-transform duration-300 ${className}`}
       style={{ width: size, height: size }}
       title={
         isListening
@@ -200,7 +208,7 @@ export const AimOrbCanvas: React.FC<AimOrbCanvasProps> = ({
           ? 'AIM is speaking'
           : isThinking
           ? 'AIM is reasoning...'
-          : 'Click to speak with AIM'
+          : onClick ? 'Talk to AIM' : 'AIM'
       }
     >
       <canvas

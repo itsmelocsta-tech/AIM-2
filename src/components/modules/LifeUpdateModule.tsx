@@ -431,15 +431,11 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
         <div className="relative z-10 space-y-6">
           {/* Header */}
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/80 border border-indigo-800/60 text-indigo-300 text-xs font-semibold">
-              <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Adaptive Life GPS</span>
-            </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              What changed?
+              Talk to AIM
             </h1>
             <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Tell AIM what happened, what changed, or what you learned. Your plan will adjust with you.
+              Tell me what’s on your mind or what changed. We’ll work out the next step together.
             </p>
           </div>
 
@@ -461,7 +457,8 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
                   rows={4}
                   value={updateText || ''}
                   onChange={(e) => setUpdateText(e.target.value)}
-                  placeholder="Tell me what changed…"
+                  placeholder="What’s happening today?"
+                  aria-label="Tell AIM what is happening"
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 sm:p-5 text-sm sm:text-base text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none shadow-inner"
                 />
 
@@ -530,9 +527,9 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
                 <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-base font-bold text-white">AIM GPS Recalculating…</h3>
+                <h3 className="text-base font-bold text-white">Working out your next step…</h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Analyzing affected goals, tasks, dependencies, and priorities without altering your completed wins.
+                  I’m checking this against your saved plan.
                 </p>
               </div>
             </div>
