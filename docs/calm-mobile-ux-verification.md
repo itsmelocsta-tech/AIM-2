@@ -34,4 +34,4 @@ Firebase authentication, private request tokens, Firestore user isolation, confi
 
 The default Chromium download returned invalid archives in this workspace. The official alternate download supplied Chromium headless shell 134; local tests used it through `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Playwright 1.62.1 is pinned consistently in both lockfiles; CI installs its matching Chromium normally.
 
-No live Firebase signup, live Gemini analysis, or physical-phone voice session was exercised. The browser checks prove UI behavior with controlled service responses, not those live integrations. Production build retains a large-bundle warning. No production deployment was performed.
+Live Firebase email and guest signup, sign-in, named-database owner access, and cross-user denial were subsequently verified with disposable accounts; see [live-firebase-audit.md](live-firebase-audit.md). The browser checks still use controlled service responses, so the full AIM UI, private Express API, live Gemini analysis, and physical-phone voice remain unverified against a reachable deployment. Production build retains a large-bundle warning. No production deployment was performed.
