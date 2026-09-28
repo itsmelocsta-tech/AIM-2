@@ -22,4 +22,8 @@ Project: `gen-lang-client-0573723214` (Google AI Studio's shared Firebase projec
 2. Verify that the deployed server has credentials to validate Firebase ID tokens and that `/api/aim/*` accepts valid sessions and rejects unsigned requests. No Application Default Credentials are present in this workspace.
 3. Check the authorized domain for the actual preview host and App Check configuration. Live Gemini is a separate verification.
 
+## Local private API check
+
+The local server returned HTTP 200 for `/api/health` and HTTP 401 for an unsigned `/api/aim/*` request. A valid disposable Firebase token reached Admin verification, but this workspace's proxy could not reach Google's verifier endpoint. The Admin SDK surfaced that network timeout under `auth/argument-error`, which the API had misreported as HTTP 401. The server now maps that specific verifier request failure to HTTP 503 and retains HTTP 401 for invalid tokens. This does not prove a deployed server has working credentials or network access.
+
 The two sign-in providers were enabled in the live Firebase project. Firestore rules, authorized domains, billing plan, and production deployment were not changed.

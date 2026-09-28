@@ -42,6 +42,11 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     req.user = decoded;
     return next();
   } catch (error: any) {
+    // The Admin SDK can label a failed verification HTTP request as
+    // auth/argument-error. That is an infrastructure failure, not a bad token.
+    if (/^Error while making request:/i.test(error?.message || '')) {
+      return res.status(503).json({ error: 'Authentication service temporarily unavailable. Please try again.' });
+    }
     const invalidCredentials = new Set([
       'auth/argument-error', 'auth/invalid-argument', 'auth/invalid-id-token',
       'auth/id-token-expired', 'auth/id-token-revoked', 'auth/user-disabled',
