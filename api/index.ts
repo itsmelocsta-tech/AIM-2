@@ -1,4 +1,4 @@
-import { app } from './server.js';
+import server from './server.cjs';
 
 // The Vite frontend stays static; every /api/* request reaches this Function.
-export default app;
+export default server.app;
