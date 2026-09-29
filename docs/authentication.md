@@ -10,7 +10,7 @@ Every private client request uses `src/services/authenticatedFetch.ts`. It obtai
 
 ## Deployment configuration
 
-The browser uses firebase-applet-config.json. Set FIREBASE_PROJECT_ID on the server to the matching Firebase project; the existing project fallback remains for compatibility. Supply server-only Application Default Credentials through the deployment environment (for example, an attached service account). Revocation checking uses Firebase Auth backend access, so the runtime identity needs permission to read Firebase Auth users. Never put service-account JSON or private keys in browser configuration, VITE variables, or source control. GEMINI_API_KEY remains server-only.
+The browser uses firebase-applet-config.json and explicitly selects AIM's named Firestore database from `firestoreDatabaseId`. Set FIREBASE_PROJECT_ID on the server to the matching Firebase project; the existing project fallback remains for compatibility. On Vercel, provide FIREBASE_SERVICE_ACCOUNT_JSON as a server-only Preview environment secret; on an attached Google service identity or local development, Application Default Credentials are also supported. The account must belong to FIREBASE_PROJECT_ID. Revocation checking uses Firebase Auth backend access, so the runtime identity needs permission to read Firebase Auth users. Never put service-account JSON or private keys in browser configuration, VITE variables, or source control. GEMINI_API_KEY remains server-only.
 
 ## Separate boundaries and limitations
 
