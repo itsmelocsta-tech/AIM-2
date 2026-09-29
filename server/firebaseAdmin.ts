@@ -1,4 +1,4 @@
-import { getApps, initializeApp, App } from 'firebase-admin/app';
+import { cert, getApps, initializeApp, App } from 'firebase-admin/app';
 import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
 import { Request, Response, NextFunction } from 'express';
 
@@ -12,11 +12,24 @@ export function getFirebaseAdminApp(): App | null {
     } else {
       const projectId = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0573723214';
       try {
+        // Vercel has no attached Google service identity by default. Keep the
+        // credential in its server-only environment; local/Cloud Run can use ADC.
+        const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+        let credential;
+        if (serviceAccountJson) {
+          const serviceAccount = JSON.parse(serviceAccountJson);
+          if (serviceAccount.project_id !== projectId) {
+            throw new Error('Firebase Admin project mismatch');
+          }
+          credential = cert(serviceAccount);
+        }
         appInstance = initializeApp({
           projectId,
+          ...(credential ? { credential } : {}),
         });
-      } catch (err) {
-        console.warn('[firebaseAdmin] Failed to initialize admin app:', err);
+      } catch {
+        // Do not print credential contents (including malformed JSON) to logs.
+        console.warn('[firebaseAdmin] Failed to initialize admin app or credentials');
       }
     }
   }

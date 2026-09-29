@@ -1,6 +1,4 @@
 import express, { Request, Response } from 'express';
-import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { AIMCoreWisdomEngine } from './server/wisdom/AIMCoreWisdomEngine';
@@ -14,7 +12,6 @@ import { requireAuth } from './server/firebaseAdmin';
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
 app.use('/api/aim', requireAuth);
@@ -1429,29 +1426,4 @@ app.post('/api/aim/recommendations/daily', async (req: Request, res: Response) =
   }
 });
 
-// Vite middleware setup
-async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`AIM Life OS server running on http://0.0.0.0:${PORT}`);
-  });
-}
-
 export { app };
-
-if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
-  startServer();
-}
