@@ -1,0 +1,60 @@
+name: Android Package
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Build and lint test APK
+        working-directory: android
+        run: gradle --no-daemon :app:assembleDebug :app:lintDebug
+      - name: Upload test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: aim-android-test-${{ github.sha }}
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Prepare release signing
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          KEYSTORE: ${{ secrets.AIM_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE" || { echo 'Missing AIM_KEYSTORE_BASE64; no signed release can be produced.'; exit 1; }
+          printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/aim-upload.jks"
+      - name: Build signed release bundle
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: android
+        env:
+          AIM_ANDROID_URL: ${{ vars.AIM_ANDROID_URL }}
+          AIM_KEYSTORE_PATH: ${{ runner.temp }}/aim-upload.jks
+          AIM_KEYSTORE_PASSWORD: ${{ secrets.AIM_KEYSTORE_PASSWORD }}
+          AIM_KEY_ALIAS: ${{ secrets.AIM_KEY_ALIAS }}
+          AIM_KEY_PASSWORD: ${{ secrets.AIM_KEY_PASSWORD }}
+        run: |
+          test -n "$AIM_ANDROID_URL" || { echo 'Set AIM_ANDROID_URL to the final HTTPS origin.'; exit 1; }
+          gradle --no-daemon :app:bundleRelease
+      - name: Upload signed Play bundle
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aim-google-play-release-${{ github.sha }}
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+      - name: Remove signing file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/aim-upload.jks"

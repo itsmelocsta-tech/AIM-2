@@ -2,7 +2,7 @@
 
 **Decision:** Free install; three days of full access for eligible new subscribers; then **$7.99 USD each month**, automatically renewing. No annual plan at launch. `play-launch-offer.json` is the single source for the intended U.S. price and product identifiers.
 
-This repository currently builds a React web application and Express server. It has no Android app bundle, Google Play Billing integration, or verified subscription entitlement. The offer configuration is **not live** and cannot charge anyone. Do not show a purchase button or claim that access is paid until the native Play purchase flow and backend are ready.
+This repository currently builds a React web application and Express server. The Android packaging and Play token verification implementation is documented in `android-release.md`; a signed release bundle and live Play transaction verification still require owner-controlled signing and Play Console configuration. The offer configuration is **not live** and cannot charge anyone. Do not show a purchase button or claim that access is paid until the native Play purchase flow and backend are ready.
 
 ## Play Console setup when the Android build exists
 
