@@ -8,7 +8,7 @@ import { AIMSharedIntelligenceService } from './server/intelligence/AIMSharedInt
 import { AIMVoiceService } from './server/voice/AIMVoiceService';
 import { AIMOsService } from './server/aimOsService';
 import { requireAuth } from './server/firebaseAdmin';
-import { billingRouter } from './server/billing/googlePlay';
+import { billingRouter, requirePaidAccess } from './server/billing/googlePlay';
 
 dotenv.config();
 
@@ -17,6 +17,7 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use('/api/aim', requireAuth);
 app.use('/api/aim/billing', billingRouter);
+app.use('/api/aim', requirePaidAccess);
 
 // Lazy Google GenAI Client
 let genAIClient: GoogleGenAI | null = null;

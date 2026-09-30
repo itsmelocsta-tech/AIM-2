@@ -15,9 +15,14 @@ request and uploads it as `aim-android-test-<commit>`. The APK is debug-signed a
 can be installed for shell testing, but is not the Google Play release deliverable.
 Its default origin is this branch's Vercel billing preview; Vercel protection may block it.
 The hosting origin must serve this branch's updated frontend and backend before
-billing controls work. Email/password sign-in needs device testing. Firebase
-Google popup sign-in is not integrated into this WebView wrapper; add native
-Google authentication or use a tested browser-based auth flow before release.
+billing controls work. Email/password and native Google sign-in need device
+testing. Google sign-in uses Credential Manager and hands a Google ID token to
+Firebase in the exact-origin WebView. Configure `AIM_GOOGLE_WEB_CLIENT_ID` as a
+GitHub Actions repository variable containing the Firebase project's OAuth
+**web** client ID. Register the Android app's package name and release signing
+certificate SHA-1/SHA-256 in Firebase/Google Cloud. The test APK uses a debug
+certificate, which must also be registered for test sign-in. With no client ID,
+the Google button explains setup is needed and email sign-in remains available.
 
 Manual `workflow_dispatch` additionally builds a signed `.aab`, only if all
 release inputs exist. Never silently substitute a debug key for an upload key.
@@ -52,26 +57,32 @@ saved entitlement. Server-owned `playPurchaseOwners` and `playSubscriptions`
 collections are outside the client-writable `/users` hierarchy and denied by the
 existing default Firestore rules. Purchase tokens are never returned to the web
 UI or logged. The app fails closed when verification is unavailable.
+The server middleware checks current Google Play status before AIM API features
+only when `paymentsEnabled`, `PLAY_BILLING_ENABLED=true`, and
+`PLAY_ACCESS_ENFORCED=true` are all set. Billing configuration, restoration, and
+status stay accessible to signed-in users. Missing or inactive subscriptions
+return 402; failed verification returns 503. All gates remain off in this branch.
 
 ## Gates still required before charging or public release
 
 - Configure the real Play subscription `aim_premium`, base plan `monthly`, and
   eligible trial `three_day_trial`; confirm final package name and origin.
 - Obtain owner-controlled signing material and build/download the signed AAB.
-- Complete Google sign-in support, offline/network failure handling, download
-  and microphone permissions if these features are offered in the Android app.
+- Verify native Google sign-in with the final upload certificate and test
+  email sign-in, offline/network failure handling, download and microphone
+  permissions if these features are offered in the Android app.
 - Publish approved privacy policy, terms, account deletion details, Data safety
   declarations, store listing, screenshots, and any required testing track.
 - Verify purchase, acknowledgment, trial, renewal, canceled-but-unexpired,
   grace period, account hold, refund/revocation, restore, wrong AIM account, and
   expired Firebase session on a Play-installed app with license testers.
 - Add authenticated real-time developer notifications and subscription
-  reconciliation, and apply server-verified entitlements to the chosen paid
-  features. This change prepares verification but does not gate the existing
-  free preview features or grant access from notifications.
+  reconciliation. Access checks reverify Google on each request when enabled,
+  and are deliberately disabled for the free preview.
 - Only after these checks, approve a change to `paymentsEnabled` and set
   server-only `PLAY_BILLING_ENABLED=true`. Both gates must be enabled for the
-  purchase button and native purchase flow to proceed.
+  purchase button and native purchase flow to proceed. Enable
+  `PLAY_ACCESS_ENFORCED` only after the full purchase/restore test.
 
 References: https://developer.android.com/google/play/billing/integrate,
 https://developer.android.com/google/play/billing/test,

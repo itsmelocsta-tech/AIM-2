@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { GoogleAuth } from 'google-auth-library';
 import { getFirestore } from 'firebase-admin/firestore';
-import { Router } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import { AuthenticatedRequest, getFirebaseAdminApp } from '../firebaseAdmin';
 import offer from '../../play-launch-offer.json';
 import config from '../../firebase-applet-config.json';
@@ -52,10 +52,27 @@ export async function verifySubscription(uid: string, token: string) {
   await db.collection('playSubscriptions').doc(uid).set({ token, ...entitlement, verifiedAt: new Date().toISOString() });
   return entitlement;
 }
+export async function currentSubscription(uid: string) {
+  const saved = await billingDb().collection('playSubscriptions').doc(uid).get();
+  return saved.exists ? verifySubscription(uid, saved.data()!.token) : { active: false };
+}
+export function accessRequired() {
+  return offer.paymentsEnabled && process.env.PLAY_BILLING_ENABLED === 'true' && process.env.PLAY_ACCESS_ENFORCED === 'true';
+}
+export async function requirePaidAccess(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!accessRequired()) return next();
+  try {
+    const subscription = await currentSubscription(req.user!.uid);
+    if (!subscription.active) return res.status(402).set('Cache-Control', 'no-store').json({ error: 'AIM Premium subscription required', code: 'SUBSCRIPTION_REQUIRED' });
+    next();
+  } catch {
+    res.status(503).set('Cache-Control', 'no-store').json({ error: 'Subscription status unavailable. Try again later.' });
+  }
+}
 export const billingRouter = Router();
 billingRouter.get('/config', (req: AuthenticatedRequest, res) => {
   res.set('Cache-Control', 'no-store').json({ paymentsEnabled: offer.paymentsEnabled && process.env.PLAY_BILLING_ENABLED === 'true',
-    accountId: accountId(req.user!.uid), productId: offer.subscriptionProductId, basePlanId: offer.basePlanId, offerId: offer.introductoryOfferId });
+    accessRequired: accessRequired(), accountId: accountId(req.user!.uid), productId: offer.subscriptionProductId, basePlanId: offer.basePlanId, offerId: offer.introductoryOfferId });
 });
 billingRouter.post('/verify', async (req: AuthenticatedRequest, res) => {
   const token = req.body?.purchaseToken;
@@ -65,8 +82,7 @@ billingRouter.post('/verify', async (req: AuthenticatedRequest, res) => {
 });
 billingRouter.get('/status', async (req: AuthenticatedRequest, res) => {
   try {
-    const saved = await billingDb().collection('playSubscriptions').doc(req.user!.uid).get();
     // Revalidate with Google on every status request: local clocks or cached Firestore state never grant access.
-    res.set('Cache-Control', 'no-store').json(saved.exists ? await verifySubscription(req.user!.uid, saved.data()!.token) : { active: false });
+    res.set('Cache-Control', 'no-store').json(await currentSubscription(req.user!.uid));
   } catch { res.status(503).json({ error: 'Subscription status unavailable' }); }
 });

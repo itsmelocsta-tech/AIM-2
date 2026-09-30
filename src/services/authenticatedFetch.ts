@@ -32,5 +32,9 @@ export async function authenticatedFetch(path: string, init: RequestInit = {}): 
   }
   const response = await fetch(path, { ...init, headers, redirect: 'error' });
   if (response.status === 401) throw new AuthenticationError();
+  if (response.status === 402) {
+    window.dispatchEvent(new Event('aim:subscription-required'));
+    throw new Error('AIM Premium is required. Open Settings to view or restore your subscription.');
+  }
   return response;
 }

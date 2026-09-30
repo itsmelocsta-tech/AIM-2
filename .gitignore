@@ -1,5 +1,6 @@
 node_modules/
 build/
+api/server.cjs
 dist/
 coverage/
 .DS_Store
@@ -12,5 +13,5 @@ android/**/build/
 android/local.properties
 *.jks
 *.keystore
-
-api/server.cjs
+playwright-report/
+test-results/

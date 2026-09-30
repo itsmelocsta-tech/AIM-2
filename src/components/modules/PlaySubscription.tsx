@@ -7,6 +7,7 @@ declare global {
 }
 export function PlaySubscription() {
   const [enabled, setEnabled] = useState(false);
+  const [active, setActive] = useState<boolean | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -16,6 +17,10 @@ export function PlaySubscription() {
       if (!response.ok) throw new Error();
       const config = await response.json(); if (current) setEnabled(config.paymentsEnabled === true);
     }).catch(() => { if (current) setMessage('Subscription service unavailable.'); });
+    authenticatedFetch('/api/aim/billing/status').then(async response => {
+      if (!response.ok) throw new Error();
+      const status = await response.json(); if (current) setActive(status.active === true);
+    }).catch(() => { if (current) setActive(null); });
     return () => { current = false; };
   }, []);
   if (!window.AIMPlay) return null;
@@ -37,11 +42,13 @@ export function PlaySubscription() {
         bridge.postMessage(JSON.stringify({ id, action, idToken }));
       });
       setMessage(data.active ? 'Your AIM Premium subscription is verified.' : 'No active AIM subscription was verified.');
+      setActive(data.active === true);
     } catch (error: any) { setMessage(error.message || 'Billing unavailable.'); }
     finally { setBusy(false); }
   }
   return <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
     <h2 className="font-bold text-white">Google Play subscription</h2>
+    {active === true && <p className="text-sm text-emerald-300">AIM Premium active</p>}
     {enabled && <button disabled={busy} onClick={() => run('purchase')} className="p-2 text-indigo-300">View AIM Premium offer</button>}
     <button disabled={busy} onClick={() => run('restore')} className="p-2 text-indigo-300">Restore subscription</button>
     <a href="https://play.google.com/store/account/subscriptions" className="block text-indigo-300">Manage or cancel in Google Play</a>

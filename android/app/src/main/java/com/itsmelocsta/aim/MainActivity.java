@@ -12,6 +12,14 @@ import android.widget.Toast;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 import androidx.webkit.JavaScriptReplyProxy;
+import androidx.credentials.CredentialManager;
+import androidx.credentials.CustomCredential;
+import androidx.credentials.GetCredentialRequest;
+import androidx.credentials.GetCredentialResponse;
+import androidx.credentials.CredentialManagerCallback;
+import androidx.credentials.exceptions.GetCredentialException;
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption;
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 import com.android.billingclient.api.*;
 import org.json.JSONObject;
 import java.net.HttpURLConnection;
@@ -53,6 +61,17 @@ public class MainActivity extends Activity implements PurchasesUpdatedListener {
         });
         // AndroidX injects this object only into this exact origin. No wildcard or unrestricted JS interface.
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(web, "AIMAuth", Collections.singleton(BuildConfig.APP_ORIGIN),
+                (view, message, origin, mainFrame, proxy) -> {
+                    if (!mainFrame || !BuildConfig.APP_ORIGIN.equals(origin.toString())) return;
+                    try {
+                        JSONObject data = new JSONObject(message.getData());
+                        if (!"googleSignIn".equals(data.getString("action"))) return;
+                        String id = data.getString("id");
+                        if (id.length() > 100) return;
+                        runOnUiThread(() -> signInWithGoogle(proxy, id));
+                    } catch (Exception ignored) {}
+                });
             WebViewCompat.addWebMessageListener(web, "AIMPlay", Collections.singleton(BuildConfig.APP_ORIGIN),
                 (view, message, origin, mainFrame, proxy) -> {
                     if (!mainFrame || !BuildConfig.APP_ORIGIN.equals(origin.toString())) return;
@@ -79,6 +98,35 @@ public class MainActivity extends Activity implements PurchasesUpdatedListener {
             .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
             .enableAutoServiceReconnection().build();
         web.loadUrl(BuildConfig.APP_ORIGIN);
+    }
+    private void authReply(JavaScriptReplyProxy proxy, String id, String token, String error) {
+        try {
+            JSONObject response = new JSONObject().put("id", id);
+            if (error != null) response.put("error", error); else response.put("idToken", token);
+            proxy.postMessage(response.toString());
+        } catch (Exception ignored) {}
+    }
+    private void signInWithGoogle(JavaScriptReplyProxy proxy, String id) {
+        if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isEmpty()) {
+            authReply(proxy, id, null, "Google sign-in needs its Android client setup. Use email sign-in for now.");
+            return;
+        }
+        GetSignInWithGoogleOption option = new GetSignInWithGoogleOption.Builder(BuildConfig.GOOGLE_WEB_CLIENT_ID).build();
+        GetCredentialRequest request = new GetCredentialRequest.Builder().addCredentialOption(option).build();
+        CredentialManager.create(this).getCredentialAsync(this, request, null, getMainExecutor(),
+            new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
+                @Override public void onResult(GetCredentialResponse result) {
+                    try {
+                        if (!(result.getCredential() instanceof CustomCredential)) throw new Exception();
+                        CustomCredential credential = (CustomCredential) result.getCredential();
+                        if (!GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL.equals(credential.getType())) throw new Exception();
+                        authReply(proxy, id, GoogleIdTokenCredential.createFrom(credential.getData()).getIdToken(), null);
+                    } catch (Exception e) { authReply(proxy, id, null, "Google sign-in could not be completed."); }
+                }
+                @Override public void onError(GetCredentialException error) {
+                    authReply(proxy, id, null, "Google sign-in was canceled or unavailable.");
+                }
+            });
     }
     private void connect(Runnable action) {
         if (billing.isReady()) { action.run(); return; }

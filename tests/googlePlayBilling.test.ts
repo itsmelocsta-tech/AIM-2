@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ write: vi.fn(), bind: vi.fn(), owner: vi.fn(), access: vi.fn() }));
+const mocks = vi.hoisted(() => ({ write: vi.fn(), bind: vi.fn(), owner: vi.fn(), access: vi.fn(), subscriptionRead: vi.fn() }));
 vi.mock('../server/firebaseAdmin', () => ({ getFirebaseAdminApp: () => ({}) }));
 vi.mock('google-auth-library', () => ({ GoogleAuth: class { async getClient() { return { getAccessToken: mocks.access }; } } }));
 vi.mock('firebase-admin/firestore', () => ({ getFirestore: () => ({
-  collection: () => ({ doc: () => ({ set: mocks.write }) }),
+  collection: () => ({ doc: () => ({ set: mocks.write, get: mocks.subscriptionRead }) }),
   runTransaction: async (callback: any) => callback({ get: mocks.owner, set: mocks.bind }),
 }) }));
-import { accountId, subscriptionAccess, verifySubscription } from '../server/billing/googlePlay';
+import { accountId, subscriptionAccess, verifySubscription, accessRequired, requirePaidAccess } from '../server/billing/googlePlay';
+import offer from '../play-launch-offer.json';
 const now = Date.parse('2026-09-30T00:00:00Z');
 const purchase = (state = 'SUBSCRIPTION_STATE_ACTIVE') => ({ subscriptionState: state,
   externalAccountIdentifiers: { obfuscatedExternalAccountId: accountId('alice') },
@@ -27,6 +28,26 @@ describe('Google Play entitlement decisions', () => {
       const p = purchase(); Object.assign(p.lineItems[0], update);
       expect(subscriptionAccess(p, 'alice', now).active).toBe(false);
     }
+  });
+});
+
+describe('Paid API access gate', () => {
+  afterEach(() => { offer.paymentsEnabled = false; vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+  it('leaves preview API available while charging is disabled', async () => {
+    vi.stubEnv('PLAY_BILLING_ENABLED', 'true'); vi.stubEnv('PLAY_ACCESS_ENFORCED', 'true');
+    const next = vi.fn();
+    await requirePaidAccess({ user: { uid: 'alice' } } as any, {} as any, next);
+    expect(accessRequired()).toBe(false); expect(next).toHaveBeenCalledOnce();
+  });
+  it('rejects a user with no purchase when all launch gates are on', async () => {
+    offer.paymentsEnabled = true;
+    vi.stubEnv('PLAY_BILLING_ENABLED', 'true'); vi.stubEnv('PLAY_ACCESS_ENFORCED', 'true');
+    const response = { status: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(), json: vi.fn() };
+    const next = vi.fn();
+    mocks.subscriptionRead.mockResolvedValueOnce({ exists: false });
+    await requirePaidAccess({ user: { uid: 'alice' } } as any, response as any, next);
+    expect(accessRequired()).toBe(true); expect(next).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(402);
   });
 });
 

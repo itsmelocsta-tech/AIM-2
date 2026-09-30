@@ -4,6 +4,8 @@ def offer = new JsonSlurper().parse(file('../../play-launch-offer.json'))
 def host = providers.environmentVariable('AIM_ANDROID_URL').getOrElse('https://aim-2-git-codex-android-play-packaging-itsmelocsta-5904.vercel.app')
 if (!(host ==~ /https:\/\/[A-Za-z0-9.-]+\/?/)) throw new GradleException('AIM_ANDROID_URL must be an HTTPS origin without a path')
 def signingReady = ['AIM_KEYSTORE_PATH','AIM_KEYSTORE_PASSWORD','AIM_KEY_ALIAS','AIM_KEY_PASSWORD'].every { System.getenv(it) }
+def googleWebClientId = providers.environmentVariable('AIM_GOOGLE_WEB_CLIENT_ID').getOrElse('')
+if (googleWebClientId && !(googleWebClientId ==~ /[A-Za-z0-9-]+\.apps\.googleusercontent\.com/)) throw new GradleException('AIM_GOOGLE_WEB_CLIENT_ID must be a Google OAuth web client ID')
 android {
     namespace 'com.itsmelocsta.aim'
     compileSdk 36
@@ -15,6 +17,7 @@ android {
         versionName '0.1.0'
         buildConfigField 'String', 'APP_ORIGIN', '"' + host.replaceAll('/$', '') + '"'
         buildConfigField 'String', 'PRODUCT_ID', '"' + offer.subscriptionProductId + '"'
+        buildConfigField 'String', 'GOOGLE_WEB_CLIENT_ID', '"' + googleWebClientId + '"'
     }
     buildFeatures { buildConfig true }
     signingConfigs {
@@ -38,4 +41,7 @@ tasks.configureEach { task ->
 dependencies {
     implementation 'androidx.webkit:webkit:1.14.0'
     implementation 'com.android.billingclient:billing:8.3.0'
+    implementation 'androidx.credentials:credentials:1.5.0'
+    implementation 'androidx.credentials:credentials-play-services-auth:1.5.0'
+    implementation 'com.google.android.libraries.identity.googleid:googleid:1.1.1'
 }

@@ -139,3 +139,14 @@ it.each([['config', 'GET'], ['verify', 'POST'], ['status', 'GET']])('protects Pl
     expect(mocks.verify).not.toHaveBeenCalled();
   });
 });
+
+it('does not mislabel a Firebase verifier network failure as a rejected account', async () => {
+  mocks.verify.mockRejectedValue(Object.assign(new Error('Error while making request: Connection to establish proxy tunnel timed out'), { code: 'auth/argument-error' }));
+  await withServer(async base => {
+    const res = await fetch(`${base}/api/aim/voice/format-spoken`, {
+      method: 'POST', headers: { Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(503);
+    expect(mocks.verify).toHaveBeenCalledWith('valid-token', true);
+  });
+});

@@ -25,6 +25,8 @@ jobs:
         run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
       - name: Build and lint test APK
         working-directory: android
+        env:
+          AIM_GOOGLE_WEB_CLIENT_ID: ${{ vars.AIM_GOOGLE_WEB_CLIENT_ID }}
         run: gradle --no-daemon :app:assembleDebug :app:lintDebug
       - name: Upload test APK
         uses: actions/upload-artifact@v4
@@ -44,12 +46,14 @@ jobs:
         working-directory: android
         env:
           AIM_ANDROID_URL: ${{ vars.AIM_ANDROID_URL }}
+          AIM_GOOGLE_WEB_CLIENT_ID: ${{ vars.AIM_GOOGLE_WEB_CLIENT_ID }}
           AIM_KEYSTORE_PATH: ${{ runner.temp }}/aim-upload.jks
           AIM_KEYSTORE_PASSWORD: ${{ secrets.AIM_KEYSTORE_PASSWORD }}
           AIM_KEY_ALIAS: ${{ secrets.AIM_KEY_ALIAS }}
           AIM_KEY_PASSWORD: ${{ secrets.AIM_KEY_PASSWORD }}
         run: |
           test -n "$AIM_ANDROID_URL" || { echo 'Set AIM_ANDROID_URL to the final HTTPS origin.'; exit 1; }
+          test -n "$AIM_GOOGLE_WEB_CLIENT_ID" || { echo 'Set AIM_GOOGLE_WEB_CLIENT_ID to the Firebase Google OAuth web client ID.'; exit 1; }
           gradle --no-daemon :app:bundleRelease
       - name: Upload signed Play bundle
         if: github.event_name == 'workflow_dispatch'
