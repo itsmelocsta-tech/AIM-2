@@ -132,3 +132,10 @@ it('reports verifier infrastructure failures as 503 without accepting the reques
     expect(res.status).toBe(503);
   });
 });
+
+it.each([['config', 'GET'], ['verify', 'POST'], ['status', 'GET']])('protects Play billing %s', async (path, method) => {
+  await withServer(async base => {
+    expect((await fetch(`${base}/api/aim/billing/${path}`, { method })).status).toBe(401);
+    expect(mocks.verify).not.toHaveBeenCalled();
+  });
+});
