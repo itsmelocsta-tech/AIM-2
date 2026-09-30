@@ -113,7 +113,7 @@ public class MainActivity extends Activity implements PurchasesUpdatedListener {
         }
         GetSignInWithGoogleOption option = new GetSignInWithGoogleOption.Builder(BuildConfig.GOOGLE_WEB_CLIENT_ID).build();
         GetCredentialRequest request = new GetCredentialRequest.Builder().addCredentialOption(option).build();
-        CredentialManager.create(this).getCredentialAsync(this, request, null, getMainExecutor(),
+        CredentialManager.create(this).getCredentialAsync(this, request, null, command -> runOnUiThread(command),
             new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
                 @Override public void onResult(GetCredentialResponse result) {
                     try {
