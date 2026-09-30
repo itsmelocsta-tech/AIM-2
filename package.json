@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "tsx localServer.ts",
-    "build": "vite build && esbuild localServer.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=build/server.cjs",
+    "build": "vite build && esbuild localServer.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=build/server.cjs && esbuild server.ts --bundle --platform=node --format=cjs --outfile=api/server.cjs",
     "start": "node build/server.cjs",
-    "clean": "rm -rf dist build server.js",
+    "clean": "rm -rf dist build api/server.cjs server.js",
     "lint": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "check": "npm run lint && npm run test && npm run build"
+    "check": "npm run lint && npm run test && npm run build && npm run test:api-package",
+    "test:api-package": "node scripts/check-api-package.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -1,4 +1,4 @@
-import { app } from '../server';
+import server from './server.cjs';
 
-// The Vite frontend stays static; every /api/* request reaches this Function.
-export default app;
+// Load the bundled CommonJS API explicitly: Node must not resolve ../server as a directory.
+export default server.app;

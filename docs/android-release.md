@@ -13,7 +13,7 @@ paid access.
 `Android Package` builds and lints an **unsigned-for-Play debug APK** on each pull
 request and uploads it as `aim-android-test-<commit>`. The APK is debug-signed and
 can be installed for shell testing, but is not the Google Play release deliverable.
-Its default origin is the existing Vercel preview; Vercel protection may block it.
+Its default origin is this branch's Vercel billing preview; Vercel protection may block it.
 The hosting origin must serve this branch's updated frontend and backend before
 billing controls work. Email/password sign-in needs device testing. Firebase
 Google popup sign-in is not integrated into this WebView wrapper; add native
