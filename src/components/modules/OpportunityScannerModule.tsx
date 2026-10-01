@@ -1,5 +1,25 @@
 import { authenticatedFetch, AuthenticationError } from '../../services/authenticatedFetch';
 import React, { useState } from 'react';
+
+const OPPORTUNITY_FOCUS_KEY = 'aim_opportunity_focus_v1';
+
+type OpportunityFocus = {
+  category: 'jobs' | 'business' | 'clients' | 'funding' | 'education' | 'housing' | 'creative' | 'other';
+  description: string;
+  location: string;
+};
+
+const readOpportunityFocus = (): OpportunityFocus | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(OPPORTUNITY_FOCUS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.description?.trim() ? parsed : null;
+  } catch {
+    return null;
+  }
+};
 import {
   Compass,
   Search,
@@ -71,6 +91,44 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
   const [newSinceLastScan, setNewSinceLastScan] = useState(config?.filterNewSinceLastScan ?? false);
   const [radiusMiles, setRadiusMiles] = useState(config?.radiusMiles ?? 35);
   const [expandedDetailsId, setExpandedDetailsId] = useState<string | null>(null);
+  const [opportunityFocus, setOpportunityFocus] = useState<OpportunityFocus | null>(() => readOpportunityFocus());
+  const [focusCategory, setFocusCategory] = useState<OpportunityFocus['category']>('jobs');
+  const [focusDescription, setFocusDescription] = useState('');
+  const [focusLocation, setFocusLocation] = useState('');
+
+  const saveOpportunityFocus = () => {
+    const description = focusDescription.trim();
+    if (!description) {
+      onToast('Tell AIM what kind of opportunities you want it to look for first.');
+      return;
+    }
+    const next: OpportunityFocus = {
+      category: focusCategory,
+      description,
+      location: focusLocation.trim(),
+    };
+    try {
+      window.localStorage.setItem(OPPORTUNITY_FOCUS_KEY, JSON.stringify(next));
+    } catch {
+      // The in-memory state still keeps the experience usable when storage is unavailable.
+    }
+    setOpportunityFocus(next);
+    if (next.category === 'jobs' && next.location) {
+      const nextConfig = { ...config, location: next.location };
+      setConfig(nextConfig);
+      jobScannerService.saveConfig(nextConfig);
+    }
+    onToast('Opportunity focus saved. AIM will use your priorities instead of assuming them.');
+  };
+
+  const editOpportunityFocus = () => {
+    if (opportunityFocus) {
+      setFocusCategory(opportunityFocus.category);
+      setFocusDescription(opportunityFocus.description);
+      setFocusLocation(opportunityFocus.location || '');
+    }
+    setOpportunityFocus(null);
+  };
 
   const handleToggleDemoData = (enabled: boolean) => {
     jobScannerService.setDemoDataAllowed(enabled);
@@ -205,6 +263,102 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
   const rankedListings = jobScannerService.rankListings(filteredListings);
   const latestRun = scanRuns[0];
 
+  if (!opportunityFocus) {
+    return (
+      <div id="opportunity-scanner-setup" className="space-y-5 animate-fadeIn pb-12">
+        <div className="bg-slate-900/95 border border-indigo-500/40 rounded-2xl p-5 sm:p-6 shadow-xl">
+          <div className="flex items-start gap-3 mb-5">
+            <div className="w-10 h-10 rounded-xl bg-indigo-950 text-indigo-400 flex items-center justify-center border border-indigo-800 shrink-0">
+              <Compass className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-white">Your Opportunity Scanner</h1>
+              <p className="text-sm text-slate-300 mt-1 max-w-2xl">
+                You decide what counts as an opportunity. AIM will not assume you are looking for a certain job, business, city, or life path.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">What kind of opportunities?</label>
+              <select
+                value={focusCategory}
+                onChange={(e) => setFocusCategory(e.target.value as OpportunityFocus['category'])}
+                className="w-full rounded-xl bg-slate-950/80 border border-slate-700 px-3 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+              >
+                <option value="jobs">Jobs / Career</option>
+                <option value="business">Business / Income</option>
+                <option value="clients">Clients / Customers</option>
+                <option value="funding">Funding / Grants</option>
+                <option value="education">Education / Training</option>
+                <option value="housing">Housing / Resources</option>
+                <option value="creative">Creative / Collaborations</option>
+                <option value="other">Something else</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Tell AIM what to look for</label>
+              <textarea
+                value={focusDescription}
+                onChange={(e) => setFocusDescription(e.target.value)}
+                rows={4}
+                placeholder="Example: Paid music-video clients, local grants for my business, remote editing work, affordable housing, acting auditions, scholarships..."
+                className="w-full rounded-xl bg-slate-950/80 border border-slate-700 px-3 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
+              />
+              <p className="text-[11px] text-slate-500 mt-1.5">Use your own words. AIM should learn your target, not make one up for you.</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Location <span className="normal-case font-normal">(optional)</span></label>
+              <input
+                value={focusLocation}
+                onChange={(e) => setFocusLocation(e.target.value)}
+                placeholder="City, region, remote, nationwide, or leave blank"
+                className="w-full rounded-xl bg-slate-950/80 border border-slate-700 px-3 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            <button
+              id="save-opportunity-focus-btn"
+              onClick={saveOpportunityFocus}
+              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold transition-colors"
+            >
+              Set My Opportunity Focus
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (opportunityFocus.category !== 'jobs') {
+    return (
+      <div id="opportunity-scanner-screen" className="space-y-5 animate-fadeIn pb-12">
+        <div className="bg-slate-900/95 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wide mb-2">
+                <Compass className="w-4 h-4" /> Your Opportunity Focus
+              </div>
+              <h1 className="text-lg font-bold text-white">{opportunityFocus.description}</h1>
+              <p className="text-sm text-slate-400 mt-2">
+                {opportunityFocus.location ? `Location: ${opportunityFocus.location}` : 'No location limit set.'}
+              </p>
+              <p className="text-xs text-slate-500 mt-4 max-w-2xl">
+                AIM has saved this as your opportunity target. This scanner will not substitute unrelated job listings or somebody else's filters. Live results only appear when a verified source for this opportunity type is connected.
+              </p>
+            </div>
+            <button onClick={editOpportunityFocus} className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-white">
+              Change Focus
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div id="opportunity-scanner-screen" className="space-y-6 animate-fadeIn pb-12">
       {/* Zero Fabrication Data Mode & Integrity Banner */}
@@ -265,10 +419,10 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
           <div>
             <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
               <Compass className="w-4 h-4 text-indigo-400" />
-              DFW Opportunity Scanner
+              Career Opportunity Scanner
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Verified company-vehicle driving, shuttle, and fleet logistics positions in Fort Worth & DFW.
+              Looking for: {opportunityFocus.description}
             </p>
           </div>
 
@@ -288,7 +442,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
               className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-600/30 transition-all disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin text-white' : ''}`} />
-              <span>{isScanning ? 'Scanning DFW...' : 'Scan Now'}</span>
+              <span>{isScanning ? 'Scanning...' : 'Scan Now'}</span>
             </button>
           </div>
         </div>
