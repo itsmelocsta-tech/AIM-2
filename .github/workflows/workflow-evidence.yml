@@ -1,0 +1,33 @@
+name: Workflow Evidence
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  evidence:
+    name: Workflow Evidence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || '';
+            const field = name => body.split('\n').find(line => line.startsWith(name + ':'))?.slice(name.length + 1).trim() || '';
+            const failures = [];
+            const design = field('Design evidence');
+            if (!/^https:\/\/(www\.)?figma\.com\//.test(design) && !/^not-applicable:\s+.{15,}/i.test(design))
+              failures.push('Provide a Figma review link or a specific backend-only reason.');
+            if (!/^https:\/\/[a-z0-9.-]+\.vercel\.app\/?[^\s]*$/i.test(field('Preview URL')))
+              failures.push('Provide the tested Vercel preview URL.');
+            if (field('QA commit') !== pr.head.sha)
+              failures.push('Browser QA must cover the current head commit: ' + pr.head.sha);
+            if (field('QA result') !== 'PASS')
+              failures.push('Live browser QA is pending, failed, or blocked.');
+            if (field('QA evidence').length < 20 || /^(PENDING|TODO)/i.test(field('QA evidence')))
+              failures.push('Provide the TinyFish run ID and supporting report/evidence.');
+            await core.summary.addHeading('AIM workflow evidence')
+              .addRaw(failures.length ? failures.map(x => '- ' + x).join('\n') : 'Design and current-commit QA evidence supplied. Review the linked evidence.').write();
+            if (failures.length) core.setFailed(failures.join('\n'));
