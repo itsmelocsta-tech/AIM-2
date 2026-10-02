@@ -14,7 +14,7 @@ The browser uses firebase-applet-config.json and explicitly selects AIM's named 
 
 ## Separate boundaries and limitations
 
-Browser Firestore access is independently protected by firestore.rules: the authenticated UID must match `/users/{userId}`. These rules must be deployed to the actual Firebase project. API token verification does not by itself add ownership checks to server-side shared state.
+Browser Firestore access is independently protected by rules deployed to AIM's named database: the authenticated UID must match `/users/{userId}`. The repository's `firestore.rules` is a local policy reference; verify the live named database rules independently before launch. API token verification does not by itself add ownership checks to server-side shared state.
 
 This change does not repair existing unscoped local application storage, account-switching cleanup, account deletion, or the separate Google Drive OAuth token stored in localStorage. It does not introduce role authorization or rate limiting. Do not treat this patch as a complete launch audit.
 

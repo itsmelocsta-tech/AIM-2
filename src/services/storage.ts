@@ -132,7 +132,7 @@ export const storageService = {
     safeStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
   },
 
-  getCalibration(userId?: string): { currentState: string; changesWanted?: string; desiredState: string; result?: any } | null {
+  getCalibration(userId?: string): { currentState: string; changesWanted?: string; desiredState: string; result?: any; step?: string } | null {
     if (!userId) return null;
     try {
       const data = safeStorage.getItem(`${STORAGE_KEYS.CALIBRATION}_${userId}`);
@@ -142,7 +142,7 @@ export const storageService = {
     }
   },
 
-  saveCalibration(data: { currentState: string; changesWanted?: string; desiredState: string; result?: any } | null, userId?: string): void {
+  saveCalibration(data: { currentState: string; changesWanted?: string; desiredState: string; result?: any; step?: string } | null, userId?: string): void {
     if (!userId) return;
     const key = `${STORAGE_KEYS.CALIBRATION}_${userId}`;
     if (!data) {

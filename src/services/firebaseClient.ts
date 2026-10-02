@@ -3,6 +3,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithCredential,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
@@ -15,12 +16,36 @@ import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
+// AIM data lives in a named database within this shared Firebase project.
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const googleProvider = new GoogleAuthProvider();
 
+declare global {
+  interface Window { AIMAuth?: { postMessage: (message: string) => void; onmessage: ((event: MessageEvent) => void) | null }; }
+}
+
+async function nativeGoogleIdToken(): Promise<string> {
+  const bridge = window.AIMAuth!;
+  return new Promise((resolve, reject) => {
+    const id = crypto.randomUUID();
+    const timer = setTimeout(() => { bridge.onmessage = null; reject(new Error('Google sign-in timed out. Try again.')); }, 120000);
+    bridge.onmessage = event => {
+      try {
+        const result = JSON.parse(event.data);
+        if (result.id !== id) return;
+        clearTimeout(timer); bridge.onmessage = null;
+        result.error ? reject(new Error(result.error)) : resolve(result.idToken);
+      } catch { clearTimeout(timer); bridge.onmessage = null; reject(new Error('Google sign-in failed.')); }
+    };
+    bridge.postMessage(JSON.stringify({ action: 'googleSignIn', id }));
+  });
+}
+
 export async function signInWithGoogle() {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
+    const result = window.AIMAuth
+      ? await signInWithCredential(auth, GoogleAuthProvider.credential(await nativeGoogleIdToken()))
+      : await signInWithPopup(auth, googleProvider);
     return { user: result.user, error: null };
   } catch (error: any) {
     return { user: null, error: error.message || 'Failed to sign in with Google' };

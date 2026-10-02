@@ -2,7 +2,10 @@
 
 The Vite project publishes only `dist/` as static files. The local/Cloud Run
 server is built into `build/server.cjs`, outside that public output. Vercel
-routes `/api/*` to `api/index.ts`, which exports the Express application.
+routes `/api/*` to `api/index.ts`, which imports the generated `api/server.cjs`
+bundle and exports its Express application. Bundling all server dependencies
+avoids Node ESM resolving the source `server/` directory at runtime.
+`npm run test:api-package` checks the actual bundle after building.
 The app currently uses state-based navigation, so unrecognized URLs are not
 rewritten to the frontend. Add a separate SPA rewrite if browser routes are
 introduced later.
