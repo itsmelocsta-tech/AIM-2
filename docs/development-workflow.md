@@ -3,7 +3,7 @@
 ## Orchestration
 The development agent coordinates GitHub, Figma, Vercel, and TinyFish during each AIM work session. AGENTS.md makes these steps persistent repository instructions. The Workflow Evidence check requires evidence fields on every change request and checks that QA refers to its current commit.
 
-This is agent-driven orchestration, not a hosted plugin webhook service. ChatGPT plugin connections are not GitHub Actions credentials. An unattended Figma/TinyFish service needs separately configured API access and a runner; none is assumed or embedded here.
+The enabled ChatGPT automation “AIM automated design QA” wakes on AIM-2 GitHub change requests and commit updates. It uses the authorized GitHub, Figma, Vercel, and TinyFish connections to run this workflow without a new chat request. Direct pushes without a change request and Vercel deployment-ready events are not registered triggers. Closed/merged requests and previously completed commits are skipped. Each run allows at most two repair commits, rechecks the head before writing, and records missing prerequisites as BLOCKED. Production promotion and automatic merging are excluded. TinyFish consumes the existing wallet; the automation cannot top up or change auto-reload. The Friday AIM summary was paused to free the automation slot. Trigger registration is confirmed; end-to-end unattended execution must be verified from an actual event and its evidence.
 
 ## Figma
 For changes to screens, navigation, visual styling, onboarding, or user-facing interaction:
