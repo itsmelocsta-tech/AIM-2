@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PlaySubscription } from './PlaySubscription';
 import {
   Sliders,
   MapPin,
@@ -96,6 +97,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
 
   return (
     <div id="settings-screen" className="space-y-6 animate-fadeIn pb-12">
+      <PlaySubscription />
       {/* Header */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
         <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
