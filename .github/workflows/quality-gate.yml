@@ -37,3 +37,6 @@ jobs:
 
       - name: Run build
         run: bun run build
+
+      - name: Verify packaged Vercel API
+        run: bun run test:api-package
