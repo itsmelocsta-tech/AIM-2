@@ -96,6 +96,10 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
   const initialCalibration = storageService.getCalibration(userId);
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(() => {
     if (!userProfile.onboardingCompleted) {
+      // A saved draft is not a submitted answer. Resume the question being edited.
+      if (['tell_about_yourself', 'what_would_you_change', 'who_do_you_wanna_be'].includes(initialCalibration?.step || '')) {
+        return initialCalibration!.step as OnboardingStep;
+      }
       if (initialCalibration?.currentState && initialCalibration?.changesWanted &&
           initialCalibration?.desiredState && initialCalibration?.result) {
         return 'pathway_selection';
@@ -129,13 +133,14 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
   useEffect(() => {
     if (!userProfile.onboardingCompleted) {
       storageService.saveCalibration({
+        step: currentStep === 'cross_referencing' ? 'who_do_you_wanna_be' : currentStep,
         currentState: currentStateText,
         changesWanted: changesWantedText,
         desiredState: desiredStateText,
         result: crossReferenceData || undefined,
       }, userId);
     }
-  }, [currentStateText, changesWantedText, desiredStateText, crossReferenceData, userId, userProfile.onboardingCompleted]);
+  }, [currentStep, currentStateText, changesWantedText, desiredStateText, crossReferenceData, userId, userProfile.onboardingCompleted]);
   const [selectedPathwayId, setSelectedPathwayId] = useState<string>('option-1');
   const [isActivatingPath, setIsActivatingPath] = useState(false);
 
@@ -431,7 +436,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
       // Voice summary
       if (!isVoiceMuted && result.analysis?.empoweringInsight) {
-        const spokenIntro = `I put together a few ways forward. ${result.analysis.empoweringInsight}`;
+        const spokenIntro = `I’ve put together a starting point. ${result.analysis.empoweringInsight}`;
         voiceEngine.speak((spokenIntro || '').replace(/[*#_`]/g, ''));
       }
     } catch (err: any) {
@@ -655,13 +660,8 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
                 </span>
               </div>
               <div className="flex items-center gap-2.5">
-                <AimSpeakerButton
-                  id="aim-box-speaker-btn-1"
-                  state={speakerStateStep1}
-                  onClick={handleSpeakerClickStep1}
-                />
                 <span className="text-[11px] text-slate-400">
-                  {currentStateText.length > 0 ? `${currentStateText.length} chars` : 'Write as much as you need'}
+                  Take your time
                 </span>
               </div>
             </div>
@@ -669,6 +669,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             <textarea
               ref={activeTextAreaRef}
               id="aim-current-state-textarea"
+              aria-label="Your current situation"
               value={currentStateText || ''}
               onChange={(e) => { setCurrentStateText(e.target.value); setCrossReferenceData(null); }}
               rows={5}
@@ -770,13 +771,8 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
                 </span>
               </div>
               <div className="flex items-center gap-2.5">
-                <AimSpeakerButton
-                  id={isChangeQuestion ? 'aim-box-speaker-btn-2' : 'aim-box-speaker-btn-3'}
-                  state={speakerState}
-                  onClick={onSpeakerClick}
-                />
                 <span className="text-[11px] text-slate-400">
-                  {answer.length > 0 ? `${answer.length} chars` : 'Unlimited space'}
+                  Take your time
                 </span>
               </div>
             </div>
@@ -784,6 +780,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             <textarea
               ref={activeTextAreaRef}
               id={isChangeQuestion ? 'aim-changes-wanted-textarea' : 'aim-desired-state-textarea'}
+              aria-label={isChangeQuestion ? 'What you want to change' : 'Your desired future'}
               value={answer}
               onChange={(e) => {
                 if (isChangeQuestion) setChangesWantedText(e.target.value);
@@ -835,41 +832,11 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
   // RENDER AI ANALYSIS AFTER ALL THREE ANSWERS
   // ----------------------------------------------------
   if (currentStep === 'cross_referencing') {
-    return (
-      <div
-        id="aim-cross-referencing-loading"
-        className="min-h-[calc(100vh-140px)] flex flex-col items-center justify-center px-4 py-12 max-w-xl mx-auto text-center space-y-6 animate-fadeIn"
-      >
-        <div className="relative flex items-center justify-center">
-          <div className="absolute w-60 h-60 rounded-full bg-indigo-500/30 blur-3xl animate-pulse" />
-          <AimOrbCanvas size={180} isListening={false} isSpeaking={false} isThinking={true} />
-        </div>
-
-        <div className="space-y-2">
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-            AIM is Cross-Referencing Your Trajectory
-          </h2>
-          <p className="text-sm text-slate-400 font-light max-w-md mx-auto">
-            Analyzing the gap between your current reality and desired identity, neutralizing bottlenecks, and picking the highest-leverage options to get you there...
-          </p>
-        </div>
-
-        <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-xl p-4 text-left space-y-2.5 text-xs text-slate-300 shadow-lg">
-          <div className="flex items-center gap-2 text-indigo-400">
-            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
-            <span>Parsing Good, Bad & Ugly disclosures</span>
-          </div>
-          <div className="flex items-center gap-2 text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span>Cross-referencing target identity & revenue potential</span>
-          </div>
-          <div className="flex items-center gap-2 text-purple-400">
-            <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
-            <span>Selecting top 3 custom strategic pathways</span>
-          </div>
-        </div>
-      </div>
-    );
+    return <section role="status" className="max-w-lg mx-auto text-center py-10 space-y-5">
+      <AimOrbCanvas size={140} isThinking />
+      <h1 className="text-2xl font-semibold">I’ve got enough to start.</h1>
+      <p className="text-slate-300">I’m organizing this around where you are, what needs to change, and where you want to go.</p>
+    </section>;
   }
 
   // ----------------------------------------------------
@@ -877,192 +844,25 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
   // ----------------------------------------------------
   if (currentStep === 'pathway_selection' && crossReferenceData) {
     const pathways = crossReferenceData.pathways || [];
-
-    return (
-      <div
-        id="aim-pathway-selection-module"
-        className="min-h-[calc(100vh-120px)] flex flex-col items-center justify-start px-3 sm:px-6 py-6 max-w-5xl mx-auto text-center space-y-6 animate-fadeIn"
-      >
-        {/* Header Diagnosis */}
-        <div className="space-y-2 max-w-3xl">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950/90 text-indigo-300 border border-indigo-800 shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            Step 3 of 3 · Your starting plan
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            Here’s a way forward
-          </h1>
-          <p className="text-sm text-slate-300 font-light leading-relaxed">
-            {crossReferenceData.analysis.coreGapSummary}
-          </p>
-        </div>
-
-        {/* Deep Strategic Insight Banner */}
-        <div className="w-full bg-slate-900/90 border border-indigo-900/50 rounded-2xl p-4 sm:p-5 text-left text-xs sm:text-sm text-slate-300 backdrop-blur-sm shadow-xl space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-            <span className="text-xs font-semibold text-indigo-300 flex items-center gap-1.5">
-              <Brain className="w-4 h-4 text-indigo-400" />
-              Strategic Cross-Reference Synthesis
-            </span>
-            <span className="text-[11px] text-slate-400">
-              Target Identity: <strong className="text-white">{crossReferenceData.synthesizedProfile.desiredIdentity}</strong>
-            </span>
-          </div>
-
-          <p className="text-slate-200 italic leading-relaxed">
-            “{crossReferenceData.analysis.empoweringInsight}”
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
-            <div className="bg-emerald-950/30 border border-emerald-900/40 rounded-xl p-2.5">
-              <span className="font-semibold text-emerald-400 block mb-1">
-                Your Extracted Strengths to Leverage:
-              </span>
-              <ul className="list-disc list-inside text-slate-300 space-y-0.5">
-                {crossReferenceData.analysis.hiddenStrengths.map((s, idx) => (
-                  <li key={idx}>{s}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="bg-rose-950/30 border border-rose-900/40 rounded-xl p-2.5">
-              <span className="font-semibold text-rose-400 block mb-1">
-                Bottlenecks Neutralized:
-              </span>
-              <ul className="list-disc list-inside text-slate-300 space-y-0.5">
-                {crossReferenceData.analysis.primaryBottlenecks.map((b, idx) => (
-                  <li key={idx}>{b}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Top 3 Options Grid */}
-        <div className="w-full space-y-4">
-          {errorMessage && <p role="alert" className="text-sm text-rose-300">{errorMessage}</p>}
-          <div className="flex items-center justify-between text-left px-1">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Flame className="w-5 h-5 text-amber-400" />
-              <span>Select Your Trajectory</span>
-            </h2>
-            <span className="text-xs text-slate-400">
-              AIM recommends <strong className="text-indigo-300">{crossReferenceData.pathways.find(p => p.id === crossReferenceData.recommendedOptionId)?.title || 'Option 1'}</strong>
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-            {pathways.map((pathway) => {
-              const isRecommended = pathway.id === crossReferenceData.recommendedOptionId;
-              const isSelected = selectedPathwayId === pathway.id;
-
-              return (
-                <div
-                  key={pathway.id}
-                  id={`pathway-card-${pathway.id}`}
-                  onClick={() => setSelectedPathwayId(pathway.id)}
-                  className={`relative rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 cursor-pointer border ${
-                    isSelected
-                      ? 'bg-slate-900 border-indigo-500 shadow-xl shadow-indigo-600/20 ring-1 ring-indigo-500/50'
-                      : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/80'
-                  }`}
-                >
-                  {/* Recommended Badge */}
-                  {isRecommended && (
-                    <div className="absolute -top-3 left-4 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950 shadow-md uppercase tracking-wider flex items-center gap-1">
-                      <Award className="w-3 h-3" />
-                      AIM Pick
-                    </div>
-                  )}
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-750">
-                        {pathway.pace}
-                      </span>
-                      {isSelected && (
-                        <CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0" />
-                      )}
-                    </div>
-
-                    <div>
-                      <h3 className="text-base font-bold text-white group-hover:text-indigo-300">
-                        {pathway.title}
-                      </h3>
-                      <p className="text-xs text-slate-400 mt-1 leading-snug">
-                        {pathway.tagline}
-                      </p>
-                    </div>
-
-                    {/* Why It Fits */}
-                    <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-800/80 space-y-1.5 text-xs">
-                      <span className="text-[11px] font-semibold text-indigo-300 block">
-                        Why This Fits Your Situation:
-                      </span>
-                      <p className="text-slate-300 leading-relaxed text-[11px]">
-                        {pathway.whyItFits}
-                      </p>
-                    </div>
-
-                    {/* Action Plan 48h */}
-                    <div className="space-y-1 text-xs">
-                      <span className="text-[11px] font-semibold text-slate-400 block">
-                        Immediate 48h Levers:
-                      </span>
-                      <ul className="space-y-1 text-slate-300 text-[11px]">
-                        {pathway.actionPlan48h.map((step, idx) => (
-                          <li key={idx} className="flex items-start gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5" />
-                            <span>{step}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* 30-day Outcome */}
-                    <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
-                      <strong className="text-slate-200">30-Day Projection:</strong> {pathway.projected30DayOutcome}
-                    </div>
-                  </div>
-
-                  {/* Activate Button Inside Card */}
-                  <div className="pt-4 mt-4 border-t border-slate-800/80">
-                    <button
-                      type="button"
-                      disabled={isActivatingPath}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleActivatePathway(pathway);
-                      }}
-                      className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-                        isSelected
-                          ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30'
-                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'
-                      }`}
-                    >
-                      <Zap className="w-3.5 h-3.5" />
-                      <span>{isActivatingPath && selectedPathwayId === pathway.id ? 'Calibrating Life OS...' : 'Activate This Path'}</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Back / Re-enter Options */}
-        <div className="flex items-center justify-center gap-4 pt-2 text-xs">
-          <button
-            type="button"
-            onClick={() => { setCrossReferenceData(null); setCurrentStep('tell_about_yourself'); }}
-            className="text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Edit My Disclosures</span>
-          </button>
-        </div>
-      </div>
-    );
+    const recommended = pathways.find(path => path.id === crossReferenceData.recommendedOptionId) || pathways[0];
+    const chosen = pathways.find(path => path.id === selectedPathwayId) || recommended;
+    return <section id="aim-pathway-selection-module" className="max-w-lg mx-auto py-6 space-y-5">
+      <AimOrbCanvas size={120} className="mx-auto" />
+      <h1 className="text-2xl font-semibold">Here’s a way forward.</h1>
+      <p className="text-slate-300">Based on what you shared, here’s a starting point. You can adjust it as life changes.</p>
+      {chosen && <div className="space-y-4">
+        <h2 className="text-xl font-semibold break-words">{chosen.title}</h2>
+        <p className="text-slate-300 break-words">{chosen.actionPlan48h[0] || chosen.tagline}</p>
+        <button disabled={isActivatingPath} onClick={() => handleActivatePathway(chosen)} className="min-h-12 w-full rounded-xl bg-indigo-600 px-5 py-3 font-semibold">{isActivatingPath ? 'Saving your starting plan…' : 'Start here'}</button>
+        <details className="text-slate-300">
+          <summary className="cursor-pointer py-3">See details or another approach</summary>
+          <p className="py-3 break-words">{chosen.whyItFits}</p>
+          {pathways.map(path => <button key={path.id} aria-pressed={path.id === chosen.id} disabled={isActivatingPath} onClick={() => setSelectedPathwayId(path.id)} className="calm-menu-button block w-full my-2">{path.title}</button>)}
+        </details>
+      </div>}
+      {errorMessage && <p role="alert" className="text-rose-200">{errorMessage}</p>}
+      <button disabled={isActivatingPath} onClick={() => { setCrossReferenceData(null); setCurrentStep('tell_about_yourself'); }} className="min-h-11 text-slate-300">Edit my answers</button>
+    </section>;
   }
 
   // ----------------------------------------------------

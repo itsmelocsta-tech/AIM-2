@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Calendar,
@@ -40,9 +40,9 @@ import {
 import { driveService } from './services/driveService';
 import { aimContextService, DEFAULT_PERSONAL_CONTEXT } from './services/aimContextService';
 import { jobScannerService } from './services/jobScannerService';
+import { AimHomeModule } from './components/modules/AimHomeModule';
 import { Header } from './components/common/Header';
 import { CoachShell } from './components/coach/CoachShell';
-import { AimHomeModule } from './components/modules/AimHomeModule';
 import { OpportunityScannerModule } from './components/modules/OpportunityScannerModule';
 import { MyProjectsModule } from './components/modules/MyProjectsModule';
 import { CheckInModule } from './components/modules/CheckInModule';
@@ -59,8 +59,7 @@ import { FoundationSessionModal } from './components/modules/FoundationSessionMo
 import { VoiceModal } from './components/common/VoiceModal';
 import { GlobalQuickInput } from './components/common/GlobalQuickInput';
 import { ConversationalHomeModule } from './components/modules/ConversationalHomeModule';
-import { FirstRunGuide } from './components/modules/FirstRunGuide';
-import { getUnlockedModules } from './services/moduleAccessService';
+import { CalmHome, CalmTour, CalmNavigation } from './components/modules/CalmHome';
 import { useAuth } from './context/AuthContext';
 import { firestoreRepository } from './services/repositories/firestoreRepository';
 import { scheduleRepository } from './services/repositories/scheduleRepository';
@@ -84,7 +83,19 @@ export default function App() {
   }, []);
 
   // Default to calm, conversational home
-  const [activeTab, setActiveTab] = useState<string>('home');
+  const [activeTab, setActiveTabState] = useState<string>('home');
+  const setActiveTab = (tab: string) => {
+    if (window.location.hash !== `#${tab}`) window.history.pushState(null, '', `#${tab}`);
+    setActiveTabState(tab);
+  };
+  useEffect(() => {
+    const restore = () => setActiveTabState(window.location.hash.slice(1) || 'home');
+    restore();
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  }, []);
+  const [guideSaving, setGuideSaving] = useState(false);
+  const [guideError, setGuideError] = useState('');
 
   // Core Life OS State
   const [userProfile, setUserProfile] = useState<UserProfile>(() => storageService.getProfile());
@@ -98,7 +109,6 @@ export default function App() {
   // AIM Life OS State
   const [aimContext, setAimContext] = useState<PersonalOperatingContext>(() => aimContextService.getContext());
   const [aimProjects, setAimProjects] = useState<AIMProject[]>(() => aimContextService.getProjects());
-  const [homeViewMode, setHomeViewMode] = useState<'daily_os' | 'advisor'>('daily_os');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   // Load user data from Firestore when auth state changes
@@ -115,7 +125,6 @@ export default function App() {
           setChatMessages([...DEFAULT_CHAT]);
           setDriveState({ isConnected: false, accessToken: null, userEmail: null, lastSyncTime: null, syncedFiles: [] });
           setSelectedProjectId(null);
-          setHomeViewMode('daily_os');
         }
         // Read the saved timezone before choosing which day of the user's plan to load.
         const remoteProfile = await firestoreRepository.getUserProfile(user.uid);
@@ -453,92 +462,46 @@ export default function App() {
     { id: 'chat', label: 'Advisor Orbs', icon: MessageSquare },
   ];
 
-  const calibration = storageService.getCalibration(user?.uid);
-  const unlockedModules = useMemo(() => getUnlockedModules({
-    profile: userProfile,
-    calibrationText: [calibration?.currentState, calibration?.changesWanted, calibration?.desiredState].filter(Boolean).join(' '),
-    context: aimContext,
-    projects: aimProjects,
-    goals,
-    memories,
-    dailyPlan,
-    wellnessLogs,
-  }), [userProfile, calibration?.currentState, calibration?.changesWanted, calibration?.desiredState, aimContext, aimProjects, goals, memories, dailyPlan, wellnessLogs]);
-  const visibleNavigationTabs = navigationTabs.filter((tab) => unlockedModules.has(tab.id as any));
   const isReady = Boolean(user && loadedUserId === user.uid);
   const isOnboarding = !isReady || !userProfile.onboardingCompleted;
   const guideStep = isReady && userProfile.onboardingCompleted && userProfile.firstRunGuideStep !== 'done'
     ? userProfile.firstRunGuideStep
     : undefined;
-  const currentTab = guideStep === 'planner' ? 'planner' : guideStep === 'check-in' ? 'check-in' : guideStep === 'intro' ? 'home' : activeTab;
-
-  const advanceGuide = () => {
-    if (!guideStep) return;
-    const next = guideStep === 'intro' ? 'planner' : guideStep === 'planner' ? 'check-in' : 'done';
-    handleUpdateProfile({ ...userProfile, firstRunGuideStep: next });
-    if (next === 'done') setActiveTab('home');
+  const currentTab = activeTab;
+  const saveGuide = async (next: UserProfile['firstRunGuideStep']) => {
+    if (!user || guideSaving) return;
+    setGuideSaving(true);
+    setGuideError('');
+    const profile = { ...userProfile, firstRunGuideStep: next };
+    try {
+      await firestoreRepository.saveUserProfile(user.uid, profile);
+      setUserProfile(profile);
+      storageService.saveProfile(profile);
+      setActiveTab('home');
+    } catch {
+      setGuideError('Your tour progress couldn’t be saved. Please try again.');
+    } finally { setGuideSaving(false); }
   };
+  const advanceGuide = () => saveGuide(guideStep === 'intro' ? 'planner' : guideStep === 'planner' ? 'check-in' : 'done');
 
   useEffect(() => {
-    if (!unlockedModules.has(activeTab as any)) setActiveTab('home');
-  }, [activeTab, unlockedModules]);
-
-  const totalLearnedItems =
-    memories.length +
-    goals.length +
-    dailyPlan.priorityTasks.length +
-    wellnessLogs.length +
-    lifeUpdates.length;
+    if (isAuthLoading || (user && !isReady)) return;
+    const allowed = [...navigationTabs.map(tab => tab.id), 'more', 'life-update', 'coaches', 'overview'];
+    if (!allowed.includes(activeTab) || (isOnboarding && activeTab !== 'home')) setActiveTabState('home');
+  }, [activeTab, isOnboarding, isAuthLoading, user, isReady]);
 
   return (
     <div id="aim-app-root" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
       {/* Top Minimal Header with Live Weather & Time */}
       <Header
         userProfile={userProfile}
-        driveState={driveState}
-        onOpenDriveModal={() => setIsDriveModalOpen(true)}
-        onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
-        onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
-        onOpenFoundationModal={() => setIsFoundationModalOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         isAuthenticated={Boolean(user)}
-        userEmail={user?.email || (user?.isAnonymous ? 'Guest Account' : null)}
-        activeTab={currentTab}
         setActiveTab={setActiveTab}
-        unlockedSpacesCount={totalLearnedItems}
         isOnboarding={isOnboarding || Boolean(guideStep)}
       />
 
-      {/* Modules appear only after AIM understands why the user needs them. */}
-      {!isOnboarding && !guideStep && <nav id="aim-primary-nav" className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 px-3 sm:px-4 lg:px-8 py-2 sticky top-[57px] z-30 shadow-sm animate-fadeIn">
-        <div className="max-w-6xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-thin">
-          {visibleNavigationTabs.map((tab, index) => {
-            const Icon = tab.icon;
-            const isActive = currentTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                id={`nav-tab-${tab.id}`}
-                onClick={() => setActiveTab(tab.id)}
-                style={{ animationDelay: `${index * 90}ms`, animationFillMode: 'both' }}
-                className={`animate-fadeIn flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
-                  isActive
-                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span>{tab.label}</span>
-                {typeof tab.count === 'number' && tab.count > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 font-bold border border-indigo-800">
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </nav>}
+      {!isOnboarding && <CalmNavigation currentTab={currentTab} onNavigate={setActiveTab} guideStep={currentTab === 'home' ? guideStep : undefined} />}
 
       {/* Main Content Area */}
       <main id="aim-main-content" className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-6">
@@ -567,80 +530,48 @@ export default function App() {
             onNavigateToTab={setActiveTab}
             onToast={showToast}
           />
-        ) : currentTab === 'home' && (guideStep === 'intro' ? (
-          <FirstRunGuide step="intro" profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-1.5 max-w-sm mx-auto mb-2">
-              <button
-                id="home-view-daily-os-btn"
-                onClick={() => setHomeViewMode('daily_os')}
-                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all ${
-                  homeViewMode === 'daily_os'
-                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Today's Life OS
-              </button>
-              <button
-                id="home-view-advisor-btn"
-                onClick={() => setHomeViewMode('advisor')}
-                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all ${
-                  homeViewMode === 'advisor'
-                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Advisor Sanctuary
-              </button>
+        ) : currentTab === 'home' ? (
+          <>
+            <CalmHome profile={userProfile} plan={dailyPlan} onNavigate={setActiveTab} />
+            {guideStep && <CalmTour step={guideStep} onNext={advanceGuide} onDismiss={() => saveGuide('done')} saving={guideSaving} error={guideError} />}
+          </>
+        ) : null}
+
+        {isReady && !isOnboarding && currentTab === 'more' && (
+          <section className="max-w-xl mx-auto space-y-5" aria-labelledby="more-heading">
+            <h1 id="more-heading" className="text-2xl font-semibold">Your space</h1>
+            <p className="text-slate-300">Everything is here when you need it.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {navigationTabs.filter(tab => !['home', 'check-in'].includes(tab.id)).map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className="calm-menu-button">{tab.id === 'settings' ? 'Planning preferences' : tab.id === 'chat' ? 'Ask AIM' : tab.label}</button>
+              ))}
+              <button className="calm-menu-button" onClick={() => setActiveTab('overview')}>Detailed overview</button>
+              <button className="calm-menu-button" onClick={() => setActiveTab('coaches')}>Coaches</button>
+              <button className="calm-menu-button" onClick={() => setIsFoundationModalOpen(true)}>Profile</button>
+              <button className="calm-menu-button" onClick={() => setIsVoiceModalOpen(true)}>Voice preferences</button>
+              <button className="calm-menu-button" onClick={() => setIsDriveModalOpen(true)}>Google Drive</button>
+              <button className="calm-menu-button" onClick={() => setIsQuickCaptureOpen(true)}>Capture a thought</button>
+              <button className="calm-menu-button" onClick={() => setIsAuthModalOpen(true)}>Account</button>
+              <button className="calm-menu-button" onClick={() => saveGuide('intro')} disabled={guideSaving}>Show me around</button>
             </div>
-
-            {homeViewMode === 'daily_os' ? (
-              <AimHomeModule
-                userProfile={userProfile}
-                dailyPlan={dailyPlan}
-                startingPoint={calibration?.currentState}
-                context={aimContext}
-                projects={aimProjects}
-                topJobMatch={topJobMatch}
-                dailyRecommendation={dailyRecommendation}
-                onRefreshRecommendation={handleRefreshRecommendation}
-                onNavigateToTab={setActiveTab}
-                onSelectProject={(id) => {
-                  setSelectedProjectId(id);
-                  setActiveTab('projects');
-                }}
-                onToast={showToast}
-              />
-            ) : (
-              <CoachShell
-                userProfile={userProfile}
-                dailyPlan={dailyPlan}
-                goals={goals}
-                memories={memories}
-                wellnessLogs={wellnessLogs}
-                lifeUpdates={lifeUpdates}
-                onUpdateDailyPlan={handleUpdateDailyPlan}
-                onUpdateGoals={handleUpdateGoals}
-                onUpdateMemories={handleUpdateMemories}
-                onUpdateLifeUpdates={handleUpdateLifeUpdates}
-                onUpdateProfile={handleUpdateProfile}
-                onNavigateToTab={setActiveTab}
-                onOpenLifeUpdate={(initialText) => {
-                  setActiveTab('life-update');
-                }}
-                onToast={showToast}
-              />
-            )}
-          </div>
-        ))}
-
-        {(guideStep === 'planner' || guideStep === 'check-in') && (
-          <FirstRunGuide step={guideStep} profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
+            {guideError && <p role="alert">{guideError}</p>}
+          </section>
         )}
+        {isReady && !isOnboarding && currentTab === 'overview' && <AimHomeModule
+          userProfile={userProfile} dailyPlan={dailyPlan} startingPoint={storageService.getCalibration(user?.uid)?.currentState}
+          context={aimContext} projects={aimProjects} topJobMatch={topJobMatch} dailyRecommendation={dailyRecommendation}
+          onRefreshRecommendation={handleRefreshRecommendation} onNavigateToTab={setActiveTab}
+          onSelectProject={(id) => { setSelectedProjectId(id); setActiveTab('projects'); }} onToast={showToast}
+        />}
+        {isReady && !isOnboarding && currentTab === 'coaches' && <CoachShell
+          userProfile={userProfile} dailyPlan={dailyPlan} goals={goals} memories={memories}
+          wellnessLogs={wellnessLogs} lifeUpdates={lifeUpdates} onUpdateDailyPlan={handleUpdateDailyPlan}
+          onUpdateGoals={handleUpdateGoals} onUpdateMemories={handleUpdateMemories}
+          onUpdateLifeUpdates={handleUpdateLifeUpdates} onUpdateProfile={handleUpdateProfile}
+          onNavigateToTab={setActiveTab} onOpenLifeUpdate={() => setActiveTab('life-update')} onToast={showToast}
+        />}
 
-        {isReady && !guideStep && currentTab === 'scanner' && (
+        {isReady && !isOnboarding && currentTab === 'scanner' && (
           <OpportunityScannerModule
             context={aimContext}
             onJobApplied={handleJobApplied}
@@ -648,7 +579,7 @@ export default function App() {
           />
         )}
 
-        {isReady && !guideStep && currentTab === 'projects' && (
+        {isReady && !isOnboarding && currentTab === 'projects' && (
           <MyProjectsModule
             projects={aimProjects}
             selectedProjectId={selectedProjectId}
@@ -658,7 +589,7 @@ export default function App() {
           />
         )}
 
-        {isReady && currentTab === 'check-in' && (
+        {isReady && !isOnboarding && currentTab === 'check-in' && (
           <CheckInModule
             context={aimContext}
             projects={aimProjects}
@@ -669,14 +600,14 @@ export default function App() {
           />
         )}
 
-        {isReady && !guideStep && currentTab === 'history' && (
+        {isReady && !isOnboarding && currentTab === 'history' && (
           <HistoryModule
             context={aimContext}
             projects={aimProjects}
           />
         )}
 
-        {isReady && !guideStep && currentTab === 'settings' && (
+        {isReady && !isOnboarding && currentTab === 'settings' && (
           <SettingsModule
             context={aimContext}
             projects={aimProjects}
@@ -685,7 +616,7 @@ export default function App() {
           />
         )}
 
-        {isReady && !guideStep && currentTab === 'life-update' && (
+        {isReady && !isOnboarding && currentTab === 'life-update' && (
           <LifeUpdateModule
             userProfile={userProfile}
             dailyPlan={dailyPlan}
@@ -700,7 +631,7 @@ export default function App() {
           />
         )}
 
-        {isReady && currentTab === 'planner' && (
+        {isReady && !isOnboarding && currentTab === 'planner' && (
           <DailyPlannerModule
             dailyPlan={dailyPlan}
             userProfile={userProfile}
@@ -711,7 +642,7 @@ export default function App() {
           />
         )}
 
-        {isReady && !guideStep && currentTab === 'goals' && (
+        {isReady && !isOnboarding && currentTab === 'goals' && (
           <GoalManifestationModule
             goals={goals}
             userProfile={userProfile}
@@ -720,7 +651,7 @@ export default function App() {
           />
         )}
 
-        {isReady && !guideStep && currentTab === 'memory' && (
+        {isReady && !isOnboarding && currentTab === 'memory' && (
           <MemoryCategorizerModule
             memories={memories}
             onUpdateMemories={handleUpdateMemories}
@@ -728,7 +659,7 @@ export default function App() {
           />
         )}
 
-        {isReady && !guideStep && currentTab === 'wellness' && (
+        {isReady && !isOnboarding && currentTab === 'wellness' && (
           <WellnessEngineModule
             wellnessLogs={wellnessLogs}
             timeZone={userProfile.timeZone}
@@ -737,7 +668,7 @@ export default function App() {
           />
         )}
 
-        {isReady && !guideStep && currentTab === 'chat' && (
+        {isReady && !isOnboarding && currentTab === 'chat' && (
           <ChatAdvisorModule
             chatMessages={chatMessages}
             userProfile={userProfile}
@@ -813,7 +744,8 @@ export default function App() {
       {toastMessage && (
         <div
           id="aim-toast-alert"
-          className="fixed bottom-6 right-6 z-50 bg-slate-900 border border-emerald-500/50 text-white px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-semibold animate-bounce"
+          role="status"
+          className="fixed bottom-6 left-4 right-4 sm:left-auto sm:max-w-md sm:right-6 z-50 bg-slate-900 border border-emerald-500/50 text-white px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-semibold"
         >
           <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>

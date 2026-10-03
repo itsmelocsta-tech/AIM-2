@@ -37,3 +37,9 @@ jobs:
 
       - name: Run build
         run: bun run build
+
+      - name: Install browser for UX checks
+        run: bunx playwright install --with-deps chromium --only-shell
+
+      - name: Test calm mobile and desktop journeys
+        run: bun run test:browser
