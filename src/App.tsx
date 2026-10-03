@@ -441,7 +441,7 @@ export default function App() {
 
   const navigationTabs = [
     { id: 'home', label: 'Today (Life OS)', icon: Sparkles },
-    { id: 'scanner', label: 'Opportunity Scanner', icon: Compass },
+    { id: 'scanner', label: 'Your Opportunities', icon: Compass },
     { id: 'projects', label: 'Projects', icon: Layers, count: aimProjects.length },
     { id: 'check-in', label: 'Check-In', icon: Send },
     { id: 'history', label: 'Audit History', icon: Clock },

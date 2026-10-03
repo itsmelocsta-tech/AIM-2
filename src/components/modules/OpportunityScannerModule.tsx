@@ -272,7 +272,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
               <Compass className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white">Your Opportunity Scanner</h1>
+              <h1 className="text-lg font-bold text-white">Your Opportunities</h1>
               <p className="text-sm text-slate-300 mt-1 max-w-2xl">
                 You decide what counts as an opportunity. AIM will not assume you are looking for a certain job, business, city, or life path.
               </p>
@@ -419,7 +419,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
           <div>
             <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
               <Compass className="w-4 h-4 text-indigo-400" />
-              Career Opportunity Scanner
+              Your Opportunities
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
               Looking for: {opportunityFocus.description}
