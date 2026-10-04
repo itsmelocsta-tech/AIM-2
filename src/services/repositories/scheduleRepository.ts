@@ -126,7 +126,7 @@ export class ScheduleRepository {
       const endClock = parseClock(end);
       let endAt = createUtcIsoFromLocal(plan.date, endClock, tz);
       // A started activity may legitimately cross midnight. Preserve its explicit UTC end.
-      if (prior?.startAt === startAt && Date.parse(prior.endAt) > Date.parse(startAt) && Date.parse(endAt) <= Date.parse(startAt)) {
+      if (prior && Date.parse(prior.startAt) === Date.parse(startAt) && Date.parse(prior.endAt) > Date.parse(startAt) && Date.parse(endAt) <= Date.parse(startAt)) {
         const priorEndClock = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(prior.endAt));
         if (priorEndClock === endClock) endAt = prior.endAt;
       }
