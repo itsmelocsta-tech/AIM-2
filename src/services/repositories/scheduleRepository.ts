@@ -2,6 +2,7 @@ import { ScheduleItem, ScheduleItemStatus, CoachId, DailyPlan } from '../../type
 import { getEffectiveTimeZone, getTodayDateString, createUtcIsoFromLocal } from '../../utils/dateTimeUtils';
 import { ensureDetailedTaskGuidance, isVagueGuidance } from '../../utils/taskGuidance';
 import { storageService } from '../storage';
+import { SCHEDULE_CHANGE } from '../activityAlarms';
 
 const SCHEDULE_STORAGE_KEY = 'aim_canonical_schedule_items';
 
@@ -92,6 +93,9 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
 }
 
 export class ScheduleRepository {
+  public getAlarmItems(userId: string): ScheduleItem[] {
+    return this.getStoredItems().filter(item => item.userId === userId);
+  }
   private syncedDayKey(userId: string, date: string): string {
     return `aim_schedule_synced_${userId}_${date}`;
   }
@@ -127,7 +131,7 @@ export class ScheduleRepository {
         id: block.id, userId, title: block.title,
         description: block.details,
         startAt, endAt, timeZone: tz,
-        status: block.completed ? 'completed' : 'scheduled',
+        status: block.completed ? 'completed' : prior?.status === 'completed' ? 'scheduled' : prior?.status || 'scheduled',
         priority: prior?.priority || 'medium',
         sourceCoachId: prior?.sourceCoachId || 'guidance',
         createdAt: prior?.createdAt || now,
@@ -163,6 +167,7 @@ export class ScheduleRepository {
   private saveStoredItems(items: ScheduleItem[]): void {
     try {
       localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(items));
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event(SCHEDULE_CHANGE));
     } catch (e) {
       console.warn('Failed to persist schedule items:', e);
     }
@@ -299,7 +304,7 @@ export class ScheduleRepository {
    */
   public async saveScheduleItem(item: ScheduleItem): Promise<ScheduleItem> {
     const allItems = this.getStoredItems();
-    const existingIndex = allItems.findIndex((i) => i.id === item.id);
+    const existingIndex = allItems.findIndex((i) => i.id === item.id && i.userId === item.userId);
     const updatedItem = {
       ...item,
       description: ensureDetailedTaskGuidance(item.title, item.description),
@@ -326,7 +331,7 @@ export class ScheduleRepository {
     userId: string
   ): Promise<ScheduleItem> {
     const allItems = this.getStoredItems();
-    const item = allItems.find((i) => i.id === id);
+    const item = allItems.find((i) => i.id === id && i.userId === userId);
     if (!item) {
       throw new Error(`Schedule item ${id} not found.`);
     }
@@ -355,7 +360,7 @@ export class ScheduleRepository {
         userId,
         updatedAt: nowIso,
       };
-      const idx = allItems.findIndex((i) => i.id === newItem.id);
+      const idx = allItems.findIndex((i) => i.id === newItem.id && i.userId === userId);
       if (idx >= 0) {
         allItems[idx] = withUpdate;
       } else {
@@ -376,7 +381,7 @@ export class ScheduleRepository {
    */
   public async deleteScheduleItem(id: string, userId: string): Promise<void> {
     const allItems = this.getStoredItems();
-    const filtered = allItems.filter((i) => i.id !== id);
+    const filtered = allItems.filter((i) => i.id !== id || i.userId !== userId);
     this.saveStoredItems(filtered);
     this.syncWithDailyPlan(filtered);
   }

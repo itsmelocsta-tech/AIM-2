@@ -21,6 +21,8 @@ import {
 import { DailyPlan, PriorityTask, TimeBlock, UserProfile, Goal } from '../../types';
 import { api } from '../../services/api';
 import { driveService } from '../../services/driveService';
+import { ActivityAlarmControls } from '../common/ActivityAlarmControls';
+import { scheduleRepository } from '../../services/repositories/scheduleRepository';
 import { ensureDetailedTaskGuidance } from '../../utils/taskGuidance';
 import { groundedEveningReflection, morningPlanContext, nextFinisherTask, reconcilePriorityTasks, reconcileTimeBlocks } from '../../services/finishingWorkflow';
 
@@ -649,6 +651,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                 <span className="text-xs text-slate-400">{dailyPlan.availableHours} Productive Hours</span>
               </div>
 
+              <ActivityAlarmControls userId={userProfile.id || ''} items={scheduleRepository.getAlarmItems(userProfile.id || '').filter(item => dailyPlan.timeBlocks.some(block => block.id === item.id))} label="Agree to this plan · set alarms" />
               <div className="space-y-3">
                 {dailyPlan.timeBlocks.map((block) => (
                   <div

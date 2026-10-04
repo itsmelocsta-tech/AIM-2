@@ -42,6 +42,7 @@ import { aimContextService, DEFAULT_PERSONAL_CONTEXT } from './services/aimConte
 import { jobScannerService } from './services/jobScannerService';
 import { Header } from './components/common/Header';
 import { CoachShell } from './components/coach/CoachShell';
+import { AimAlarmClock } from './components/common/AimAlarmClock';
 import { AimHomeModule } from './components/modules/AimHomeModule';
 import { OpportunityScannerModule } from './components/modules/OpportunityScannerModule';
 import { MyProjectsModule } from './components/modules/MyProjectsModule';
@@ -291,6 +292,12 @@ export default function App() {
   };
 
   const handleUpdateDailyPlan = (plan: DailyPlan) => {
+    const completedTasks = new Set(plan.priorityTasks.filter(task => task.completed).map(task => `activity-${task.id}`));
+    plan = { ...plan, timeBlocks: plan.timeBlocks.map(block => completedTasks.has(block.id) ? { ...block, completed: true } : block) };
+    if (user?.uid) {
+      try { scheduleRepository.syncDayFromPlan(user.uid, plan, userProfile.timeZone); }
+      catch (error) { showToast(error instanceof Error ? error.message : 'Could not update this schedule.'); return; }
+    }
     setDailyPlan(plan);
     storageService.saveDailyPlan(plan);
     if (user?.uid) {
@@ -492,6 +499,7 @@ export default function App() {
 
   return (
     <div id="aim-app-root" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+      <AimAlarmClock userId={isReady ? user!.uid : null} />
       {/* Top Minimal Header with Live Weather & Time */}
       <Header
         userProfile={userProfile}
@@ -605,6 +613,7 @@ export default function App() {
                 projects={aimProjects}
                 topJobMatch={topJobMatch}
                 dailyRecommendation={dailyRecommendation}
+                onUpdatePlan={handleUpdateDailyPlan}
                 onRefreshRecommendation={handleRefreshRecommendation}
                 onNavigateToTab={setActiveTab}
                 onSelectProject={(id) => {

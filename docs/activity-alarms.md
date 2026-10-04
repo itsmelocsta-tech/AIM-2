@@ -1,0 +1,13 @@
+# AIM activity alarms
+
+Agree to this plan in the planner, or tap I’m doing it on an activity. Start and finish alerts are on by default; either can be disabled before committing. Start Activity / Start Now also commits the activity and its finish alarm. Starting a future activity now preserves its duration. Completion, skip, cancellation, deletion, and schedule changes reconcile the alarm queue.
+
+The AIM Clock appears throughout the signed-in workspace, shows the next alert and time remaining, and displays a dismissible alert when due. Browser sound is unlocked by the commitment gesture. Browser timers require AIM to remain open and are not reliable when the browser is suspended or closed; the UI states this limit. No background browser delivery is claimed.
+
+Android uses an exact-origin AndroidX WebView message listener named AIMAlarms. The native alarm queue is stored privately, scheduled with AlarmManager.setAlarmClock, and delivered as an AIM notification with alarm sound. It does not create entries in a separate Clock application. Notification and Alarms & reminders access are required; denied access is a visible blocked state. No full-screen intent, device-clock intent, unrestricted JavaScript interface, or USE_EXACT_ALARM permission is used. OS notification channel settings, volume, Do Not Disturb, force-stop, or a powered-off device can affect delivery. Future alarms restore after reboot, package replacement, and permission grant. Expired alerts are discarded after a one-minute catch-up window.
+
+Commitments and delivery acknowledgments are account-scoped on this device, rather than synced to all devices. Signing out replaces the native queue with an empty queue. Signing into another account cannot retain the prior account’s alarms. Reopening the same account uses its saved choices when its schedule still exists.
+
+The Android packaging files here originate from the existing Android packaging branch at 48e1a501, preserving its Google sign-in and billing bridge. The test build points at this feature preview by default; release builds require the final HTTPS origin and existing signing setup. This feature does not enable payments or change price.
+
+Verification: automated tests cover consent, defaults, duplicate taps, account separation, reload, rescheduling, extension, terminal statuses, deletion, stale/delivered alerts, invalid intervals, schedule sync, and concurrent native bridge responses. Actual Android background sound, reboot, permissions, and Do Not Disturb require an installed package and device test; build or browser tests alone cannot establish those outcomes.
