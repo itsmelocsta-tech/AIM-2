@@ -1,5 +1,7 @@
 # AIM activity alarms
 
+The home screen also offers I’m doing it for the first task. It starts now, uses the task’s estimated duration (or a visibly disclosed 25 minutes when unspecified), and sets the finish alarm. Completing that priority task also completes its activity block and clears the alarm.
+
 Agree to this plan in the planner, or tap I’m doing it on an activity. Start and finish alerts are on by default; either can be disabled before committing. Start Activity / Start Now also commits the activity and its finish alarm. Starting a future activity now preserves its duration. Completion, skip, cancellation, deletion, and schedule changes reconcile the alarm queue.
 
 The AIM Clock appears throughout the signed-in workspace, shows the next alert and time remaining, and displays a dismissible alert when due. Browser sound is unlocked by the commitment gesture. Browser timers require AIM to remain open and are not reliable when the browser is suspended or closed; the UI states this limit. No background browser delivery is claimed.

@@ -3,6 +3,7 @@ import { DailyPlan, PriorityTask, UserProfile } from '../../types';
 import { scheduleRepository } from '../../services/repositories/scheduleRepository';
 import { commitActivities, hasNativeAlarms, nativeAlarmRequest, prepareAlarmSound } from '../../services/activityAlarms';
 import { storageService } from '../../services/storage';
+import { ActivityAlarmControls } from './ActivityAlarmControls';
 
 export function taskDurationMinutes(estimate: string): number {
   const hours = estimate.match(/(\d+(?:\.\d+)?)\s*(?:h|hour)/i);
@@ -30,6 +31,7 @@ export function StartTaskAlarm({ task, profile, onUpdatePlan }: { task: Priority
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not start activity. Retry.'); }
     finally { setBusy(false); }
   }
+  if (existing) return <div className="space-y-2"><p className="text-xs text-slate-300">Activity in progress</p><ActivityAlarmControls userId={profile.id || ''} items={[existing]} /></div>;
   return <div className="space-y-2">
     <button type="button" disabled={busy || Boolean(existing)} onClick={() => void start()} className="min-h-11 rounded-xl bg-emerald-700 px-4 py-3 text-xs font-semibold text-white disabled:opacity-60 whitespace-normal">
       {existing ? 'Activity started · finish alarm saved' : busy ? 'Starting…' : `I’m doing it · ${minutes}-minute activity`}

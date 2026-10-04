@@ -65,4 +65,3 @@ jobs:
       - name: Remove signing file
         if: always()
         run: rm -f "$RUNNER_TEMP/aim-upload.jks"
-
