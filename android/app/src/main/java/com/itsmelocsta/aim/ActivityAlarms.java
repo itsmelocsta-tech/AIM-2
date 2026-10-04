@@ -83,7 +83,7 @@ public final class ActivityAlarms {
         } else if (!exactAllowed(activity)) {
             reply(proxy, id, false, "Allow Alarms & reminders for AIM, then return and tap set alarms again.");
             activity.startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + activity.getPackageName())));
-        } else reply(proxy, id, true, "Alarm permissions ready.");
+        } else { restore(activity); reply(proxy, id, true, "Alarm permissions ready."); }
     }
     public void onPermissionResult(int requestCode) {
         if (requestCode != 810 || permissionReply == null) return;

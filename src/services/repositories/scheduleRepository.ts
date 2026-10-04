@@ -122,11 +122,17 @@ export class ScheduleRepository {
       const [start, end] = block.time.split(/\s*[-–—]\s*/);
       if (!start || !end) throw new Error('AIM returned an incomplete time block. Your plan was not changed.');
       const startAt = createUtcIsoFromLocal(plan.date, parseClock(start), tz);
-      const endAt = createUtcIsoFromLocal(plan.date, parseClock(end), tz);
+      const prior = byId.get(block.id);
+      const endClock = parseClock(end);
+      let endAt = createUtcIsoFromLocal(plan.date, endClock, tz);
+      // A started activity may legitimately cross midnight. Preserve its explicit UTC end.
+      if (prior?.startAt === startAt && Date.parse(prior.endAt) > Date.parse(startAt) && Date.parse(endAt) <= Date.parse(startAt)) {
+        const priorEndClock = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(prior.endAt));
+        if (priorEndClock === endClock) endAt = prior.endAt;
+      }
       if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
         throw new Error('AIM returned a time block that ends before it starts. Your plan was not changed.');
       }
-      const prior = byId.get(block.id);
       return {
         id: block.id, userId, title: block.title,
         description: block.details,

@@ -78,3 +78,10 @@ it('native concurrent requests resolve only their own response, including denied
   expect(await permissions).toEqual({ ready: false, message: 'permission denied' });
   expect(await replace).toEqual({ ready: true, message: 'cleared' });
 });
+it('retains a started activity crossing local midnight when its plan is saved', async () => {
+  const overnight = { ...item, startAt: '2026-10-05T04:50:00Z', endAt: '2026-10-05T05:15:00Z', status: 'in_progress' as const };
+  await scheduleRepository.saveScheduleItem(overnight); commitActivities('a', [overnight]);
+  scheduleRepository.syncDayFromPlan('a', { ...DEFAULT_DAILY_PLAN, date: '2026-10-04', timeBlocks: [{ id: item.id, title: item.title, time: '11:50 PM - 12:15 AM', details: '', completed: false }] }, 'America/Chicago');
+  expect(scheduleRepository.getAlarmItems('a')[0].endAt).toBe(overnight.endAt);
+  expect(collectActivityAlarms('a', scheduleRepository.getAlarmItems('a'), now)[0].kind).toBe('end');
+});

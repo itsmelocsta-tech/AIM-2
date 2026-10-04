@@ -19,7 +19,7 @@ export function AimAlarmClock({ userId }: { userId: string | null }) {
           const signature = JSON.stringify({ userId, alarms });
           if (signature === nativeSignature) continue;
           const result = await nativeAlarmRequest('replace', { userId: userId || '', alarms });
-          if (!stopped) { nativeSignature = signature; setNativeMessage(result.message); }
+          if (!stopped) { if (result.ready) nativeSignature = signature; setNativeMessage(result.message); }
         } while (dirty && !stopped);
       } catch (error) { if (!stopped) setNativeMessage(error instanceof Error ? error.message : 'Alarms could not be scheduled. Retry.'); }
       finally { syncing = false; }

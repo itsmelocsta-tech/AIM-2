@@ -21,7 +21,7 @@ export function ActivityAlarmControls({ userId, items, label = 'I’m doing it �
         if (!result.ready) { setMessage(result.message); return; }
       }
       commitActivities(userId, eligible, { start, end });
-      setMessage(hasNativeAlarms() ? 'Preparing your alarms…' : 'Alarms saved. Keep AIM open to hear them.');
+      setMessage(hasNativeAlarms() ? 'Alarm choices saved. Check AIM Clock for delivery status.' : 'Alarms saved. Keep AIM open to hear them.');
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not set alarms. Retry.'); }
     finally { setBusy(false); }
   }
