@@ -39,3 +39,8 @@ introduced later.
 `npm run check` covers types, unit tests, and both build outputs locally. A
 passing build alone does not establish that Vercel routing, Firebase Admin,
 Gemini, or the full browser journey works.
+
+The active repaired QA branch is `fix/your-opportunities-label`. Its existing
+branch-scoped Preview Gemini secret must follow this branch; environment changes
+only apply to newly built deployments. Check runtime logs and actual generation,
+not only the presence of an environment-variable record.
