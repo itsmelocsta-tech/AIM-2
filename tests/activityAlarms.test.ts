@@ -3,6 +3,7 @@ import { ScheduleItem } from '../src/types';
 import { cancelActivityAlarms, collectActivityAlarms, commitActivities, markAlarmFired, nativeAlarmRequest, readCommitments } from '../src/services/activityAlarms';
 import { scheduleRepository } from '../src/services/repositories/scheduleRepository';
 import { DEFAULT_DAILY_PLAN } from '../src/services/storage';
+import { createUtcIsoFromLocal } from '../src/utils/dateTimeUtils';
 
 const entries = new Map<string, string>();
 const now = Date.parse('2026-10-04T17:00:00Z');
@@ -84,4 +85,11 @@ it('retains a started activity crossing local midnight when its plan is saved', 
   scheduleRepository.syncDayFromPlan('a', { ...DEFAULT_DAILY_PLAN, date: '2026-10-04', timeBlocks: [{ id: item.id, title: item.title, time: '11:50 PM - 12:15 AM', details: '', completed: false }] }, 'America/Chicago');
   expect(scheduleRepository.getAlarmItems('a')[0].endAt).toBe(overnight.endAt);
   expect(collectActivityAlarms('a', scheduleRepository.getAlarmItems('a'), now)[0].kind).toBe('end');
+});
+it('converts alarm wall-clock times independently of the device time zone and handles daylight-saving transitions', () => {
+  expect(createUtcIsoFromLocal('2026-10-04', '23:50', 'America/Chicago')).toBe('2026-10-05T04:50:00.000Z');
+  expect(createUtcIsoFromLocal('2026-01-04', '12:00', 'America/Chicago')).toBe('2026-01-04T18:00:00.000Z');
+  expect(createUtcIsoFromLocal('2026-10-04', '12:00', 'Asia/Kolkata')).toBe('2026-10-04T06:30:00.000Z');
+  expect(createUtcIsoFromLocal('2026-11-01', '01:30', 'America/Chicago')).toBe('2026-11-01T06:30:00.000Z');
+  expect(() => createUtcIsoFromLocal('2026-03-08', '02:30', 'America/Chicago')).toThrow('daylight-saving');
 });
