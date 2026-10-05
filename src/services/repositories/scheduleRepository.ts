@@ -145,12 +145,18 @@ export class ScheduleRepository {
       } as ScheduleItem;
     });
     if (validateOnly) return;
+    const planItemIds = new Set(items.map(item => item.id));
     const kept = existing.filter(item => {
       if (item.userId !== userId) return true;
       const localDate = new Intl.DateTimeFormat('en-CA', {
         timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
       }).format(new Date(item.startAt));
-      return localDate !== plan.date;
+      if (localDate !== plan.date) return true;
+      // Start-now activities are canonical schedule items even when they were
+      // launched from a priority card instead of a planner time block. Keep an
+      // active one while rebuilding the saved plan after reload; otherwise its
+      // finish alarm loses the schedule item it is attached to.
+      return item.status === 'in_progress' && !planItemIds.has(item.id);
     });
     this.saveStoredItems([...kept, ...items]);
     try {

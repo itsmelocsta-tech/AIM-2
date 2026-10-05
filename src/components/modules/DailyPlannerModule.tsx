@@ -651,7 +651,15 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                 <span className="text-xs text-slate-400">{dailyPlan.availableHours} Productive Hours</span>
               </div>
 
-              <ActivityAlarmControls userId={userProfile.id || ''} items={scheduleRepository.getAlarmItems(userProfile.id || '').filter(item => dailyPlan.timeBlocks.some(block => block.id === item.id))} label="Agree to this plan · set alarms" />
+              <ActivityAlarmControls
+                userId={userProfile.id || ''}
+                items={scheduleRepository.getAlarmItems(userProfile.id || '').filter(item =>
+                  dailyPlan.timeBlocks.some(block => block.id === item.id)
+                  || dailyPlan.priorityTasks.some(task => `activity-${task.id}` === item.id)
+                )}
+                label="Agree to this plan · set alarms"
+                showWhenEmpty
+              />
               <div className="space-y-3">
                 {dailyPlan.timeBlocks.map((block) => (
                   <div

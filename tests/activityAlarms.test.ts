@@ -69,6 +69,27 @@ it('schedule sync retains an active activity and completion removes its alarms',
   scheduleRepository.syncDayFromPlan('a', { ...plan, timeBlocks: [{ ...plan.timeBlocks[0], completed: true }] }, 'America/Chicago');
   expect(collectActivityAlarms('a', scheduleRepository.getAlarmItems('a'), now)).toEqual([]);
 });
+it('reload plan sync preserves a started priority activity that is not a planner time block', async () => {
+  const started = {
+    ...item,
+    id: 'activity-priority-1',
+    startAt: new Date(now).toISOString(),
+    endAt: new Date(now + 2 * 60000).toISOString(),
+    status: 'in_progress' as const,
+  };
+  await scheduleRepository.saveScheduleItem(started);
+  commitActivities('a', [started]);
+
+  scheduleRepository.syncDayFromPlan('a', {
+    ...DEFAULT_DAILY_PLAN,
+    date: '2026-10-04',
+    timeBlocks: [{ id: 'planner-block', title: 'Later task', time: '1:00 PM - 1:30 PM', details: '', completed: false }],
+  }, 'America/Chicago');
+
+  const reloadedItems = scheduleRepository.getAlarmItems('a');
+  expect(reloadedItems.find(saved => saved.id === started.id)?.status).toBe('in_progress');
+  expect(collectActivityAlarms('a', reloadedItems, now).map(alarm => alarm.kind)).toEqual(['end']);
+});
 it('native concurrent requests resolve only their own response, including denied permission', async () => {
   const messages: any[] = [];
   const bridge = { postMessage: (message: string) => messages.push(JSON.parse(message)), onmessage: undefined as any };
