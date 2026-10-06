@@ -10,6 +10,8 @@ export function ActivityAlarmControls({ userId, items, label = 'Iâ€™m doing it Â
   const saved = readCommitments(userId);
   const eligible = items.filter(i => i.userId === userId && Date.parse(i.endAt) > Date.now() && !['completed', 'cancelled', 'skipped', 'missed'].includes(i.status));
   const armed = eligible.length > 0 && eligible.every(i => Boolean(saved[i.id]));
+  const displayedStart = armed ? eligible.every(i => saved[i.id]?.start) : start;
+  const displayedEnd = armed ? eligible.every(i => saved[i.id]?.end) : end;
   if (!eligible.length && !showWhenEmpty) return null;
   async function enable() {
     if (busy) return;
@@ -26,10 +28,10 @@ export function ActivityAlarmControls({ userId, items, label = 'Iâ€™m doing it Â
     finally { setBusy(false); }
   }
   return <div className="space-y-2 text-xs" onClick={e => e.stopPropagation()} data-alarm-revision={revision}>
-    {!armed && <div className="flex flex-wrap gap-3 text-slate-300">
-      <label className="flex items-center gap-2 min-h-11"><input type="checkbox" checked={start} onChange={e => setStart(e.target.checked)} />Start alert</label>
-      <label className="flex items-center gap-2 min-h-11"><input type="checkbox" checked={end} onChange={e => setEnd(e.target.checked)} />Finish alert</label>
-    </div>}
+    <div className="flex flex-wrap gap-3 text-slate-300">
+      <label className="flex items-center gap-2 min-h-11"><input type="checkbox" checked={displayedStart} disabled={armed} onChange={e => setStart(e.target.checked)} />Start alert</label>
+      <label className="flex items-center gap-2 min-h-11"><input type="checkbox" checked={displayedEnd} disabled={armed} onChange={e => setEnd(e.target.checked)} />Finish alert</label>
+    </div>
     <button type="button" disabled={busy || !eligible.length || (!armed && !start && !end)} onClick={() => {
       if (armed) { eligible.forEach(i => cancelActivityAlarms(userId, i.id)); setMessage('Alarms canceled.'); }
       else void enable();

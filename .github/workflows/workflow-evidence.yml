@@ -27,7 +27,7 @@ jobs:
             if (field('QA result') !== 'PASS')
               failures.push('Live browser QA is pending, failed, or blocked.');
             if (field('QA evidence').length < 20 || /^(PENDING|TODO)/i.test(field('QA evidence')))
-              failures.push('Provide the TinyFish run ID and supporting report/evidence.');
+              failures.push('Provide the current Playwright run/artifact or authorized browser report.');
             await core.summary.addHeading('AIM workflow evidence')
               .addRaw(failures.length ? failures.map(x => '- ' + x).join('\n') : 'Design and current-commit QA evidence supplied. Review the linked evidence.').write();
             if (failures.length) core.setFailed(failures.join('\n'));
