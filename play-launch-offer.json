@@ -4,9 +4,11 @@
   "installPriceCents": 0,
   "subscriptionProductId": "aim_premium",
   "basePlanId": "monthly",
-  "monthlyPriceCents": 799,
-  "introductoryOfferId": "three_day_trial",
-  "freeTrialDays": 3,
-  "annualPlanAtLaunch": false,
+  "monthlyPriceCents": 999,
+  "annualBasePlanId": "annual",
+  "annualPriceCents": 7999,
+  "introductoryOfferId": "seven_day_trial",
+  "freeTrialDays": 7,
+  "annualPlanAtLaunch": true,
   "paymentsEnabled": false
 }
