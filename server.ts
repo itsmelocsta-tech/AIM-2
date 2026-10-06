@@ -1457,6 +1457,8 @@ async function startServer() {
 
 export { app };
 
-if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST && !process.env.VERCEL) {
   startServer();
 }
+
+export default app;
