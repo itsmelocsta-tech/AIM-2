@@ -10,6 +10,7 @@ import { AIMSharedIntelligenceService } from './server/intelligence/AIMSharedInt
 import { AIMVoiceService } from './server/voice/AIMVoiceService';
 import { AIMOsService } from './server/aimOsService';
 import { requireAuth } from './server/firebaseAdmin';
+import { readEntitlement, requirePremium } from './server/entitlementService';
 
 dotenv.config();
 
@@ -222,6 +223,10 @@ function buildUserSavedInformationPrompt(params: {
 }
 
 // API Routes
+app.get('/api/aim/entitlement', async (req: any, res: Response) => {
+  res.json(await readEntitlement(req.user.uid));
+});
+
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', time: new Date().toISOString(), hasApiKey: Boolean(process.env.GEMINI_API_KEY) });
 });
@@ -329,7 +334,7 @@ Remember: Give a real, genuine, articulate, empathetic answer specifically addre
 });
 
 // Monetization & Fast-Cash Sprint Generator
-app.post('/api/aim/monetize', async (req: Request, res: Response) => {
+app.post('/api/aim/monetize', requirePremium, async (req: Request, res: Response) => {
   const { skills, targetNiche, pricePoint, offerType, userProfile } = req.body;
   const fallbackOffer = {
     offerTitle: "Rapid Execution Growth Sprint",
@@ -478,7 +483,7 @@ Return JSON with:
 });
 
 // Life Update & Adaptive Plan GPS Rerouting
-app.post('/api/aim/life-update-analyze', async (req: Request, res: Response) => {
+app.post('/api/aim/life-update-analyze', requirePremium, async (req: Request, res: Response) => {
   const { content, currentGoals, currentDailyPlan, userProfile } = req.body;
   if (typeof content !== 'string' || !content.trim() || !currentDailyPlan) {
     return res.status(400).json({ error: 'A life update and current plan are required.' });
@@ -1058,7 +1063,7 @@ app.post('/api/aim/momentum/analyze', (req: Request, res: Response) => {
 });
 
 // Creative Studio & Client Proposal Generator
-app.post('/api/aim/creative', async (req: Request, res: Response) => {
+app.post('/api/aim/creative', requirePremium, async (req: Request, res: Response) => {
   const { taskType, clientName, projectScope, budget, industry } = req.body;
   const defaultCreativeFallback = {
     title: `Growth Strategy Proposal for ${clientName || 'Client'}`,
