@@ -1,6 +1,5 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { AIMCoreWisdomEngine } from './server/wisdom/AIMCoreWisdomEngine';
@@ -1437,6 +1436,7 @@ app.post('/api/aim/recommendations/daily', async (req: Request, res: Response) =
 // Vite middleware setup
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
