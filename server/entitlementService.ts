@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
 import { AuthenticatedRequest, getFirebaseAdminApp } from './firebaseAdmin';
+import firebaseConfig from '../firebase-applet-config.json';
 
 export type ServerAimPlan = 'basic' | 'premium';
 export interface ServerEntitlement { plan: ServerAimPlan; status: 'free'|'trial'|'active'|'grace'|'expired'; trialEndsAt?: string; renewsAt?: string; }
@@ -11,7 +12,7 @@ export async function readEntitlement(uid: string): Promise<ServerEntitlement> {
   const app = getFirebaseAdminApp();
   if (!app) return BASIC_SERVER_ENTITLEMENT;
   try {
-    const snap = await getFirestore(app).doc(`users/${uid}/billing/entitlement`).get();
+    const snap = await getFirestore(app, firebaseConfig.firestoreDatabaseId).doc(`users/${uid}/billing/entitlement`).get();
     const data = snap.data() as ServerEntitlement | undefined;
     return data?.plan ? data : BASIC_SERVER_ENTITLEMENT;
   } catch (error) {
