@@ -113,18 +113,22 @@ export function createUtcIsoFromLocal(
   const [hours, minutes] = timeStr.split(':').map(Number);
   const [year, month, day] = dateStr.split('-').map(Number);
 
-  // We construct a date representing this local wall-clock time
-  const tempDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
-  
-  // Refine using Intl to match target timezone offset accurately
-  try {
-    const localStr = tempDate.toLocaleString('en-US', { timeZone: tz });
-    const localParsed = new Date(localStr);
-    const diff = tempDate.getTime() - localParsed.getTime();
-    return new Date(tempDate.getTime() + diff).toISOString();
-  } catch {
-    return tempDate.toISOString();
+  const wallClock = Date.UTC(year, month - 1, day, hours, minutes, 0);
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  });
+  // Use explicit numeric parts; parsing a localized string uses the device's zone
+  // and can shift an alarm when device and AIM time zones differ (or are identical).
+  let candidate = wallClock;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const parts = Object.fromEntries(formatter.formatToParts(new Date(candidate)).map(part => [part.type, part.value]));
+    const representedWallClock = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), Number(parts.second));
+    const correction = wallClock - representedWallClock;
+    if (correction === 0) return new Date(candidate).toISOString();
+    candidate += correction;
   }
+  throw new Error('This local time does not exist during the daylight-saving change. Choose another time.');
 }
 
 /**

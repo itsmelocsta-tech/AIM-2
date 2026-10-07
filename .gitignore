@@ -1,8 +1,12 @@
 node_modules/
+android/.gradle/
+android/app/build/
 build/
 api/server.cjs
 dist/
 coverage/
+playwright-report/
+test-results/
 .DS_Store
 *.log
 .env*

@@ -25,6 +25,7 @@ import {
   UserProfile,
 } from '../../types';
 import { aimContextService } from '../../services/aimContextService';
+import { StartTaskAlarm } from '../common/StartTaskAlarm';
 
 interface AimHomeModuleProps {
   userProfile: UserProfile;
@@ -38,6 +39,7 @@ interface AimHomeModuleProps {
   onNavigateToTab: (tab: string) => void;
   onSelectProject?: (projectId: string) => void;
   onToast: (msg: string) => void;
+  onUpdatePlan?: (plan: DailyPlan) => void;
 }
 
 export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
@@ -52,6 +54,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
   onNavigateToTab,
   onSelectProject,
   onToast,
+  onUpdatePlan,
 }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -260,6 +263,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
           </div>
         </div>
 
+        {usingStartingPlan && firstTask && onUpdatePlan && <StartTaskAlarm task={firstTask} profile={userProfile} onUpdatePlan={onUpdatePlan} />}
         {/* Action Button */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
           <button
