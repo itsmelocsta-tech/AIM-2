@@ -17,6 +17,10 @@ jobs:
             const body = pr.body || '';
             const field = name => body.split('\n').find(line => line.startsWith(name + ':'))?.slice(name.length + 1).trim() || '';
             const failures = [];
+            if (field('QA runner') !== 'Playwright')
+              failures.push('Repeating browser QA must use Playwright through GitHub Actions.');
+            if (/tinyfish/i.test(field('QA evidence')))
+              failures.push('TinyFish evidence cannot satisfy AIM browser QA.');
             const design = field('Design evidence');
             if (!/^https:\/\/(www\.)?figma\.com\//.test(design) && !/^not-applicable:\s+.{15,}/i.test(design))
               failures.push('Provide a Figma review link or a specific backend-only reason.');
@@ -27,7 +31,7 @@ jobs:
             if (field('QA result') !== 'PASS')
               failures.push('Live browser QA is pending, failed, or blocked.');
             if (field('QA evidence').length < 20 || /^(PENDING|TODO)/i.test(field('QA evidence')))
-              failures.push('Provide the current Playwright run/artifact or authorized browser report.');
+              failures.push('Provide the current Playwright run URL and supporting report/artifact evidence.');
             await core.summary.addHeading('AIM workflow evidence')
               .addRaw(failures.length ? failures.map(x => '- ' + x).join('\n') : 'Design and current-commit QA evidence supplied. Review the linked evidence.').write();
             if (failures.length) core.setFailed(failures.join('\n'));
