@@ -115,7 +115,7 @@ export const CoachShell: React.FC<CoachShellProps> = ({
                 onClick={() => loadOrbContext(activeCoachId, true)}
                 disabled={isLoadingContext}
                 className="p-1 text-slate-500 hover:text-slate-300 transition-colors"
-                title="Recalibrate intelligence context"
+                title="Refresh your next steps"
               >
                 <RefreshCw className={`w-3 h-3 ${isLoadingContext ? 'animate-spin text-indigo-400' : ''}`} />
               </button>
@@ -129,7 +129,7 @@ export const CoachShell: React.FC<CoachShellProps> = ({
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 font-semibold text-slate-200">
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Primary Wisdom Shift:</span>
+                    <span>A helpful thought:</span>
                   </div>
                   <p className="text-slate-300 pl-5 leading-relaxed">
                     {compactContext.primaryWisdomShift}
@@ -139,7 +139,7 @@ export const CoachShell: React.FC<CoachShellProps> = ({
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 font-semibold text-slate-200">
                     <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Recommended Micro-Win:</span>
+                    <span>A small step to try:</span>
                   </div>
                   <p className="text-slate-300 pl-5 leading-relaxed">
                     {compactContext.immediateActionForNow}
@@ -149,7 +149,7 @@ export const CoachShell: React.FC<CoachShellProps> = ({
 
               {compactContext.relevantDomains.length > 0 && (
                 <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Synthesized across: {compactContext.relevantDomains.map((d) => (d || '').replace(/_/g, ' ')).join(', ')}</span>
+                  <span>Based on: {compactContext.relevantDomains.map((d) => (d || '').replace(/_/g, ' ')).join(', ')}</span>
                   <span className="flex items-center gap-1 font-mono text-emerald-400">
                     <ShieldCheck className="w-3 h-3" />
                     {compactContext.evidenceConfidence}

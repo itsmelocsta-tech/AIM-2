@@ -69,7 +69,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
 
     const obstaclesList = newObstacles
       ? newObstacles.split(',').map((s) => s.trim())
-      : ['Maintaining sustained execution'];
+      : ['Keeping up with your next steps'];
 
     const newGoal: Goal = {
       id: 'goal-' + Date.now(),
@@ -81,7 +81,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
       obstacles: obstaclesList,
       milestones: [
         { id: 'm-1', title: 'Define immediate 48-hour action sprint', completed: true },
-        { id: 'm-2', title: 'Execute primary high-leverage milestones', completed: false },
+        { id: 'm-2', title: 'Take the next steps toward your goal', completed: false },
         { id: 'm-3', title: 'Lock in recurring results and systematize', completed: false },
       ],
       status: 'active',
@@ -94,7 +94,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
     setNewWhy('');
     setNewObstacles('');
     setIsAddingGoal(false);
-    onToast(`New Goal "${newGoal.title}" locked into your life trajectory!`);
+    onToast(`New Goal "${newGoal.title}" added to your plan!`);
   };
 
   // AIM Intelligent Recalculation (Never Shame, Always Recalculate)
@@ -102,7 +102,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
     setRecalculatingGoalId(goal.id);
     try {
       const response = await api.chatWithAIM({
-        message: `I need to recalculate my path for the goal: "${goal.title}". Why: "${goal.why}". Current obstacles: ${goal.obstacles.join(', ')}. Create a fresh, realistic, high-leverage 3-step action plan to regain unstoppable momentum without guilt or overwhelm.`,
+        message: `I need to recalculate my path for the goal: "${goal.title}". Why: "${goal.why}". Current obstacles: ${goal.obstacles.join(', ')}. Give me three simple, realistic steps to get started again. Use everyday words and avoid pressure or guilt.`,
         history: [],
         userProfile,
         contextCategory: goal.category,
@@ -120,7 +120,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
       });
 
       onUpdateGoals(updated);
-      onToast('Path recalculated! Check the updated trajectory advice.');
+      onToast('Your plan is updated. Take a look at your next steps.');
     } catch (e) {
       onToast('Error recalculating goal');
     } finally {
@@ -130,7 +130,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
 
   // Export Goal Blueprint to Google Drive
   const handleExportGoalToDrive = async (goal: Goal) => {
-    const markdown = `# AIM Goal Trajectory Blueprint: ${goal.title}\n\n**Category:** ${goal.category}\n**Target Date:** ${goal.targetDate}\n**Progress:** ${goal.currentProgress}%\n${goal.revenuePotential ? `**Revenue Impact:** $${goal.revenuePotential.toLocaleString()}/mo\n` : ''}\n\n## The Deep 'Why'\n${goal.why}\n\n## Known Obstacles & Root Causes\n${goal.obstacles.map((o) => `- ${o}`).join('\n')}\n\n## Milestone Ladder\n${goal.milestones.map((m) => `- [${m.completed ? 'x' : ' '}] ${m.title}`).join('\n')}\n\n${goal.recalculatedPath ? `## Recalculated Trajectory Guidance\n${goal.recalculatedPath}\n` : ''}\n---\n*Exported from AIM (Artificial Intelligence for Manifestation) Life OS.*`;
+    const markdown = `# AIM Goal Plan: ${goal.title}\n\n**Category:** ${goal.category}\n**Target Date:** ${goal.targetDate}\n**Progress:** ${goal.currentProgress}%\n${goal.revenuePotential ? `**Revenue Impact:** $${goal.revenuePotential.toLocaleString()}/mo\n` : ''}\n\n## Why this matters to you\n${goal.why}\n\n## What’s getting in your way\n${goal.obstacles.map((o) => `- ${o}`).join('\n')}\n\n## Steps toward your goal\n${goal.milestones.map((m) => `- [${m.completed ? 'x' : ' '}] ${m.title}`).join('\n')}\n\n${goal.recalculatedPath ? `## Your updated plan\n${goal.recalculatedPath}\n` : ''}\n---\n*Exported from AIM (Artificial Intelligence for Manifestation) Life OS.*`;
 
     try {
       const res = await driveService.exportDocumentToDrive({
@@ -155,7 +155,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
       <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/60 border border-slate-800 rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
           <span className="text-[11px] uppercase font-bold text-indigo-400 tracking-wider">
-            Identity Manifestation Trajectory
+            Your goals
           </span>
           <h2 className="text-xl font-bold text-white tracking-tight">
             Who You Are Becoming
@@ -180,7 +180,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <Target className="w-4 h-4 text-emerald-400" />
-              <span>Define New Goal & Manifestation Anchor</span>
+              <span>Add a goal</span>
             </h3>
             <button onClick={() => setIsAddingGoal(false)} className="text-xs text-slate-400 hover:text-slate-200">
               Cancel
@@ -332,7 +332,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
               {/* Progress Bar */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-semibold">
-                  <span className="text-slate-400">Progress Trajectory</span>
+                  <span className="text-slate-400">Your progress</span>
                   <span className="text-emerald-400">{goal.currentProgress}%</span>
                 </div>
                 <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
@@ -346,7 +346,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
               {/* Milestones Checklist */}
               <div>
                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
-                  Milestone Ladder
+                  Steps toward your goal
                 </span>
                 <div className="space-y-2">
                   {goal.milestones.map((m) => (
@@ -390,7 +390,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
                 <div className="bg-indigo-950/40 border border-indigo-800/60 p-3 rounded-xl text-xs text-indigo-200">
                   <span className="font-bold text-indigo-300 block mb-1 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>AIM Recalculated Trajectory:</span>
+                    <span>Your updated plan:</span>
                   </span>
                   <p className="text-[11px] leading-relaxed whitespace-pre-wrap">
                     {goal.recalculatedPath}

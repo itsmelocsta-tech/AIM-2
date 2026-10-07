@@ -84,7 +84,7 @@ describe('Drifter → Finisher → Architect', () => {
       userProfile={profile} dailyPlan={plan} context={DEFAULT_PERSONAL_CONTEXT} projects={[]}
       onRefreshRecommendation={() => {}} onNavigateToTab={() => {}} onToast={() => {}}
     />);
-    expect(planner).toContain('Drifter → Finisher → Architect');
+    expect(planner).toContain('Notice, finish, make it easier');
     expect(planner).toContain('Notifications before writing');
     expect(planner).toContain('Next to finish');
     expect(planner).toContain('Write at 9am with notifications off');

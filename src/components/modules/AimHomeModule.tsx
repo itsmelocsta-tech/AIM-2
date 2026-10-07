@@ -223,7 +223,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
           {mainMove.title}
         </h2>
         <p className="text-xs text-indigo-200 leading-relaxed">
-          Drifter → Finisher → Architect: notice what pulls you away, finish one real step, then make the next finish easier.
+          Notice what pulls you away. Finish one step. Make the next step easier.
         </p>
         {userProfile.finishingSystem?.protectiveRoutine && (
           <p className="text-xs text-emerald-200 mt-2 break-words">Your finishing setup: {userProfile.finishingSystem.protectiveRoutine}</p>
@@ -319,7 +319,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
 
             <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 text-xs space-y-2 my-2">
               <div>
-                <span className="text-slate-400 font-semibold">Strategic Value:</span>
+                <span className="text-slate-400 font-semibold">Why it matters:</span>
                 <p className="text-slate-300 mt-0.5 leading-relaxed">{rec.supportingMove.whyBestMove}</p>
               </div>
               <div>

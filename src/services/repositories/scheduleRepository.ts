@@ -15,11 +15,11 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
 
   const blocks = [
     {
-      title: 'Morning Alignment & Grounding Routine',
-      description: `1. Drink 500ml of water immediately to rehydrate after sleep.
-2. Complete 5–10 minutes of light dynamic mobility (neck rolls, thoracic rotations, hip openers) with natural outdoor daylight exposure.
-3. Open AIM to review today's top 3 priority tasks and define your single non-negotiable breakthrough outcome.
-4. Record a 1-sentence grounding intention before opening notifications, inbox, or social feeds.`,
+      title: 'Start your morning',
+      description: `1. Drink a glass of water after you wake up.
+2. Move and stretch gently for 5 to 10 minutes. Get some daylight if you can.
+3. Open AIM and look at your three main tasks. Pick the one that matters most today.
+4. Write one sentence about how you want today to go before checking your phone.`,
       startTime: '08:00',
       endTime: '09:00',
       priority: 'high' as const,
@@ -27,11 +27,11 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
       sourceCoachId: 'guidance' as CoachId,
     },
     {
-      title: 'High-Leverage Deep Work Sprint',
-      description: `1. Close all communication apps (Slack, Discord, Email) and place your phone on silent in another room.
-2. Open the primary document, codebase, or software tool needed and set an uninterrupted 90-minute timer.
-3. Focus exclusively on producing concrete output (draft the proposal, write the core module, or design the asset) with zero context switching.
-4. Stop promptly at the timer, save your progress, and log your milestone checkpoint in AIM before taking a 5-minute breathing break.`,
+      title: 'Focused work',
+      description: `1. Close your message apps and put your phone on silent.
+2. Open what you need for your main task. Set a timer for 90 minutes.
+3. Work on one thing, such as writing a page, making a design, or building part of your project.
+4. When the timer ends, save your work and note what you finished in AIM. Take a five-minute break.`,
       startTime: '09:30',
       endTime: '11:30',
       priority: 'critical' as const,
@@ -39,11 +39,11 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
       sourceCoachId: 'motivation' as CoachId,
     },
     {
-      title: 'Vitality & Nourishment Break',
-      description: `1. Fully step away from your computer screen, workstation, and phone.
-2. Eat a balanced whole-food meal with clean protein, complex carbohydrates, and water to sustain cognitive focus.
-3. Take a brisk 15–20 minute outdoor walk in fresh air without listening to work calls or checking email.
-4. Practice 3 minutes of slow diaphragmatic nasal breathing (4s inhale, 6s exhale) to downregulate cortisol and reset nervous system tone.`,
+      title: 'Lunch and a break',
+      description: `1. Step away from your screen and put your phone down.
+2. Eat a balanced meal with some protein, such as beans, eggs, or meat. Drink water.
+3. Try a 15 to 20 minute walk outside without work calls or email.
+4. Breathe slowly for three minutes. Try breathing in for four seconds and out for six.`,
       startTime: '12:00',
       endTime: '13:00',
       priority: 'medium' as const,
@@ -51,11 +51,11 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
       sourceCoachId: 'health' as CoachId,
     },
     {
-      title: 'Core Execution & Communication Block',
-      description: `1. Open your pipeline and review your top 3 prospective clients, stakeholders, or collaborators.
-2. Craft and dispatch 3 personalized messages offering a concrete solution to their primary bottleneck with a clear booking link or next step.
-3. Process pending operational emails, slack messages, and administrative invoices in a focused 30-minute batch.
-4. Verify tomorrow's calendar appointments and clear any pending scheduling blockers.`,
+      title: 'Work and messages',
+      description: `1. Look at three people you want to contact about work or a project.
+2. Send each person a short, personal message about how you can help. Give them a clear next step.
+3. Set aside 30 minutes to answer work messages and handle bills or other paperwork.
+4. Check tomorrow’s meetings and fix any timing problems.`,
       startTime: '13:30',
       endTime: '15:30',
       priority: 'high' as const,
@@ -63,10 +63,10 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
       sourceCoachId: 'relationships' as CoachId,
     },
     {
-      title: 'Inner Reflection & Evening Calibration',
-      description: `1. Review today's schedule items in AIM: mark completed tasks and migrate unfinished items to tomorrow without self-criticism.
-2. Open the Memory Vault to record 2 specific wins and 1 key lesson or insight learned from today's execution.
-3. Identify the single first physical task you will tackle tomorrow morning, prepare the required tabs or materials, and tidy your workspace so you wake up to zero starting friction.`,
+      title: 'Look back on your day',
+      description: `1. Look at your tasks in AIM. Check off what you finished and move unfinished tasks to tomorrow.
+2. Save two things that went well and one thing you learned in your notes.
+3. Pick your first task for tomorrow. Get what you need ready and clear your workspace.`,
       startTime: '17:00',
       endTime: '17:45',
       priority: 'medium' as const,

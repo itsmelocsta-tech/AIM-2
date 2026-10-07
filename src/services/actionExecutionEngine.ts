@@ -315,7 +315,7 @@ export class ActionExecutionEngine {
                 status: 'active',
                 currentProgress: typeof progress === 'number' ? progress : 0,
                 targetDate: action.payload?.targetDate || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-                why: action.payload?.why || 'Core personal trajectory goal',
+                why: action.payload?.why || 'A goal that matters to you',
                 milestones: Array.isArray(action.payload?.milestones)
                   ? action.payload.milestones.map((m: any, idx: number) =>
                       typeof m === 'string' ? { id: `m-${idx}`, title: m, completed: false } : m
@@ -328,7 +328,7 @@ export class ActionExecutionEngine {
             }
 
             goalsModified = true;
-            summary.push(`Calibrated goal: "${goalTitle || 'Goal'}"`);
+            summary.push(`Updated goal: "${goalTitle || 'Goal'}"`);
             successfulActions.push({ ...action, executed: true, status: 'success' });
             break;
           }

@@ -1,0 +1,23 @@
+import { test, expect } from '@playwright/test';
+test('saved legacy choices become readable and selecting a plan keeps its details through reload', async ({page}, testInfo) => {
+  await page.route('**/api/aim/**', route => route.fulfill({ status: 503, json: { error: 'Isolated fictional test' } }));
+  await page.goto('/qa/plan-harness/');
+  for (const title of ['Start Small', 'Build a Routine', 'Make a Bigger Change']) await expect(page.getByRole('heading', {name: title, exact: true})).toBeVisible();
+  await expect(page.getByText('A steady pace', {exact: true})).toBeVisible();
+  await expect(page.getByText('More time and effort', {exact: true})).toBeVisible();
+  const body = await page.locator('body').innerText();
+  expect(body).not.toMatch(/high-conviction|transformative|scalable|calibrat|trajectory|leverage|bottlenecks neutralized/i);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({path:testInfo.outputPath('simple-plan-choices.png'), fullPage:true});
+  await page.locator('#pathway-card-option-2').getByRole('button', {name:'Use this plan'}).click();
+  const saved = page.getByRole('region', {name:'Saved plan'});
+  await expect(saved).toContainText('Build a Routine');
+  await expect(saved).toContainText('Draw for 15 minutes tonight.');
+  await expect(saved).toContainText('Your plan is ready:');
+  await expect(saved).toContainText('Your plan and goals are saved.');
+  await expect(saved).not.toContainText('Obstacles Neutralized');
+  await page.reload();
+  await expect(page.getByRole('region', {name:'Saved plan'})).toContainText('Build a Routine');
+  await expect(page.getByRole('region', {name:'Saved plan'})).toContainText('Draw for 15 minutes tonight.');
+  await expect(page.locator('#aim-pathway-selection-module')).toHaveCount(0);
+});

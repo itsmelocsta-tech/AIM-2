@@ -64,22 +64,22 @@ export const DriveSyncModal: React.FC<DriveSyncModalProps> = ({
   const handleSyncFullWorkspaceToDrive = async () => {
     setIsSyncingAll(true);
     try {
-      const fullBlueprintMarkdown = `# AIM (Artificial Intelligence for Manifestation) - Master Life OS Blueprint
+      const fullBlueprintMarkdown = `# AIM - Your Life Plan
 **Owner:** ${userProfile.name} (${userProfile.email})
 **Generated Date:** ${new Date().toLocaleString()}
 
 ---
 
-## 1. Identity & 90-Day Trajectory
-- **Desired Identity:** ${userProfile.desiredIdentity}
+## 1. Your goals for the next three months
+- **Desired Your goal:** ${userProfile.desiredIdentity}
 - **Core Mission:** ${userProfile.coreMission}
 - **Primary Obstacle & Constraint:** ${userProfile.primaryObstacle}
 - **Core Values:** ${userProfile.coreValues.join(', ')}
-- **90-Day Trajectory:** ${userProfile.ninetyDayTrajectory}
+- **Three-month goal:** ${userProfile.ninetyDayTrajectory}
 
 ---
 
-## 2. Active Manifestation & Life Goals
+## 2. Your current goals
 ${goals
   .map(
     (g) => `### ${g.title} (${g.category})
@@ -94,7 +94,7 @@ ${g.milestones.map((m) => `  - [${m.completed ? 'x' : ' '}] ${m.title}`).join('\
 
 ---
 
-## 3. Today's Daily Execution Master Plan (${dailyPlan.date})
+## 3. Today's Plan (${dailyPlan.date})
 - **Theme:** ${dailyPlan.theme}
 - **Energy Level:** ${dailyPlan.energyLevel}/10
 - **Mindset Anchor:** "${dailyPlan.mindsetReminder}"
@@ -149,7 +149,7 @@ ${m.content}
             <div>
               <h2 className="text-base font-bold text-white">Google Drive Integration</h2>
               <p className="text-xs text-slate-400">
-                Securely sync and backup your life blueprints, client contracts, and daily plans.
+                Save copies of your plans, notes, and contracts to Google Drive.
               </p>
             </div>
           </div>
@@ -185,7 +185,7 @@ ${m.content}
                 className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition-colors"
               >
                 <UploadCloud className={`w-3.5 h-3.5 ${isSyncingAll ? 'animate-bounce' : ''}`} />
-                <span>{isSyncingAll ? 'Exporting...' : 'Backup Full Blueprint'}</span>
+                <span>{isSyncingAll ? 'Exporting...' : 'Save a copy of everything'}</span>
               </button>
 
               <button
@@ -206,7 +206,7 @@ ${m.content}
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
               {syncedFiles.length === 0 ? (
                 <div className="p-6 rounded-xl bg-slate-950 text-center text-xs text-slate-500 italic">
-                  No documents exported yet. Click "Backup Full Blueprint" to save your master workspace.
+                  No documents exported yet. Click "Save a copy of everything" to save your plans and notes.
                 </div>
               ) : (
                 syncedFiles.map((file) => (

@@ -260,7 +260,7 @@ export const CoachOrb: React.FC<CoachOrbProps> = ({
           : isSpeaking
           ? 'Speaking...'
           : isProcessing
-          ? 'Thinking & calibrating...'
+          ? 'Thinking...'
           : 'Click to interact with coach'
       }
     >

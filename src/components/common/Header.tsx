@@ -74,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="font-semibold tracking-tight text-sm sm:text-base text-white">AIM</span>
               <span className="text-[10px] tracking-wider uppercase px-2 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 font-medium border border-indigo-800/50">
-                Life OS
+                Your daily guide
               </span>
             </div>
           </div>
@@ -158,7 +158,7 @@ export const Header: React.FC<HeaderProps> = ({
             id="foundation-session-btn"
             onClick={onOpenFoundationModal}
             className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 transition-colors"
-            title="Life Vision Calibration"
+            title="Your goals"
           >
             <Sliders className="w-3.5 h-3.5" />
           </button>

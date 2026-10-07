@@ -82,16 +82,16 @@ export class AIMMomentumEngine {
       burnoutRiskLevel = 'moderate';
     }
 
-    let detectedPattern = 'Healthy execution momentum and sustainable pacing.';
-    let actionableAdjustment = 'Maintain existing 90-minute morning deep work blocks.';
-    let recommendedMicroAction = 'Lock in your first priority win within 30 minutes of starting work.';
+    let detectedPattern = 'You’re getting things done at a pace you can keep.';
+    let actionableAdjustment = 'Keep your morning time for focused work.';
+    let recommendedMicroAction = 'Start your most important task in the first 30 minutes.';
 
     if (burnoutRiskLevel === 'severe' || burnoutRiskLevel === 'elevated') {
-      detectedPattern = 'Somatic fatigue and cognitive friction leading to defensive task avoidance.';
-      actionableAdjustment = 'Prune secondary tasks by 50% and insert a mandatory 45-minute offline rest block.';
-      recommendedMicroAction = 'Complete one 10-minute micro-task, then take a full physical reset.';
+      detectedPattern = 'Low energy or stress may be making it hard to get started.';
+      actionableAdjustment = 'Move half of your less urgent tasks to another day. Try a 45-minute break away from screens.';
+      recommendedMicroAction = 'Try one small task for 10 minutes, then take a break.';
     } else if (chronicResistanceCategories.length > 0) {
-      detectedPattern = `Chronic friction detected in [${chronicResistanceCategories.join(', ')}], indicating scope overwhelm or emotional avoidance.`;
+      detectedPattern = `Tasks in ${chronicResistanceCategories.join(', ')} have been hard to start or finish.`;
       actionableAdjustment = `Shrink the scope of tasks in ${chronicResistanceCategories[0]} to 15-minute introductory steps.`;
       recommendedMicroAction = `Set a timer for 15 minutes on ${chronicResistanceCategories[0]} without obligation to finish the whole project.`;
     }

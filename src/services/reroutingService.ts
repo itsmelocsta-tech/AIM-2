@@ -106,7 +106,7 @@ export function proposeScheduleReroute(params: RerouteParams): ScheduleChangePro
   }
 
   return {
-    reason: `Recalibrated rest of today based on update: "${trigger.substring(0, 80)}"`,
+    reason: `Updated the rest of today based on: "${trigger.substring(0, 80)}"`,
     affectedItemIds,
     proposedChanges,
     requiresConfirmation: true,

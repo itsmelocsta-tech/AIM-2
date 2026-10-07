@@ -9,7 +9,7 @@ test('Basic upgrade shows honest pricing, preserves access, and disables unverif
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('$9.99/month');
   await expect(dialog).toContainText('$79.99/year');
-  await expect(dialog).toContainText('AIM keeps your data on Basic');
+  await expect(dialog).toContainText('Your saved work stays on Basic');
   await expect(dialog.getByRole('button', { name: /Start 7-day trial/ })).toBeDisabled();
   const close = dialog.getByRole('button', { name: 'Close AIM Premium details' });
   const bounds = await close.boundingBox();

@@ -61,64 +61,64 @@ export function ensureDetailedTaskGuidance(title: string, currentDesc?: string |
 
   // 1. Morning Routine / Grounding / Waking up
   if (/morning|alignment|grounding routine|wake up|start day|morning power/i.test(combined)) {
-    return `1. Drink 500ml of water immediately to rehydrate after sleep.
-2. Complete 5–10 minutes of light dynamic mobility (neck rolls, thoracic rotations, hip openers) with natural outdoor sunlight exposure.
-3. Open AIM to review today's top 3 priority tasks and define your single non-negotiable breakthrough outcome.
-4. Record a 1-sentence grounding intention before opening notifications, inbox, or social feeds.`;
+    return `1. Drink a glass of water after you wake up.
+2. Move and stretch gently for 5 to 10 minutes. Get some daylight if you can.
+3. Open AIM and look at your three main tasks. Pick the one that matters most today.
+4. Write one sentence about how you want today to go before checking your phone.`;
   }
 
   // 2. Deep Work / Core Deliverable / Coding / Writing / Building
   if (/deep work|deliverable|sprint|core project|strategic asset|code|coding|build|draft|writing|proposal/i.test(combined)) {
-    return `1. Close all communication apps (Slack, Discord, Email) and place your phone on silent in another room.
-2. Open the single project file or editor needed and set an uninterrupted 90-minute timer.
-3. Focus exclusively on producing concrete output (draft the document, write the core module, or design the asset) without context switching.
-4. Stop promptly at the timer, save your progress, and log your milestone in AIM before taking a 5-minute breathing break.`;
+    return `1. Close your message apps and put your phone on silent.
+2. Open what you need for your main task. Set a timer for 90 minutes.
+3. Work on one thing, such as writing a page, making a design, or building part of your project.
+4. When the timer ends, save your work and note what you finished in AIM. Take a five-minute break.`;
   }
 
   // 3. Vitality / Lunch / Nourishment / Walk / Break
   if (/vitality|nourish|lunch|meal|nourishment|decompression|break|recharge|walk/i.test(combined)) {
-    return `1. Fully step away from your computer screen, workstation, and phone.
-2. Eat a balanced whole-food meal with clean protein, complex carbohydrates, and water to sustain cognitive focus.
-3. Take a brisk 15–20 minute outdoor walk in fresh air without listening to work calls or checking email.
-4. Practice 3 minutes of slow diaphragmatic nasal breathing (4s inhale, 6s exhale) to downregulate cortisol and reset nervous system tone.`;
+    return `1. Step away from your screen and put your phone down.
+2. Eat a balanced meal with some protein, such as beans, eggs, or meat. Drink water.
+3. Try a 15 to 20 minute walk outside without work calls or email.
+4. Breathe slowly for three minutes. Try breathing in for four seconds and out for six.`;
   }
 
   // 4. Outreach / Client Communication / Sales / Admin / Operations
   if (/outreach|communication|email|correspondence|sales|pitch|monetization|admin|operations/i.test(combined)) {
-    return `1. Open your pipeline and review the top 3 prospective clients or collaborators.
-2. Craft and dispatch 3 personalized messages offering a concrete solution to their primary bottleneck with a clear booking link.
-3. Process pending operational emails and correspondence in a focused 30-minute batch window.
-4. Verify tomorrow's calendar appointments and clear any pending scheduling blockers.`;
+    return `1. Look at three people you want to contact about work or a project.
+2. Send each person a short, personal message about how you can help. Give them a clear next step.
+3. Set aside 30 minutes to answer work messages and handle bills or other paperwork.
+4. Check tomorrow’s meetings and fix any timing problems.`;
   }
 
   // 5. Evening Review / Reflection / Calibration / Memory Vault / Bedtime
   if (/evening|reflection|calibration|wins review|memory vault|journal|review accomplishments|night|wind down/i.test(combined)) {
-    return `1. Review today's schedule items in AIM: mark completed tasks and migrate unfinished items to tomorrow without self-criticism.
-2. Open the Memory Vault to record 2 specific wins and 1 key lesson or insight learned from today's execution.
-3. Identify the single first physical task you will tackle tomorrow morning, prepare the required tabs or materials, and tidy your workspace so you wake up to zero starting friction.`;
+    return `1. Look at your tasks in AIM. Check off what you finished and move unfinished tasks to tomorrow.
+2. Save two things that went well and one thing you learned in your notes.
+3. Pick your first task for tomorrow. Get what you need ready and clear your workspace.`;
   }
 
   // 6. Workout / Exercise / Movement / Fitness / Gym / Cardio / Strength
   if (/workout|exercise|fitness|movement|gym|run|strength|cardio|training|mobility/i.test(combined)) {
-    return `1. Fill your water bottle and spend 5 minutes doing dynamic warm-up movements (jumping jacks, arm circles, leg swings).
-2. Execute your scheduled 30–45 minute training session focusing on proper form, controlled tempo, and progressive intensity.
-3. Spend 5–10 minutes performing static cool-down stretches focusing on tight muscle groups.
-4. Rehydrate with water and electrolytes, and record your completed workout in AIM.`;
+    return `1. Fill your water bottle. Warm up gently for five minutes with arm circles, leg swings, or easy movement.
+2. Do your planned 30 to 45 minute workout. Move carefully at a pace that fits you.
+3. Cool down with gentle stretches for 5 to 10 minutes.
+4. Drink water and record your workout in AIM.`;
   }
 
   // 7. Reading / Learning / Study / Research
   if (/read|study|learn|course|research|book/i.test(combined)) {
-    return `1. Eliminate distractions: silence your phone and open only your reading material or course module.
-2. Read or study actively for 45 minutes, taking concise bullet-point notes on key concepts and actionable ideas.
-3. Write down 1 practical way to apply what you just learned to your current active goals.
-4. Log the key insight into AIM's Memory Vault for long-term retention.`;
+    return `1. Put your phone on silent. Open your book, lesson, or study notes.
+2. Read or study for 45 minutes. Write short notes about the main ideas.
+3. Write down one way to use what you learned toward your goal.
+4. Save that idea in your AIM notes.`;
   }
 
   // 8. Default Actionable 3-Step Plan for Any Other Task
   const taskName = title.trim() || 'this task';
-  return `1. Setup: Close background distractions, open the specific files, tools, or physical items required for "${taskName}", and set a 45-minute focus timer.
-2. Execution: Work through the primary action step systematically without multitasking or switching tabs until the timer rings.
-3. Definition of Done: Review your work for completeness and accuracy, save or submit your deliverable, and check off "${taskName}" in AIM.`;
+  return `1. Get ready: Put distractions aside. Gather what you need for "${taskName}" and set a 45-minute timer.
+2. Get started: Work on one part of the task until the timer rings. Try to avoid switching between tasks.
+3. Finish up: Check your work, save or send it, and mark "${taskName}" done in AIM if you finished.`;
 }
 
 /**

@@ -207,19 +207,19 @@ export class AIMCoreWisdomEngine {
     const primaryShift =
       recommendedPrinciples.length > 0
         ? recommendedPrinciples[0]
-        : 'Convert current emotional friction into the smallest viable physical next step.';
+        : 'Start with one small thing you can do.';
 
     const groundedActionAdvice =
       context.userEnergyLevel && context.userEnergyLevel <= 4
-        ? 'Rest and restore your baseline before engaging in demanding cognitive battles.'
-        : 'Identify the single highest-leverage priority and execute without distractions for 25 minutes.';
+        ? 'Rest before taking on work that needs focus.'
+        : 'Pick your most important task and work on it for 25 minutes.';
 
     const recommendedReflectionQuestion =
       context.requestingOrb === 'spiritual'
-        ? 'What is this current chapter asking you to surrender or step into?'
+        ? 'What could you let go of or try next?'
         : context.requestingOrb === 'relationships'
-        ? 'What clear boundary or honest conversation would restore peace here?'
-        : 'What is the immediate next move that makes everything else easier or unnecessary?';
+        ? 'What do you need to say to help things feel calmer?'
+        : 'What is one thing you can do now to make the rest easier?';
 
     return {
       relevantDomains: detectedDomains,

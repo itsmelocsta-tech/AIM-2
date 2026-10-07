@@ -645,7 +645,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                  <h3 className="text-base font-bold text-white">Plan Recalibrated & Active</h3>
+                  <h3 className="text-base font-bold text-white">Your plan is updated</h3>
                 </div>
                 <button
                   onClick={() => setFlowState('input')}
@@ -707,7 +707,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
                     <Target className="w-3.5 h-3.5" /> New Top Priority
                   </span>
                   <p className="text-xs font-semibold text-white">
-                    {pendingUpdateRecord.newTopPriority || 'Execute recalibrated core focus'}
+                    {pendingUpdateRecord.newTopPriority || 'Start with your updated priority'}
                   </p>
                 </div>
 

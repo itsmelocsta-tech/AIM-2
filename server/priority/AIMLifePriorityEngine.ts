@@ -61,12 +61,12 @@ export class AIMLifePriorityEngine {
 
       assessedItems.push({
         id: 'prio_vitality_recovery',
-        title: 'Physiological Baseline Restoration & Rest',
+        title: 'Get some rest',
         category: 'REST',
         score: this.calculateCompositeScore(factors),
         factors,
-        reasoning: 'Sleep debt or physical fatigue is actively impairing prefrontal executive function and emotional regulation.',
-        recommendedAction: 'Schedule a protected 45-60 min rest/recovery window before taking on heavy cognitive tasks.',
+        reasoning: 'Low sleep or energy can make it harder to think clearly and handle feelings.',
+        recommendedAction: 'Try to rest for 45 to 60 minutes before doing work that needs focus.',
         isImmediateBottleneck: true,
       });
     }
@@ -95,12 +95,12 @@ export class AIMLifePriorityEngine {
 
       assessedItems.push({
         id: 'prio_income_generation',
-        title: 'High-Leverage Income & Client Outreach Sprint',
+        title: 'Take a step toward earning money',
         category: 'INCOME',
         score: this.calculateCompositeScore(factors),
         factors,
-        reasoning: 'Financial security provides the sovereign breathing room required to pursue higher creative and personal goals.',
-        recommendedAction: 'Execute direct outreach to top 3 warm opportunities before 1 PM today.',
+        reasoning: 'Steady income can give you more room to work on other goals.',
+        recommendedAction: 'Contact three people who may have work for you before 1 PM today.',
         isImmediateBottleneck: financialStrain === 'critical',
       });
     }
@@ -128,12 +128,12 @@ export class AIMLifePriorityEngine {
 
         assessedItems.push({
           id: `prio_goal_${goal.id}`,
-          title: `Advance Core Goal: ${goal.title}`,
+          title: `Work on your goal: ${goal.title}`,
           category: this.mapAimCategoryToPriorityCategory(goal.category),
           score: this.calculateCompositeScore(factors),
           factors,
-          reasoning: `Directly aligns with user's declared mission: "${goal.title}".`,
-          recommendedAction: `Dedicate one uninterrupted 60-minute sprint to progress this milestone today.`,
+          reasoning: `This helps with your goal: "${goal.title}".`,
+          recommendedAction: `Set aside one hour today for the next step toward this goal.`,
           isImmediateBottleneck: false,
         });
       });
@@ -161,12 +161,12 @@ export class AIMLifePriorityEngine {
 
       assessedItems.push({
         id: 'prio_stress_reset',
-        title: 'Nervous System De-escalation & Nature Reset',
+        title: 'Take a break and calm down',
         category: 'MENTAL_EMOTIONAL_WELLBEING',
         score: this.calculateCompositeScore(factors),
         factors,
-        reasoning: 'Elevated sympathetic stress is risking emotional reactivity and task avoidance.',
-        recommendedAction: 'Take a 20-minute silent walk in nature or practice 10 physiological sighs.',
+        reasoning: 'Stress may be making it hard to handle feelings or get started.',
+        recommendedAction: 'Try a quiet 20-minute walk outside or a few slow breaths.',
         isImmediateBottleneck: false,
       });
     }
@@ -193,12 +193,12 @@ export class AIMLifePriorityEngine {
 
       assessedItems.push({
         id: 'prio_default_execution',
-        title: 'Lock In Primary High-Leverage Win',
+        title: 'Start your most important task',
         category: 'BUSINESS',
         score: 78,
         factors: defaultFactors,
-        reasoning: 'Establishing early daily momentum anchors self-efficacy and psychological momentum.',
-        recommendedAction: 'Choose the single most impactful task on your list and complete it before noon.',
+        reasoning: 'Finishing one useful task can help you feel ready for the next one.',
+        recommendedAction: 'Choose your most important task and try to finish it before noon.',
         isImmediateBottleneck: false,
       });
     }

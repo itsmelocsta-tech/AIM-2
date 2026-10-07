@@ -436,7 +436,7 @@ export default function App() {
     } else if (actionType === 'create_task') {
       const newTask = {
         id: 'pt-' + Date.now(),
-        task: typeof payload === 'string' ? payload.substring(0, 60) : 'Execute strategic step',
+        task: typeof payload === 'string' ? payload.substring(0, 60) : 'Take your next step',
         category: 'Personal' as const,
         timeEstimate: '45m',
         impact: 'High' as const,
@@ -452,8 +452,8 @@ export default function App() {
   };
 
   const navigationTabs = [
-    { id: 'home', label: 'Today (Life OS)', icon: Sparkles },
-    { id: 'scanner', label: 'Opportunity Scanner', icon: Compass },
+    { id: 'home', label: 'Today', icon: Sparkles },
+    { id: 'scanner', label: 'Your Opportunities', icon: Compass },
     { id: 'projects', label: 'Projects', icon: Layers, count: aimProjects.length },
     { id: 'check-in', label: 'Check-In', icon: Send },
     { id: 'history', label: 'Audit History', icon: Clock },
@@ -595,7 +595,7 @@ export default function App() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Today's Life OS
+                Today’s plan
               </button>
               <button
                 id="home-view-advisor-btn"
@@ -606,7 +606,7 @@ export default function App() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Advisor Sanctuary
+                Your Coaches
               </button>
             </div>
 
