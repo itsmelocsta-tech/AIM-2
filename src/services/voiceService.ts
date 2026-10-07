@@ -516,6 +516,7 @@ export class VoiceEngine {
     this.currentAudioElement = audio;
 
     audio.onplay = () => {
+      console.info('[VoiceEngine] Natural audio playback started');
       this.setSpeakerState('playing');
       this.setVoiceState('speaking');
     };

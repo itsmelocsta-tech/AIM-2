@@ -1175,6 +1175,11 @@ app.post('/api/aim/voice/speak', async (req: Request, res: Response) => {
       formatForSpeech: formatForSpeech !== false,
     });
 
+    // Operational proof without logging the user's words, identity, or credentials.
+    console.info('[VoiceAPI] Generated neural audio', {
+      model: result.modelUsed, voice: result.voiceNameUsed, mimeType: result.mimeType,
+      cached: Boolean(result.cached),
+    });
     res.json(result);
   } catch (err: any) {
     console.warn('[VoiceAPI] Natural speech unavailable');

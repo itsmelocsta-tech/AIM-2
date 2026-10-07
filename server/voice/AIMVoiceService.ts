@@ -380,11 +380,11 @@ export class AIMVoiceService {
         };
         audioCache.set(cacheKey, result);
         return result;
-    } catch (err: any) {
-      lastError = err;
-      const status = Number(err?.status || err?.code);
-      if (status === 400 || status === 401 || status === 403) break;
-      // Try the other free-tier-capable neural model, never a device voice.
+      } catch (err: any) {
+        lastError = err;
+        const status = Number(err?.status || err?.code);
+        if (status === 400 || status === 401 || status === 403) break;
+        // Try the other free-tier-capable neural model, never a device voice.
       }
     }
     throw lastError || new Error('Natural voice is temporarily unavailable');
