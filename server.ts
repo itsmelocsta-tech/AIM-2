@@ -1153,21 +1153,15 @@ app.post('/api/aim/voice/speak', async (req: Request, res: Response) => {
     if (!text || typeof text !== 'string' || !text.trim()) {
       return res.status(400).json({ error: 'Missing or empty text parameter' });
     }
+    if (text.length > 6000) {
+      return res.status(400).json({ error: 'Please use a shorter message for voice playback.' });
+    }
 
     const ai = getGenAI();
     const voiceService = AIMVoiceService.getInstance();
 
     if (!ai) {
-      // Return formatted spoken text for client fallback
-      const spokenText = voiceService.formatSpokenResponse(text, emotion);
-      return res.json({
-        audioBase64: null,
-        mimeType: null,
-        spokenText,
-        emotionDetected: emotion || voiceService.detectEmotion(spokenText),
-        voiceNameUsed: 'local-fallback',
-        provider: 'fallback',
-      });
+      return res.status(503).json({ error: 'Natural voice is temporarily unavailable. Your written response is still available. Please try again.', code: 'natural_voice_unavailable' });
     }
 
     const result = await voiceService.synthesizeSpeech(ai, {
@@ -1183,18 +1177,8 @@ app.post('/api/aim/voice/speak', async (req: Request, res: Response) => {
 
     res.json(result);
   } catch (err: any) {
-    console.warn('[VoiceAPI] TTS synthesis notice:', err?.message || err);
-    const voiceService = AIMVoiceService.getInstance();
-    const spokenText = voiceService.formatSpokenResponse(req.body?.text || '', req.body?.emotion);
-    res.status(200).json({
-      audioBase64: null,
-      mimeType: null,
-      spokenText,
-      emotionDetected: req.body?.emotion || voiceService.detectEmotion(spokenText),
-      voiceNameUsed: 'local-fallback',
-      provider: 'fallback',
-      warning: err?.message || 'TTS synthesis failed, fall back to browser voice',
-    });
+    console.warn('[VoiceAPI] Natural speech unavailable');
+    res.status(503).json({ error: 'Natural voice is temporarily unavailable. Your written response is still available. Please try again.', code: 'natural_voice_unavailable' });
   }
 });
 

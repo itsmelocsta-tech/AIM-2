@@ -69,6 +69,7 @@ import { firestoreRepository } from './services/repositories/firestoreRepository
 import { scheduleRepository } from './services/repositories/scheduleRepository';
 import { AuthModal } from './components/auth/AuthModal';
 import { getTodayDateString } from './utils/dateTimeUtils';
+import { voiceEngine } from './services/voiceService';
 
 export default function App() {
   const { user, loading: isAuthLoading } = useAuth();
@@ -270,6 +271,11 @@ export default function App() {
       setToastMessage((prev) => (prev === msg ? null : prev));
     }, 3200);
   };
+
+  useEffect(() => {
+    voiceEngine.setErrorNotificationListener(message => showToast(message));
+    return () => voiceEngine.setErrorNotificationListener(null);
+  }, []);
 
   // State Persistence handlers
   const handleUpdateProfile = (profile: UserProfile) => {

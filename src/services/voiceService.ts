@@ -410,11 +410,11 @@ export class VoiceEngine {
     const gender = normalizedOptions?.gender || profile.genderPresentation;
     const accentStyle = normalizedOptions?.accentStyle || profile.accentStyle;
     const emotion = normalizedOptions?.emotion || 'casual';
-    const speakingRate = normalizedOptions?.rate !== undefined ? normalizedOptions.rate : profile.speakingRate;
-    const pitch = normalizedOptions?.pitch !== undefined ? normalizedOptions.pitch : profile.pitch;
+    const speakingRate = normalizedOptions?.rate ?? (normalizedOptions?.profileId ? profile.speakingRate : this.userPrefs.rate);
+    const pitch = normalizedOptions?.pitch ?? (normalizedOptions?.profileId ? profile.pitch : this.userPrefs.pitch);
 
     // Check client audio cache for instant replay of identical snippet
-    const cacheKey = `${formattedText.substring(0, 80)}_${profile.id}_${emotion}`;
+    const cacheKey = JSON.stringify({ text: formattedText, profileId: profile.id, gender, accentStyle, emotion, speakingRate, pitch });
     const cached = clientAudioCache.get(cacheKey);
 
     if (cached) {
@@ -449,13 +449,15 @@ export class VoiceEngine {
         signal,
       });
 
+      if (signal.aborted) return;
       if (!response.ok) {
-        throw new Error(`TTS server responded with status: ${response.status}`);
+        throw new Error('Natural voice is temporarily unavailable. Your written response is still available. Please try again.');
       }
 
       const data = await response.json();
+      if (signal.aborted) return;
 
-      if (data && data.audioBase64) {
+      if (data?.provider === 'gemini-tts' && data.audioBase64 && data.mimeType?.startsWith('audio/')) {
         // Convert base64 audio into playable Blob URL
         const byteCharacters = atob(data.audioBase64);
         const byteNumbers = new Array(byteCharacters.length);
@@ -469,7 +471,10 @@ export class VoiceEngine {
         // Cache audio snippet for snappy playback
         if (clientAudioCache.size >= MAX_CLIENT_CACHE) {
           const oldestKey = clientAudioCache.keys().next().value;
-          if (oldestKey) clientAudioCache.delete(oldestKey);
+          if (oldestKey) {
+            URL.revokeObjectURL(clientAudioCache.get(oldestKey)!.audioUrl);
+            clientAudioCache.delete(oldestKey);
+          }
         }
         clientAudioCache.set(cacheKey, {
           audioUrl,
@@ -482,113 +487,17 @@ export class VoiceEngine {
         return;
       }
 
-      // If server could not generate Gemini TTS audio (e.g. key unconfigured, quota, or service issue),
-      // seamlessly speak using browser SpeechSynthesis fallback
-      const textToSpeak = data?.spokenText || formattedText;
-      this.playWithSpeechSynthesis(textToSpeak, {
-        rate: speakingRate,
-        pitch,
-        gender,
-        accentStyle,
-        ...normalizedOptions,
-      });
+      throw new Error('Natural voice is temporarily unavailable. Your written response is still available. Please try again.');
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        return;
-      }
-      console.warn('[VoiceEngine] TTS fetch notice, using browser speech synthesis:', err?.message || err);
-      // Fall back to browser SpeechSynthesis without throwing unhandled error
-      this.playWithSpeechSynthesis(formattedText, {
-        rate: speakingRate,
-        pitch,
-        gender,
-        accentStyle,
-        ...normalizedOptions,
-      });
-    }
-  }
-
-  /**
-   * Seamless browser-based speech synthesis fallback
-   * Ensures the user always hears spoken guidance even if Gemini TTS is temporarily unreachable.
-   */
-  private playWithSpeechSynthesis(
-    text: string,
-    options?: SpeakOptions & { gender?: GenderPresentation; accentStyle?: string }
-  ): void {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      this.setSpeakerState('ready');
+      if (signal.aborted || err?.name === 'AbortError') return;
+      // Preserve the chosen natural voice identity. Device TTS is never an implicit fallback.
+      const error = new Error('Natural voice is temporarily unavailable. Your written response is still available. Please try again.');
+      this.setSpeakerState('error');
       this.setVoiceState('idle');
-      if (options?.onEnd) options.onEnd();
-      return;
-    }
-
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = Math.min(Math.max((options?.rate ?? 0.95), 0.7), 1.3);
-      utterance.pitch = Math.min(Math.max((options?.pitch ?? 1.0), 0.7), 1.3);
-
-      const voices = window.speechSynthesis.getVoices();
-      if (voices && voices.length > 0) {
-        const isFeminine = options?.gender === 'feminine';
-        const englishVoices = voices.filter((v) => v.lang.startsWith('en'));
-        const pool = englishVoices.length > 0 ? englishVoices : voices;
-        const matched = pool.find((v) => {
-          const name = v.name.toLowerCase();
-          if (isFeminine) {
-            return (
-              name.includes('female') ||
-              name.includes('samantha') ||
-              name.includes('karen') ||
-              name.includes('victoria') ||
-              name.includes('zira') ||
-              name.includes('ava')
-            );
-          } else {
-            return (
-              name.includes('male') ||
-              name.includes('david') ||
-              name.includes('daniel') ||
-              name.includes('alex') ||
-              name.includes('george') ||
-              name.includes('tom')
-            );
-          }
-        });
-        if (matched) {
-          utterance.voice = matched;
-        } else if (pool[0]) {
-          utterance.voice = pool[0];
-        }
-      }
-
-      utterance.onstart = () => {
-        this.setSpeakerState('playing');
-        this.setVoiceState('speaking');
-        if (options?.onStart) options.onStart();
-      };
-
-      utterance.onend = () => {
-        this.setSpeakerState('finished');
-        this.setVoiceState('idle');
-        if (options?.onEnd) options.onEnd();
-      };
-
-      utterance.onerror = (e) => {
-        if (e.error === 'canceled' || e.error === 'interrupted') return;
-        console.warn('[VoiceEngine] SpeechSynthesis fallback event:', e.error);
-        this.setSpeakerState('ready');
-        this.setVoiceState('idle');
-        if (options?.onEnd) options.onEnd();
-      };
-
-      window.speechSynthesis.speak(utterance);
-    } catch (err) {
-      console.warn('[VoiceEngine] SpeechSynthesis invocation notice:', err);
-      this.setSpeakerState('ready');
-      this.setVoiceState('idle');
-      if (options?.onEnd) options.onEnd();
+      this.onErrorNotification?.(error.message, true);
+      normalizedOptions?.onError?.(error);
+      // Legacy callers use onEnd to release their speaking indicator.
+      normalizedOptions?.onEnd?.();
     }
   }
 
@@ -600,13 +509,6 @@ export class VoiceEngine {
       this.currentAudioElement.pause();
       this.currentAudioElement.removeAttribute('src');
       this.currentAudioElement = null;
-    }
-    if (this.currentBlobUrl && this.currentBlobUrl !== audioUrl) {
-      try {
-        URL.revokeObjectURL(this.currentBlobUrl);
-      } catch {
-        // ignore
-      }
     }
     this.currentBlobUrl = audioUrl;
 
