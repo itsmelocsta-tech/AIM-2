@@ -620,7 +620,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
                   </span>
                 </div>
                 <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                  AIM strictly complies with the Zero Fabrication rule. When live job board APIs or verified employer feeds are not actively integrated, AIM will <strong>never synthesize, invent, or guess</strong> open roles, wages, or recruiter contacts.
+                  AIM only shows job details it can check. Without a live job source, we <strong>won’t make up</strong> jobs, pay, or contact details.
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
                   To find verified live openings that provide company vehicles without personal vehicle or CDL requirements, visit these official direct employer career portals or run pre-configured search queries:

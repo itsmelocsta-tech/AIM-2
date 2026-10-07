@@ -1,6 +1,5 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { AIMCoreWisdomEngine } from './server/wisdom/AIMCoreWisdomEngine';
@@ -8,8 +7,10 @@ import { AIMLifePriorityEngine } from './server/priority/AIMLifePriorityEngine';
 import { AIMMomentumEngine } from './server/momentum/AIMMomentumEngine';
 import { AIMSharedIntelligenceService } from './server/intelligence/AIMSharedIntelligenceService';
 import { AIMVoiceService } from './server/voice/AIMVoiceService';
+import { PLAIN_LANGUAGE_INSTRUCTION } from './server/plainLanguage';
 import { AIMOsService } from './server/aimOsService';
 import { requireAuth } from './server/firebaseAdmin';
+import { readEntitlement, requirePremium } from './server/entitlementService';
 
 dotenv.config();
 
@@ -65,7 +66,7 @@ async function generateWithFallback(
       const response = await ai.models.generateContent({
         model,
         contents: params.contents,
-        config: params.config,
+        config: { ...params.config, systemInstruction: [params.config?.systemInstruction, PLAIN_LANGUAGE_INSTRUCTION].filter(Boolean).join('\n\n') },
       });
       if (response && (response.text || response.candidates?.length)) {
         return response;
@@ -96,7 +97,7 @@ async function generateWithFallback(
           const retryResponse = await ai.models.generateContent({
             model,
             contents: params.contents,
-            config: params.config,
+            config: { ...params.config, systemInstruction: [params.config?.systemInstruction, PLAIN_LANGUAGE_INSTRUCTION].filter(Boolean).join('\n\n') },
           });
           if (retryResponse && (retryResponse.text || retryResponse.candidates?.length)) {
             return retryResponse;
@@ -143,7 +144,7 @@ function buildUserSavedInformationPrompt(params: {
     if (p.desiredIdentity) profileParts.push(`- Desired Identity / Trajectory: ${p.desiredIdentity}`);
     if (p.coreMission) profileParts.push(`- Core Life Mission: ${p.coreMission}`);
     if (p.primaryObstacle || p.currentObstacle) profileParts.push(`- Stated Primary Obstacle: ${p.primaryObstacle || p.currentObstacle}`);
-    if (p.ninetyDayTrajectory) profileParts.push(`- 90-Day Trajectory: ${p.ninetyDayTrajectory}`);
+    if (p.ninetyDayTrajectory) profileParts.push(`- Three-month goal: ${p.ninetyDayTrajectory}`);
     if (Array.isArray(p.coreValues) && p.coreValues.length > 0) profileParts.push(`- Core Values: ${p.coreValues.join(', ')}`);
     if (Array.isArray(p.topSkills) && p.topSkills.length > 0) profileParts.push(`- Top Skills: ${p.topSkills.join(', ')}`);
     if (p.targetMonthlyIncome) profileParts.push(`- Monthly Income Goal: $${p.targetMonthlyIncome.toLocaleString()}/mo (Current: $${(p.currentMonthlyIncome || 0).toLocaleString()}/mo)`);
@@ -222,6 +223,10 @@ function buildUserSavedInformationPrompt(params: {
 }
 
 // API Routes
+app.get('/api/aim/entitlement', async (req: any, res: Response) => {
+  res.json(await readEntitlement(req.user.uid));
+});
+
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', time: new Date().toISOString(), hasApiKey: Boolean(process.env.GEMINI_API_KEY) });
 });
@@ -329,24 +334,24 @@ Remember: Give a real, genuine, articulate, empathetic answer specifically addre
 });
 
 // Monetization & Fast-Cash Sprint Generator
-app.post('/api/aim/monetize', async (req: Request, res: Response) => {
+app.post('/api/aim/monetize', requirePremium, async (req: Request, res: Response) => {
   const { skills, targetNiche, pricePoint, offerType, userProfile } = req.body;
   const fallbackOffer = {
-    offerTitle: "Rapid Execution Growth Sprint",
-    oneSentenceHook: `I will audit your top operational bottleneck and deliver a ready-to-launch ${targetNiche || 'growth'} asset within 48 hours.`,
-    deliverables: ["Comprehensive diagnostic of current conversion funnel", "Tailored step-by-step optimization blueprint", "Direct turnkey implementation and delivery"],
+    offerTitle: "A Simple Service Offer",
+    oneSentenceHook: `I will review your needs and make useful ${targetNiche || 'business'} materials within two days.`,
+    deliverables: ["Review how people find and buy your service", "A simple plan to improve your service", "Ready-to-use work made for you"],
     pricingTiers: [
-      { name: "Starter Sprint", price: pricePoint || "$500", description: "Audit + high-impact action roadmap" },
+      { name: "Starter Sprint", price: pricePoint || "$500", description: "A review and a simple plan" },
       { name: "Full Implementation", price: "$1,500", description: "End-to-end delivery in 3 days" },
-      { name: "Growth Retainer", price: "$3,000/mo", description: "Continuous weekly strategy and asset delivery" }
+      { name: "Growth Retainer", price: "$3,000/mo", description: "Weekly help and ready-to-use work" }
     ],
     coldOutreachScript: `Hey [Name], saw what you're building with [Project]. Noticed one quick area where you might be leaving margin on the table. I put together a quick 3-point fix—mind if I send over a 2-minute breakdown?`,
     followUpScript: "Hey [Name], just checking in on this! Happy to share the blueprint for free if it helps you guys hit your targets this quarter.",
     qualificationQuestions: ["What is currently the single biggest constraint slowing your revenue?", "If this was solved in 7 days, what would that be worth to your business?", "Are you in a position to start this week if the fit is right?"],
     todayActionChecklist: [
-      "List 10 targeted prospects matching ICP criteria",
-      "Send personalized outreach hook to all 10",
-      "Post 1 high-value problem-solving insight offering the free audit"
+      "List 10 people who might need your service",
+      "Send each person a short, personal message",
+      "Share one helpful tip and offer a free review"
     ],
     urgencyStrategy: "Offer a $200 fast-action incentive for agreements confirmed today."
   };
@@ -478,7 +483,7 @@ Return JSON with:
 });
 
 // Life Update & Adaptive Plan GPS Rerouting
-app.post('/api/aim/life-update-analyze', async (req: Request, res: Response) => {
+app.post('/api/aim/life-update-analyze', requirePremium, async (req: Request, res: Response) => {
   const { content, currentGoals, currentDailyPlan, userProfile } = req.body;
   if (typeof content !== 'string' || !content.trim() || !currentDailyPlan) {
     return res.status(400).json({ error: 'A life update and current plan are required.' });
@@ -633,7 +638,7 @@ app.post('/api/aim/cross-reference', async (req: Request, res: Response) => {
   try {
     const ai = getGenAI();
 
-    const prompt = `Act as AIM (Artificial Intelligence for Manifestation) - an elite Life Operating System strategist, cognitive analyst, and growth architect.
+    const prompt = `You are AIM, a helpful guide who turns a person’s goals into a realistic plan.
 
 The user has answered three distinct questions. Respect the difference between a current circumstance, a desired change, and the eventual destination:
 1. WHO THEY ARE AND THEIR SITUATION RIGHT NOW:
@@ -652,106 +657,106 @@ ${desiredState}
 """
 
 TASK:
-Perform a deep cross-reference analysis of all three answers: start from their present circumstances, prioritize the changes they explicitly asked for, and aim toward their eventual identity and goals (including any financial, relationship, health, or other goals they named).
-Identify the core gap, eliminate their bottlenecks, leverage their hidden strengths, and generate the top 3 best strategic options/pathways to get them there.
+Use all three answers: start from their present circumstances, prioritize the changes they explicitly asked for, and aim toward their eventual identity and goals (including any financial, relationship, health, or other goals they named).
+Identify what they need, what they can build on, and what might get in their way. Offer three realistic plans with different levels of effort. Use the exact simple titles below. Tailor all descriptions and steps to this person. Each step starts with a familiar action verb and names something they can actually do. Do not assume their goal is about money or business. A bigger change must still fit their time, responsibilities, and resources.
 
 Return strictly valid JSON matching this schema:
 {
   "analysis": {
-    "coreGapSummary": "1-2 sharp sentences identifying the exact gap between their current reality and target identity",
-    "hiddenStrengths": ["Strength 1 extracted from their 'good'", "Strength 2"],
-    "primaryBottlenecks": ["Core obstacle 1 from their 'bad & ugly'", "Core obstacle 2"],
-    "empoweringInsight": "An intellectually honest, compassionate, and deeply motivating observation"
+    "coreGapSummary": "One or two short sentences about where you are now and what you need next",
+    "hiddenStrengths": ["Something you already do well", "Strength 2"],
+    "primaryBottlenecks": ["Something getting in your way", "Core obstacle 2"],
+    "empoweringInsight": "One honest, encouraging sentence tied to what you shared"
   },
   "recommendedOptionId": "option-1",
-  "recommendedReason": "Why this specific pathway has the highest probability of success for their current psychological and practical state",
+  "recommendedReason": "A short, plain explanation of why this plan fits your situation",
   "pathways": [
     {
       "id": "option-1",
-      "title": "Rapid Momentum & Quick-Win Sprint",
-      "tagline": "Immediate high-leverage action to break inertia and generate fast proof in 7 days",
-      "pace": "Fast / Immediate",
-      "focus": "Low-friction high-impact wins, eliminating immediate friction, quick cash or clarity",
-      "whyItFits": "Direct cross-reference explaining how this uses their strengths to solve their specific ugly bottlenecks",
+      "title": "Start Small",
+      "tagline": "Take a few simple steps to get started this week.",
+      "pace": "A few small steps",
+      "focus": "Simple things you can do with the time and resources you have",
+      "whyItFits": "Explain how these small steps help with the problem you described",
       "actionPlan48h": [
-        "Concrete step to do in the first 24-48 hours",
-        "Second concrete step to do immediately"
+        "One specific action you can take today or tomorrow",
+        "One next action you can take after that"
       ],
       "first7DaysMilestones": [
-        "Milestone 1 for Day 3",
-        "Milestone 2 for Day 7"
+        "Something you can finish by day 3",
+        "Something you can finish by day 7"
       ],
-      "obstaclesNeutralized": ["Specific obstacle from their input this eliminates"],
-      "projected30DayOutcome": "Where they will stand in 30 days"
+      "obstaclesNeutralized": ["A problem this plan helps you work on"],
+      "projected30DayOutcome": "What you could work toward over the next 30 days"
     },
     {
       "id": "option-2",
-      "title": "Systematic Foundation & Compounding Engine",
-      "tagline": "Restructure daily rhythms, core skills, and repeatable systems for sustainable growth",
-      "pace": "Balanced & Scalable",
-      "focus": "Habit architecture, revenue/career systems, whole-person health and boundary setting",
-      "whyItFits": "How this builds the permanent structural foundation needed for their desired identity",
+      "title": "Build a Routine",
+      "tagline": "Make steady progress with a routine you can keep.",
+      "pace": "A steady pace",
+      "focus": "A simple routine that fits your life and goal",
+      "whyItFits": "Explain how a steady routine helps you reach your goal",
       "actionPlan48h": [
-        "Design foundational daily schedule and eliminate top 2 time drains",
-        "Establish first core deliverable or asset"
+        "Choose a regular time for one useful task",
+        "Take one specific step toward your goal"
       ],
       "first7DaysMilestones": [
-        "Lock in daily deep work & wellness protocol",
-        "Build repeatable workflow or initial offer"
+        "Try your routine for three days",
+        "Review what worked and adjust your routine"
       ],
-      "obstaclesNeutralized": ["Inconsistency, lack of structure, scattered focus"],
-      "projected30DayOutcome": "Consistent execution rhythm, clear progress on major metrics"
+      "obstaclesNeutralized": ["Having trouble finding time or keeping a routine"],
+      "projected30DayOutcome": "A routine you can keep and progress you can see"
     },
     {
       "id": "option-3",
-      "title": "Total Identity Shift & Bold Leap",
-      "tagline": "High-conviction transformation: cutting low-leverage anchors and stepping directly into the target standard",
-      "pace": "Intensive & Transformative",
-      "focus": "Radical standard elevation, aggressive high-ticket positioning, major environment reset",
-      "whyItFits": "Why a bold, uncompromising leap directly targets their highest vision",
+      "title": "Make a Bigger Change",
+      "tagline": "Put more time and effort into one important change.",
+      "pace": "More time and effort",
+      "focus": "One bigger change that fits your needs and resources",
+      "whyItFits": "Explain why this bigger change could help and what it asks of you",
       "actionPlan48h": [
-        "Cut the single largest emotional or practical anchor holding you back",
-        "Make a bold public commitment or initiate high-stakes outreach"
+        "Choose one important change and check what you need to make it",
+        "Take the first practical step or ask someone for help"
       ],
       "first7DaysMilestones": [
-        "Rebrand / reposition core identity and daily standards",
-        "Close first major breakthrough or ship primary asset"
+        "Set aside time and gather what you need",
+        "Finish the first part of your bigger change"
       ],
-      "obstaclesNeutralized": ["Playing small, lingering in comfort zone, fear of failure"],
-      "projected30DayOutcome": "Complete lifestyle and financial reality upgrade"
+      "obstaclesNeutralized": ["A problem you named that needs more time or support"],
+      "projected30DayOutcome": "Possible progress toward the goal you named"
     }
   ],
   "synthesizedProfile": {
-    "desiredIdentity": "Crisp 3-6 word identity title (e.g., Elite High-Leverage Consultant & Creative Strategist)",
-    "coreMission": "Clear 1-sentence mission statement",
-    "primaryObstacle": "The main bottleneck to eliminate",
+    "desiredIdentity": "Your goal in three to six everyday words, such as A working artist with steady income",
+    "coreMission": "What you want to do in one short sentence",
+    "primaryObstacle": "The main problem to work on",
     "topSkills": ["Skill 1", "Skill 2", "Skill 3"],
     "coreValues": ["Value 1", "Value 2", "Value 3"],
-    "ninetyDayTrajectory": "Specific 90-day target outcome"
+    "ninetyDayTrajectory": "A realistic goal for the next three months"
   },
   "suggestedInitialGoals": [
     {
-      "title": "Clear measurable goal 1",
+      "title": "A specific goal you can track",
       "category": "Finances",
-      "why": "Direct tie to desired identity",
+      "why": "Why this matters to you",
       "milestones": ["Milestone 1", "Milestone 2"]
     },
     {
-      "title": "Clear measurable goal 2",
+      "title": "Another goal you actually asked for",
       "category": "Health",
-      "why": "Physical and mental foundation",
+      "why": "Why this goal helps you",
       "milestones": ["Milestone 1", "Milestone 2"]
     }
   ],
   "suggestedTodayTasks": [
     {
-      "task": "Single highest-leverage action to take today",
+      "task": "One specific thing to do today",
       "category": "Personal",
       "timeEstimate": "45m",
       "impact": "High"
     },
     {
-      "task": "Secondary foundational task",
+      "task": "Another useful thing to do today",
       "category": "Health",
       "timeEstimate": "30m",
       "impact": "Medium"
@@ -766,7 +771,7 @@ Return strictly valid JSON matching this schema:
     const response = await generateWithFallback(ai, {
       contents: prompt,
       config: {
-        systemInstruction: "You are AIM Life OS. Cross-reference inputs with surgical precision. Output strictly valid JSON.",
+        systemInstruction: "You are AIM. Build realistic plans from the three answers. Use short, everyday words. Output strictly valid JSON.",
         responseMimeType: "application/json"
       }
     });
@@ -942,8 +947,8 @@ Respond strictly as a JSON object:
         displayText = `Looking at your schedule and active priorities, your top focus right now is "${coachContext.priorityAssessment.immediateActionForNow}". Let's dedicate the next focused block to making tangible progress on this.`;
         spokenText = `Looking at your schedule, your top focus right now is to work on your primary priority. Let's get that done.`;
       } else if (coachId === 'motivation') {
-        displayText = `Friction is just a signal of resistance, not a reason to stop. Let's take the smallest possible step: spend just 2 minutes starting on "${coachContext.priorityAssessment.immediateActionForNow}". Once you start, momentum takes care of the rest.`;
-        spokenText = `Let's take the smallest step forward right now: spend two minutes getting started, and let the momentum build.`;
+        displayText = `Getting started can be hard. Try two minutes on "${coachContext.priorityAssessment.immediateActionForNow}". Then see how you feel.`;
+        spokenText = `Let's take the smallest step forward right now: spend two minutes getting started, and take it one step at a time.`;
       }
 
       if (isCompleteAction) {
@@ -1058,7 +1063,7 @@ app.post('/api/aim/momentum/analyze', (req: Request, res: Response) => {
 });
 
 // Creative Studio & Client Proposal Generator
-app.post('/api/aim/creative', async (req: Request, res: Response) => {
+app.post('/api/aim/creative', requirePremium, async (req: Request, res: Response) => {
   const { taskType, clientName, projectScope, budget, industry } = req.body;
   const defaultCreativeFallback = {
     title: `Growth Strategy Proposal for ${clientName || 'Client'}`,
@@ -1149,21 +1154,15 @@ app.post('/api/aim/voice/speak', async (req: Request, res: Response) => {
     if (!text || typeof text !== 'string' || !text.trim()) {
       return res.status(400).json({ error: 'Missing or empty text parameter' });
     }
+    if (text.length > 6000) {
+      return res.status(400).json({ error: 'Please use a shorter message for voice playback.' });
+    }
 
     const ai = getGenAI();
     const voiceService = AIMVoiceService.getInstance();
 
     if (!ai) {
-      // Return formatted spoken text for client fallback
-      const spokenText = voiceService.formatSpokenResponse(text, emotion);
-      return res.json({
-        audioBase64: null,
-        mimeType: null,
-        spokenText,
-        emotionDetected: emotion || voiceService.detectEmotion(spokenText),
-        voiceNameUsed: 'local-fallback',
-        provider: 'fallback',
-      });
+      return res.status(503).json({ error: 'Natural voice is temporarily unavailable. Your written response is still available. Please try again.', code: 'natural_voice_unavailable' });
     }
 
     const result = await voiceService.synthesizeSpeech(ai, {
@@ -1177,20 +1176,15 @@ app.post('/api/aim/voice/speak', async (req: Request, res: Response) => {
       formatForSpeech: formatForSpeech !== false,
     });
 
+    // Operational proof without logging the user's words, identity, or credentials.
+    console.info('[VoiceAPI] Generated neural audio', {
+      model: result.modelUsed, voice: result.voiceNameUsed, mimeType: result.mimeType,
+      cached: Boolean(result.cached),
+    });
     res.json(result);
   } catch (err: any) {
-    console.warn('[VoiceAPI] TTS synthesis notice:', err?.message || err);
-    const voiceService = AIMVoiceService.getInstance();
-    const spokenText = voiceService.formatSpokenResponse(req.body?.text || '', req.body?.emotion);
-    res.status(200).json({
-      audioBase64: null,
-      mimeType: null,
-      spokenText,
-      emotionDetected: req.body?.emotion || voiceService.detectEmotion(spokenText),
-      voiceNameUsed: 'local-fallback',
-      provider: 'fallback',
-      warning: err?.message || 'TTS synthesis failed, fall back to browser voice',
-    });
+    console.warn('[VoiceAPI] Natural speech unavailable');
+    res.status(503).json({ error: 'Natural voice is temporarily unavailable. Your written response is still available. Please try again.', code: 'natural_voice_unavailable' });
   }
 });
 
@@ -1375,7 +1369,7 @@ app.post('/api/aim/recommendations/daily', async (req: Request, res: Response) =
       deferItems.push(`${p.name} (${p.status}: ${p.blockers?.[0] || 'deferred to protect primary focus'})`);
     }
     if (deferItems.length === 0) {
-      deferItems.push('Low-leverage administrative tasks during peak morning energy hours');
+      deferItems.push('Small chores that can wait until later');
       deferItems.push('Speculative opportunities that do not advance today\'s core priorities');
     }
 
@@ -1390,7 +1384,7 @@ app.post('/api/aim/recommendations/daily', async (req: Request, res: Response) =
       whereYouAre,
       whatChanged: 'Daily Operating System evaluated current project milestones and priorities.',
       highestPriorityGoal: primaryProject?.goal || 'Establish clear daily momentum on your top priority.',
-      blockingProgress: primaryProject?.blockers?.[0] || 'Define concrete next steps to avoid start friction.',
+      blockingProgress: primaryProject?.blockers?.[0] || 'Pick one clear next step.',
       moneyMove: {
         title: moneyMoveTitle,
         whyBestMove: moneyMoveWhy,
@@ -1432,6 +1426,7 @@ app.post('/api/aim/recommendations/daily', async (req: Request, res: Response) =
 // Vite middleware setup
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -1452,6 +1447,8 @@ async function startServer() {
 
 export { app };
 
-if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST && !process.env.VERCEL) {
   startServer();
 }
+
+export default app;

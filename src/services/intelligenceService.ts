@@ -106,19 +106,19 @@ class IntelligenceService {
       console.warn('Failed to fetch priority assessment, using client fallback:', err);
       return {
         primaryAttentionFocus: userProfile?.desiredIdentity
-          ? `High-leverage compounding action for ${userProfile.desiredIdentity}`
-          : 'High-leverage daily momentum',
+          ? `A step toward ${userProfile.desiredIdentity}`
+          : 'One useful step today',
         immediateActionForNow: userProfile?.primaryObstacle
-          ? `Tackle single highest-friction blocker: ${userProfile.primaryObstacle}`
+          ? `Work on what’s getting in your way: ${userProfile.primaryObstacle}`
           : 'Execute next scheduled priority task with focused attention',
         topRankedPriorities: [
           {
             id: 'priority-1',
-            title: 'High-Impact Asset Execution',
+            title: 'Work on your main task',
             category: 'BUSINESS',
             score: 92,
-            reasoning: 'Direct alignment with identity and income milestones.',
-            recommendedAction: 'Protect 90 minutes of uninterrupted execution.',
+            reasoning: 'This helps you work toward your goal.',
+            recommendedAction: 'Set aside 90 minutes for your main task.',
             isImmediateBottleneck: true,
           },
           {
@@ -126,7 +126,7 @@ class IntelligenceService {
             title: 'Physical & Somatic Vitality',
             category: 'HEALTH',
             score: 85,
-            reasoning: 'Essential biological fuel for cognitive stamina.',
+            reasoning: 'Food and water help you keep your energy up.',
             recommendedAction: 'Hydrate, move outdoors, and maintain sleep discipline.',
             isImmediateBottleneck: false,
           },
@@ -170,13 +170,13 @@ class IntelligenceService {
         relevantDomains: ['psychology_behavior', 'human_biology', 'biblical_hebrew'],
         evidenceConfidence: 'ESTABLISHED',
         guidanceSynthesis: {
-          primaryShift: 'Transition from reactive friction to identity-aligned deliberate action.',
-          actionableHabit: 'Begin with the smallest frictionless 2-minute step.',
+          primaryShift: 'Choose one thing you can do next.',
+          actionableHabit: 'Try one small step for two minutes.',
           recommendedReflectionQuestion: 'What would the person I am becoming do right now in this exact moment?',
-          pitfallToAvoid: 'Waiting for ideal motivation before initiating compounding movement.',
+          pitfallToAvoid: 'Waiting until you feel ready to start.',
         },
         biologicalFactors: ['Circadian rhythm pacing', 'Dopamine regulation through micro-wins'],
-        psychologicalFactors: ['Self-efficacy compounding', 'Cognitive friction reduction'],
+        psychologicalFactors: ['Building confidence one step at a time', 'Making it easier to get started'],
       };
     }
   }
@@ -221,7 +221,7 @@ class IntelligenceService {
         recommendedReflectionQuestion: wisdomSynthesis.guidanceSynthesis.recommendedReflectionQuestion,
         evidenceConfidence: wisdomSynthesis.evidenceConfidence,
         burnoutRiskLevel: 'low',
-        recommendedMicroAction: wisdomSynthesis.guidanceSynthesis.actionableHabit || 'Complete a 2-minute starter sprint',
+        recommendedMicroAction: wisdomSynthesis.guidanceSynthesis.actionableHabit || 'Try one step for two minutes',
         relevantDomains: wisdomSynthesis.relevantDomains,
         retrievedAt: new Date().toISOString(),
       };
@@ -233,14 +233,14 @@ class IntelligenceService {
       const fallback: CompactOrbContext = {
         coachId: params.coachId,
         primaryAttentionFocus: params.userProfile?.desiredIdentity
-          ? `Alignment with ${params.userProfile.desiredIdentity}`
-          : 'High-leverage daily momentum',
+          ? `Working toward ${params.userProfile.desiredIdentity}`
+          : 'One useful step today',
         immediateActionForNow: 'Execute immediate highest priority task',
-        primaryWisdomShift: 'Focus on compounding small deliberate actions.',
-        recommendedReflectionQuestion: 'What is the highest leverage move in front of me right now?',
+        primaryWisdomShift: 'Small steps can add up.',
+        recommendedReflectionQuestion: 'What is one useful thing I can do now?',
         evidenceConfidence: 'ESTABLISHED',
         burnoutRiskLevel: 'low',
-        recommendedMicroAction: 'Initiate 2-minute frictionless start',
+        recommendedMicroAction: 'Start with two minutes',
         relevantDomains: ['psychology_behavior', 'human_biology'],
         retrievedAt: new Date().toISOString(),
       };

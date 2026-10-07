@@ -22,7 +22,7 @@ export class HistoricalMesopotamianProvider implements IKnowledgeProvider {
       summary: 'Gilgamesh mourns Enkidu, seeks immortality from Utnapishtim, but learns true legacy lies in the walls of Uruk—tangible craftsmanship, human connection, and accepting temporal existence.',
       historicalContext: 'Standard Babylonian version compiled by Sin-leqi-unninni (c. 1200 BCE) from earlier Sumerian poems (c. 2100 BCE).',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Human transformation occurs when energy shifts from evading reality or chasing unattainable permanency toward building enduring daily craft and community.',
+      practicalWisdomPrinciple: "Build a life you enjoy through small daily steps and people who support you.",
     },
     {
       id: 'meso_enuma_elish_order',
@@ -31,7 +31,7 @@ export class HistoricalMesopotamianProvider implements IKnowledgeProvider {
       summary: 'Marduk subdues the chaotic primordial saltwater abyss (Tiamat) and organizes the heavens, calendar, constellations, and societal responsibilities.',
       historicalContext: 'Babylonian creation epic recited annually during the Akitu New Year festival (c. 18th–12th century BCE).',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'When life feels disordered and overwhelming, breaking down chaos into structured temporal intervals and clear responsibilities restores psychological sovereignty.',
+      practicalWisdomPrinciple: "When life feels like too much, split your day into small parts. Choose one task at a time.",
     },
     {
       id: 'meso_atrahasis_humanity',
@@ -40,7 +40,7 @@ export class HistoricalMesopotamianProvider implements IKnowledgeProvider {
       summary: 'Humanity is created by Enki and Ninhursag from clay mixed with the spirit of an intelligent deity to maintain the world and steward life.',
       historicalContext: '18th-century BCE Akkadian epic; earliest comprehensive flood narrative on cuneiform tablets.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Purpose emerges when effort is aligned with stewarding one’s immediate environment rather than viewing responsibilities as meaningless burdens.',
+      practicalWisdomPrinciple: "Caring for the people and places around you can help your daily tasks feel worthwhile.",
     },
     {
       id: 'meso_inanna_descent',
@@ -49,7 +49,7 @@ export class HistoricalMesopotamianProvider implements IKnowledgeProvider {
       summary: 'Inanna descends to the Kur (underworld), shedding a piece of regalia at each of the seven gates until completely vulnerable before her sister Ereshkigal, undergoing death and rebirth.',
       historicalContext: 'Sumerian cuneiform hymn (c. 1900 BCE); earliest recorded descent-and-return myth.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Entering a major life transformation often requires shedding outdated identities and defensive armors gate by gate before genuine renewal is possible.',
+      practicalWisdomPrinciple: "A big life change may mean letting go of old habits that no longer help you.",
     },
     {
       id: 'meso_divine_councils_anunnaki',
@@ -58,7 +58,7 @@ export class HistoricalMesopotamianProvider implements IKnowledgeProvider {
       summary: 'In Sumerian and Akkadian administrative and religious texts, the Anunna are the collective assembly of major deities (Anu, Enlil, Enki, Ninhursag) acting as arbiters of cosmic destiny (Me) and societal laws.',
       historicalContext: 'Tablets from Ur III, Old Babylonian, and Neo-Assyrian archives.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Complex decisions require weighing multifaceted perspectives (creative insight, protective boundaries, strategic order) rather than acting impulsively.',
+      practicalWisdomPrinciple: "Before a hard choice, look at a few points of view. Give yourself time to think.",
     },
   ];
 
@@ -98,7 +98,7 @@ export class ScripturalHebrewProvider implements IKnowledgeProvider {
         semanticEvolution: 'Shifted from holistic living vitality to abstract disembodied soul in later Hellenistic translations.',
       },
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Mental clarity, physical vitality, and spiritual intention are one integrated system; nurturing sleep, breath, and movement directly elevates emotional focus.',
+      practicalWisdomPrinciple: "Sleep, breathing, and movement can help you feel clearer and calmer.",
     },
     {
       id: 'hebrew_covenant_responsibility',
@@ -107,7 +107,7 @@ export class ScripturalHebrewProvider implements IKnowledgeProvider {
       summary: 'Covenant in ancient Hebrew traditions is a binding, reciprocal pact prioritizing steadfast loyalty (Hesed), mutual accountability, and justice rather than mere transactional contracts.',
       historicalContext: 'Torah, Exodus, Deuteronomy, Ancient Near Eastern suzerainty treaties.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Commitments made to oneself and others gain compounding strength when treated with sacred consistency and clear mutual boundaries.',
+      practicalWisdomPrinciple: "Keep the promises you make to yourself and others. Be clear about what you can do.",
     },
     {
       id: 'hebrew_shabbat_rest',
@@ -121,7 +121,7 @@ export class ScripturalHebrewProvider implements IKnowledgeProvider {
         literalMeaning: 'To cease, desist, rest from generative exertion',
       },
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Structured rest is not the reward for exhaustion; it is the vital boundary that preserves human dignity, prevents burnout, and renews creative capacity.',
+      practicalWisdomPrinciple: "Make time to rest before you feel worn out. Rest can help you stay well and keep creating.",
     },
     {
       id: 'hebrew_hokhmah_wisdom',
@@ -134,7 +134,7 @@ export class ScripturalHebrewProvider implements IKnowledgeProvider {
         literalMeaning: 'Technical skill, artistic craftsmanship, moral acumen',
       },
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'True wisdom is measured by how effectively one executes daily integrity, manages relationships, and turns ideals into grounded habits.',
+      practicalWisdomPrinciple: "Put what matters to you into practice through your habits and how you treat people.",
     },
   ];
 
@@ -172,7 +172,7 @@ export class EtymologyLinguisticsProvider implements IKnowledgeProvider {
         semanticEvolution: 'Evolved in modern culture from loving apprenticeship to harsh self-punishment.',
       },
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Approach daily routines not as a harsh prison warden punishing yourself, but as an apprentice curious about mastering your life craft.',
+      practicalWisdomPrinciple: "Try your routine with curiosity. You can learn without being hard on yourself.",
     },
     {
       id: 'etym_courage',
@@ -185,7 +185,7 @@ export class EtymologyLinguisticsProvider implements IKnowledgeProvider {
         literalMeaning: 'Heart, innermost seat of feeling and purpose',
       },
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Courage is not the absence of fear, but taking the necessary next step because your deeper purpose matters more than the temporary discomfort.',
+      practicalWisdomPrinciple: "You can feel afraid and still take a small step toward something that matters.",
     },
     {
       id: 'etym_crisis',
@@ -198,7 +198,7 @@ export class EtymologyLinguisticsProvider implements IKnowledgeProvider {
         literalMeaning: 'Decision, judgment, sifting, turning point',
       },
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'A life crisis is a decisive fork in the road requiring you to sift what is truly essential from what must be released.',
+      practicalWisdomPrinciple: "When life changes suddenly, decide what you need to keep and what you can let go.",
     },
     {
       id: 'etym_sin_hamartia',
@@ -211,7 +211,7 @@ export class EtymologyLinguisticsProvider implements IKnowledgeProvider {
         literalMeaning: 'To miss the target, lose the way, err in trajectory',
       },
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'When you miss a daily goal or stumble on a routine, do not shame yourself; simply recalibrate your stance, adjust your aim, and take the next shot.',
+      practicalWisdomPrinciple: "Missed a goal? You can adjust your plan and try again.",
     },
   ];
 
@@ -244,7 +244,7 @@ export class ScientificBiologyProvider implements IKnowledgeProvider {
       summary: 'Sleep debt and disrupted circadian rhythms impair the prefrontal cortex, reducing executive function, emotional regulation, and willpower while elevating amygdala reactivity.',
       evidenceConfidence: 'ESTABLISHED',
       biologicalOrPsychologicalFactor: 'Adenosine accumulation, melatonin-cortisol rhythm synchronization, REM/slow-wave neurotoxin clearance.',
-      practicalWisdomPrinciple: 'Never judge your character or long-term potential when you are operating on severe sleep deprivation; prioritize physiological baseline recovery first.',
+      practicalWisdomPrinciple: "When you have had very little sleep, rest before judging yourself or your future.",
     },
     {
       id: 'bio_dopamine_reward',
@@ -253,7 +253,7 @@ export class ScientificBiologyProvider implements IKnowledgeProvider {
       summary: 'Dopamine mediates anticipation and pursuit rather than ultimate pleasure. Cheap high-spike inputs deplete tonic dopamine baselines, causing anhedonia and friction toward effortful deep work.',
       evidenceConfidence: 'ESTABLISHED',
       biologicalOrPsychologicalFactor: 'Mesolimbic pathway, dopamine receptor D2 regulation, reward prediction error.',
-      practicalWisdomPrinciple: 'Protect morning hours from cheap stimulation (scrolling, notifications) to preserve cognitive baseline for rewarding deep work.',
+      practicalWisdomPrinciple: "Put your phone aside during your morning work so it is easier to focus.",
     },
     {
       id: 'bio_nervous_system_autonomic',
@@ -262,7 +262,7 @@ export class ScientificBiologyProvider implements IKnowledgeProvider {
       summary: 'Chronic stress locks the nervous system in sympathetic hyperarousal (fight/flight) or dorsal vagal freeze (procrastination/exhaustion), shutting down creative problem-solving.',
       evidenceConfidence: 'ESTABLISHED',
       biologicalOrPsychologicalFactor: 'Polyvagal theory, vagal tone, cortisol/adrenaline cascades.',
-      practicalWisdomPrinciple: 'Use physiological sighs (two quick inhales, long slow exhale) and physical movement to shift state before attempting cognitive planning.',
+      practicalWisdomPrinciple: "Try two short breaths in and one slow breath out, or move a little, before making your plan.",
     },
     {
       id: 'bio_nutrition_blood_sugar',
@@ -270,7 +270,7 @@ export class ScientificBiologyProvider implements IKnowledgeProvider {
       topic: 'Metabolic Energy and Glycemic Stability',
       summary: 'Glucose volatility creates rapid cognitive crashes and emotional irritability misidentified as lack of motivation.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Anchor energy with balanced protein, hydration, and regular nourishing meals to sustain steady mental momentum throughout the day.',
+      practicalWisdomPrinciple: "Eat regular meals, include protein, and drink water to help keep your energy steady.",
     },
   ];
 
@@ -302,7 +302,7 @@ export class PsychologicalBehavioralProvider implements IKnowledgeProvider {
       topic: 'Habit Architecture and Identity-Based Change',
       summary: 'Habits form via Cue-Routine-Reward loops. Sustainable behavioral change occurs not through brute willpower, but by redesigning environmental cues and adopting identity-aligned micro-actions.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Every action you take is a vote for the person you wish to become. Make the starting friction so low that you cannot say no (the 2-minute rule).',
+      practicalWisdomPrinciple: "Each small step helps you move toward your goal. Start with something that takes two minutes.",
     },
     {
       id: 'psych_avoidance_emotion',
@@ -310,7 +310,7 @@ export class PsychologicalBehavioralProvider implements IKnowledgeProvider {
       topic: 'Procrastination as Emotional Regulation Deficit',
       summary: 'Procrastination is rarely laziness or poor time management; it is an instinctual avoidance of negative emotions (boredom, anxiety, self-doubt, fear of failure) triggered by a task.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Acknowledge the specific feeling creating friction without self-judgment, shrink the task to its immediate first physical step, and begin without needing to feel like doing it.',
+      practicalWisdomPrinciple: "Notice how you feel without judging yourself. Break the task into one small step and try it.",
     },
     {
       id: 'psych_decision_fatigue',
@@ -318,7 +318,7 @@ export class PsychologicalBehavioralProvider implements IKnowledgeProvider {
       topic: 'Decision Fatigue and Cognitive Load Management',
       summary: 'Each decision depletes finite daily willpower reserves. Ambiguity and endless open tabs paralyze action.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Decide tomorrow’s top priority today so you wake up with an uninterrupted track rather than a confusing menu of choices.',
+      practicalWisdomPrinciple: "Choose tomorrow’s most important task today so you know where to start.",
     },
     {
       id: 'psych_attachment_boundaries',
@@ -326,7 +326,7 @@ export class PsychologicalBehavioralProvider implements IKnowledgeProvider {
       topic: 'Relational Boundaries and Secure Attachment',
       summary: 'Healthy boundaries protect emotional bandwidth and foster genuine intimacy without codependent resentment.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Clear, compassionate boundaries are not walls to keep people out; they are the rules of engagement that make safe connection possible.',
+      practicalWisdomPrinciple: "Be kind and clear about what is okay with you. This can help people feel safe together.",
     },
   ];
 
@@ -359,7 +359,7 @@ export class AnthropologicalHistoryProvider implements IKnowledgeProvider {
       topic: 'Tribal Cohesion, Ritual, and Mythmaking',
       summary: 'For 99% of human history, small kin groups synchronized effort through shared stories, evening fireside reflections, and initiation rites that marked developmental transitions.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Humans need daily rituals (morning alignment, evening review) to close mental loops and mark progress across life chapters.',
+      practicalWisdomPrinciple: "A morning check-in and evening review can help you see your progress and plan your next step.",
     },
     {
       id: 'anthro_hunter_gatherer_pacing',
@@ -367,7 +367,7 @@ export class AnthropologicalHistoryProvider implements IKnowledgeProvider {
       topic: 'Evolutionary Mismatch & Continuous Industrial Alert',
       summary: 'Human physiology evolved for episodic exertion followed by community restoration, not the non-stop cognitive hyper-vigilance of modern digital notifications.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Structure your day into episodic sprints (60-90m) followed by real sensory disconnection to align with human evolutionary rhythms.',
+      practicalWisdomPrinciple: "Try working for 60 to 90 minutes, then take a real break away from screens.",
     },
   ];
 
@@ -396,7 +396,7 @@ export class SpiritualityConsciousnessProvider implements IKnowledgeProvider {
       topic: 'The Witness Consciousness (Sakshi / Meta-Awareness)',
       summary: 'In Vedic, Buddhist, and contemplative traditions, the true self is the silent observing awareness behind thoughts, emotions, and sensations rather than the fleeting thoughts themselves.',
       evidenceConfidence: 'SPIRITUAL_OR_METAPHYSICAL',
-      practicalWisdomPrinciple: 'You are not your anxious thoughts or temporary setbacks; you are the conscious space in which those experiences arise and pass away.',
+      practicalWisdomPrinciple: "A worried thought or hard day does not define who you are. Feelings can change.",
     },
     {
       id: 'spirit_manifestation_alignment',
@@ -405,7 +405,7 @@ export class SpiritualityConsciousnessProvider implements IKnowledgeProvider {
       summary: 'Manifestation traditions emphasize aligning internal state, clear intention, and diligent outward action to create resonance and recognize opportunities.',
       evidenceConfidence: 'INTERPRETIVE',
       scientificVsInterpretiveDistinction: 'Mindset changes perception and opportunity recognition; it does not replace physical causation or effort.',
-      practicalWisdomPrinciple: 'Clarity of vision sharpens your attention to notice resources and pathways that were previously invisible.',
+      practicalWisdomPrinciple: "A clear goal can help you notice people, tools, and chances that could help.",
     },
   ];
 
@@ -436,7 +436,7 @@ export class AncientCosmologyAlternativeProvider implements IKnowledgeProvider {
       historicalContext: 'Astronomical text MUL.APIN (c. 1000 BCE) vs Sitchin "12th Planet" (1976).',
       evidenceConfidence: 'SPECULATIVE',
       scientificVsInterpretiveDistinction: 'Academic Assyriology translates Nibiru as a crossing point/planetary marker; ancient astronaut hypotheses remain speculative interpretations without archaeological peer verification.',
-      practicalWisdomPrinciple: 'Examine intriguing historical hypotheses with intellectual honesty, enjoying deep symbolic questions while keeping daily action grounded in verifiable reality.',
+      practicalWisdomPrinciple: "Explore ideas about the past with an open mind. Base daily choices on things you can check.",
     },
     {
       id: 'cosmo_tiamat_primordial_chaos',
@@ -444,7 +444,7 @@ export class AncientCosmologyAlternativeProvider implements IKnowledgeProvider {
       topic: 'Tiamat & Primordial Saltwater Symbolism',
       summary: 'In Mesopotamian cosmology, Tiamat symbolizes the untamed primordial ocean from which heaven and earth are formed.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Creative birth frequently emerges from wrestling with raw, shapeless raw material until clear structure is forged.',
+      practicalWisdomPrinciple: "Creative work often starts messy. Keep shaping it until it makes sense to you.",
     },
   ];
 
@@ -474,7 +474,7 @@ export class PhysicsQuantumProvider implements IKnowledgeProvider {
       topic: 'Thermodynamics & Dissipative Structures',
       summary: 'The Second Law of Thermodynamics dictates entropy increases in closed systems. Living organisms maintain internal order by taking in energy and expelling entropy.',
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Order, habits, and clarity require continuous, deliberate daily energy input; drift into disorder is a natural physical law, not a personal flaw.',
+      practicalWisdomPrinciple: "Keeping things in order takes regular care. Falling behind does not mean you have failed.",
     },
     {
       id: 'physics_quantum_measurement',
@@ -483,7 +483,7 @@ export class PhysicsQuantumProvider implements IKnowledgeProvider {
       summary: 'Quantum states evolve deterministically via the Schrödinger equation until interaction/decoherence occurs. Note: Quantum effects operate at microscopic subatomic scales and do not validate macroscopic mystical pseudoscience.',
       evidenceConfidence: 'ESTABLISHED',
       scientificVsInterpretiveDistinction: 'Quantum entanglement and superposition are rigorous mathematical physics; metaphorical applications to human thoughts are poetic analogies, not experimental physical proof.',
-      practicalWisdomPrinciple: 'Focus your active measurement (attention) on constructive possibilities rather than fixating on anxieties.',
+      practicalWisdomPrinciple: "Look for useful steps you can take instead of giving all your attention to worries.",
     },
   ];
 
@@ -515,7 +515,7 @@ export class ComparativeMythologyProvider implements IKnowledgeProvider {
         relationshipType: 'documented_influence', // Mesopotamian to Hebrew; shared human pattern globally
       },
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'When catastrophic disruption washes away old structures, building a vessel of core essentials allows you to emerge onto renewed terra firma.',
+      practicalWisdomPrinciple: "After a major life change, start with your basic needs and build from there.",
     },
     {
       id: 'myth_clay_humanity_creation',
@@ -528,7 +528,7 @@ export class ComparativeMythologyProvider implements IKnowledgeProvider {
         relationshipType: 'shared_human_pattern',
       },
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'You possess both earthly biological constraints and elevated conscious agency; respect both your physical needs and your creative potential.',
+      practicalWisdomPrinciple: "Respect your need for food, sleep, and rest while making room for your ideas and goals.",
     },
     {
       id: 'myth_hero_descent_rebirth',
@@ -541,7 +541,7 @@ export class ComparativeMythologyProvider implements IKnowledgeProvider {
         relationshipType: 'shared_human_pattern',
       },
       evidenceConfidence: 'ESTABLISHED',
-      practicalWisdomPrinciple: 'Difficult chapters of uncertainty or grief are not dead ends; they are the transformative descent from which renewed wisdom is forged.',
+      practicalWisdomPrinciple: "Hard times and grief can take time to work through. They do not have to be the end of your story.",
     },
   ];
 

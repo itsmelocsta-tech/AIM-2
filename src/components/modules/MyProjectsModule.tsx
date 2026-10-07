@@ -113,7 +113,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
               10 Operating Projects
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Ranked, prioritized, and continuously recalculated to eliminate distraction and maintain execution momentum.
+              See what matters most and choose what to work on next.
             </p>
           </div>
 
@@ -497,7 +497,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-400 font-semibold mb-1">Goal & Strategic Purpose</label>
+                <label className="block text-slate-400 font-semibold mb-1">Your goal and why it matters</label>
                 <textarea
                   rows={2}
                   placeholder="What is the objective of this project and why does it matter?"

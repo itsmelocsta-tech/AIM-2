@@ -38,6 +38,7 @@ import {
   CrossReferenceResult,
   PathwayOption,
 } from '../../types';
+import { plainPlanOptions } from '../../utils/planLanguage';
 import { api } from '../../services/api';
 import { storageService } from '../../services/storage';
 import { voiceEngine, SpeakerState } from '../../services/voiceService';
@@ -71,7 +72,7 @@ type OnboardingStep =
 
 // Pre-defined guidance constants for natural voice narration
 const STEP_1_GUIDANCE =
-  "Hello, I’m AIM, your life operating system. Let’s keep it simple. Who are you, and what’s your situation right now?";
+  "Hello, I’m AIM. I’m here to help you make a plan. Let’s keep it simple. Who are you, and what’s your situation right now?";
 
 const STEP_2_GUIDANCE =
   "And what would you like to change about your situation?";
@@ -122,7 +123,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
   // Cross Reference Result
   const [crossReferenceData, setCrossReferenceData] = useState<CrossReferenceResult | null>(
-    initialCalibration?.changesWanted ? initialCalibration?.result || null : null
+    plainPlanOptions(initialCalibration?.changesWanted ? initialCalibration?.result || null : null)
   );
 
   // Save unfinished answers on this account only, so leaving and returning is safe.
@@ -406,12 +407,12 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     setIsThinking(true);
 
     try {
-      const result = await api.crossReferencePathways({
+      const result = plainPlanOptions(await api.crossReferencePathways({
         currentState: currentStateText.trim(),
         changesWanted: changesWantedText.trim(),
         desiredState: desiredStateText.trim(),
         userProfile,
-      });
+      }));
       if (!result?.pathways?.length) throw new Error('AIM returned no pathways');
 
       setCrossReferenceData(result);
@@ -498,8 +499,8 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     // 4. Log Memory Item of this Foundational Alignment
     const foundationalMemory: MemoryItem = {
       id: 'mem-alignment-' + Date.now(),
-      title: `Foundational Alignment: ${pathway.title}`,
-      content: `CURRENT SITUATION:\n${currentStateText}\n\nWHAT THEY WANT TO CHANGE:\n${changesWantedText}\n\nEVENTUAL GOAL AND IDENTITY:\n${desiredStateText}\n\nCHOSEN PATHWAY: ${pathway.title}\n${pathway.whyItFits}\n\nFIRST 48-HOUR STEPS:\n${pathway.actionPlan48h.join('\n')}`,
+      title: `Your starting plan: ${pathway.title}`,
+      content: `CURRENT SITUATION:\n${currentStateText}\n\nWHAT THEY WANT TO CHANGE:\n${changesWantedText}\n\nYOUR GOAL:\n${desiredStateText}\n\nCHOSEN PLAN: ${pathway.title}\n${pathway.whyItFits}\n\nFIRST 48-HOUR STEPS:\n${pathway.actionPlan48h.join('\n')}`,
       category: 'Goals',
       tags: ['alignment', 'identity', 'pathway'],
       createdAt: new Date().toISOString(),
@@ -510,7 +511,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     const activationMessage: ChatMessage = {
       id: 'msg-calibrated-' + Date.now(),
       role: 'aim',
-      content: `🎯 **Your Trajectory Has Been Calibrated: ${pathway.title}**\n\nI have cross-referenced your situation and configured your Life Operating System around who you are becoming:\n\n- **Target Identity:** ${updatedProfile.desiredIdentity}\n- **Immediate 48-Hour Lever:** ${pathway.actionPlan48h[0]}\n- **Obstacles Neutralized:** ${pathway.obstaclesNeutralized.join(', ')}\n\nYour Daily Planner and Goal boards are now synchronized. How do you want today to go?`,
+      content: `🎯 **Your plan is ready: ${pathway.title}**\n\nHere’s your starting point, based on what you told me:\n\n- **Your goal:** ${updatedProfile.desiredIdentity}\n- **Start with:** ${pathway.actionPlan48h[0]}\n- **What we’ll work on:** ${pathway.obstaclesNeutralized.join(', ')}\n\nYour plan and goals are saved. How do you want today to go?`,
       timestamp: new Date().toISOString(),
       category: 'Goals',
     };
@@ -525,7 +526,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       }, userId);
       setIsActivatingPath(false);
       setCurrentStep('active_os');
-      onToast(`Your starting Life OS is ready: ${pathway.title}`);
+      onToast(`Your plan is ready: ${pathway.title}`);
     } catch (error) {
       console.error('Could not save starting plan:', error);
       setErrorMessage('AIM couldn’t save your starting plan yet. Your answers are still here. Please try again.');
@@ -847,25 +848,25 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
         <div className="space-y-2">
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-            AIM is Cross-Referencing Your Trajectory
+            AIM is putting your plan together
           </h2>
           <p className="text-sm text-slate-400 font-light max-w-md mx-auto">
-            Analyzing the gap between your current reality and desired identity, neutralizing bottlenecks, and picking the highest-leverage options to get you there...
+            We’re using your answers to find a few ways forward that fit your life.
           </p>
         </div>
 
         <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-xl p-4 text-left space-y-2.5 text-xs text-slate-300 shadow-lg">
           <div className="flex items-center gap-2 text-indigo-400">
             <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
-            <span>Parsing Good, Bad & Ugly disclosures</span>
+            <span>Looking at what you shared</span>
           </div>
           <div className="flex items-center gap-2 text-emerald-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span>Cross-referencing target identity & revenue potential</span>
+            <span>Keeping your goals in mind</span>
           </div>
           <div className="flex items-center gap-2 text-purple-400">
             <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
-            <span>Selecting top 3 custom strategic pathways</span>
+            <span>Finding three plans you can choose from</span>
           </div>
         </div>
       </div>
@@ -899,13 +900,13 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
         {/* Deep Strategic Insight Banner */}
         <div className="w-full bg-slate-900/90 border border-indigo-900/50 rounded-2xl p-4 sm:p-5 text-left text-xs sm:text-sm text-slate-300 backdrop-blur-sm shadow-xl space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
             <span className="text-xs font-semibold text-indigo-300 flex items-center gap-1.5">
               <Brain className="w-4 h-4 text-indigo-400" />
-              Strategic Cross-Reference Synthesis
+              What you told us
             </span>
             <span className="text-[11px] text-slate-400">
-              Target Identity: <strong className="text-white">{crossReferenceData.synthesizedProfile.desiredIdentity}</strong>
+              Your goal: <strong className="text-white">{crossReferenceData.synthesizedProfile.desiredIdentity}</strong>
             </span>
           </div>
 
@@ -916,7 +917,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
             <div className="bg-emerald-950/30 border border-emerald-900/40 rounded-xl p-2.5">
               <span className="font-semibold text-emerald-400 block mb-1">
-                Your Extracted Strengths to Leverage:
+                What you’re good at:
               </span>
               <ul className="list-disc list-inside text-slate-300 space-y-0.5">
                 {crossReferenceData.analysis.hiddenStrengths.map((s, idx) => (
@@ -927,7 +928,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
             <div className="bg-rose-950/30 border border-rose-900/40 rounded-xl p-2.5">
               <span className="font-semibold text-rose-400 block mb-1">
-                Bottlenecks Neutralized:
+                What’s getting in your way:
               </span>
               <ul className="list-disc list-inside text-slate-300 space-y-0.5">
                 {crossReferenceData.analysis.primaryBottlenecks.map((b, idx) => (
@@ -941,10 +942,10 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         {/* Top 3 Options Grid */}
         <div className="w-full space-y-4">
           {errorMessage && <p role="alert" className="text-sm text-rose-300">{errorMessage}</p>}
-          <div className="flex items-center justify-between text-left px-1">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-left px-1">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <Flame className="w-5 h-5 text-amber-400" />
-              <span>Select Your Trajectory</span>
+              <span>Choose your plan</span>
             </h2>
             <span className="text-xs text-slate-400">
               AIM recommends <strong className="text-indigo-300">{crossReferenceData.pathways.find(p => p.id === crossReferenceData.recommendedOptionId)?.title || 'Option 1'}</strong>
@@ -997,7 +998,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
                     {/* Why It Fits */}
                     <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-800/80 space-y-1.5 text-xs">
                       <span className="text-[11px] font-semibold text-indigo-300 block">
-                        Why This Fits Your Situation:
+                        Why this could work for you:
                       </span>
                       <p className="text-slate-300 leading-relaxed text-[11px]">
                         {pathway.whyItFits}
@@ -1007,7 +1008,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
                     {/* Action Plan 48h */}
                     <div className="space-y-1 text-xs">
                       <span className="text-[11px] font-semibold text-slate-400 block">
-                        Immediate 48h Levers:
+                        Your next two days:
                       </span>
                       <ul className="space-y-1 text-slate-300 text-[11px]">
                         {pathway.actionPlan48h.map((step, idx) => (
@@ -1021,7 +1022,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
                     {/* 30-day Outcome */}
                     <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
-                      <strong className="text-slate-200">30-Day Projection:</strong> {pathway.projected30DayOutcome}
+                      <strong className="text-slate-200">What you could work toward this month:</strong> {pathway.projected30DayOutcome}
                     </div>
                   </div>
 
@@ -1041,7 +1042,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
                       }`}
                     >
                       <Zap className="w-3.5 h-3.5" />
-                      <span>{isActivatingPath && selectedPathwayId === pathway.id ? 'Calibrating Life OS...' : 'Activate This Path'}</span>
+                      <span>{isActivatingPath && selectedPathwayId === pathway.id ? 'Saving your plan...' : 'Use this plan'}</span>
                     </button>
                   </div>
                 </div>
@@ -1088,10 +1089,10 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             <button
               onClick={() => setCurrentStep('tell_about_yourself')}
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-900 hover:bg-slate-850 text-indigo-300 border border-slate-800 hover:border-indigo-800 transition-all cursor-pointer group"
-              title="Click to recalibrate your Good/Bad/Ugly disclosure and target trajectory"
+              title="Change your answers or goals"
             >
               <Sparkles className="w-3 h-3 text-emerald-400" />
-              <span>Identity: {userProfile.desiredIdentity}</span>
+              <span>Your goal: {userProfile.desiredIdentity}</span>
               <RotateCcw className="w-3 h-3 text-slate-500 group-hover:text-indigo-300 ml-1" />
             </button>
           </div>

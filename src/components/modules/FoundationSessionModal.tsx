@@ -71,7 +71,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
     };
 
     onSaveProfile(updated);
-    onToast('Identity & Financial Trajectory Calibrated!');
+    onToast('Your goals are saved!');
     onClose();
   };
 
@@ -86,7 +86,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white">
-                AIM Foundation Session: Identity Calibration
+                Your goals and starting point
               </h2>
               <p className="text-xs text-slate-400">
                 AIM doesn’t just remember what you said—it remembers who you are trying to become.
@@ -117,7 +117,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
-                Target Monthly Cash Flow ($ USD)
+                How much you want to earn each month ($)
               </label>
               <input
                 type="number"
@@ -131,41 +131,41 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
 
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">
-              Who are you trying to become? (Dream Identity Anchor) *
+              Who do you want to become? *
             </label>
             <input
               type="text"
               required
               value={desiredIdentity || ''}
               onChange={(e) => setDesiredIdentity(e.target.value)}
-              placeholder="e.g. Elite High-Leverage Consultant & Digital Asset Builder"
+              placeholder="e.g. A working artist with steady income"
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">
-              Core Mission & Life Purpose *
+              What matters most to you? *
             </label>
             <textarea
               rows={2}
               required
               value={coreMission || ''}
               onChange={(e) => setCoreMission(e.target.value)}
-              placeholder="e.g. Generate $15k+/mo recurring cashflow while building scalable equity and living in peak physical vitality."
+              placeholder="e.g. Earn a steady income, have time for my family, and feel healthier."
               className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">
-              What is the single biggest obstacle standing in your way right now?
+              What is getting in your way right now?
             </label>
             <textarea
               rows={2}
               value={primaryObstacle || ''}
               onChange={(e) => setPrimaryObstacle(e.target.value)}
-              placeholder="e.g. Inconsistent daily outreach momentum, fragmented attention during morning work hours."
+              placeholder="e.g. I have trouble finding time and staying focused."
               className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
@@ -173,13 +173,13 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
-                Monetizable Skills (comma separated)
+                Skills you could earn money from (separate with commas)
               </label>
               <input
                 type="text"
                 value={topSkills || ''}
                 onChange={(e) => setTopSkills(e.target.value)}
-                placeholder="Strategic Advisory, Copywriting, AI Workflows, Design"
+                placeholder="Writing, cooking, repairs, design"
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -192,7 +192,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
                 type="text"
                 value={coreValues || ''}
                 onChange={(e) => setCoreValues(e.target.value)}
-                placeholder="Freedom, Relentless Execution, Whole-Person Health"
+                placeholder="Family, independence, good health"
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -200,13 +200,13 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
 
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">
-              90-Day Trajectory Milestone
+              Your goal for the next three months
             </label>
             <input
               type="text"
               value={ninetyDayTrajectory || ''}
               onChange={(e) => setNinetyDayTrajectory(e.target.value)}
-              placeholder="Close 5 high-ticket retainer clients @ $3,000/mo, publish core masterclass asset."
+              placeholder="e.g. Find steady work and save $500."
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
@@ -258,7 +258,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
                 type="submit"
                 className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-colors"
               >
-                Calibrate & Save Trajectory
+                Save my goals
               </button>
             </div>
           </div>

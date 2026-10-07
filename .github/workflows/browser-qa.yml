@@ -1,0 +1,121 @@
+name: Browser QA
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: browser-qa-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  AIM_TESTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  premium-components:
+    name: Premium component browser regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.AIM_TESTED_SHA }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+      - name: Install application dependencies
+        run: bun install --frozen-lockfile
+      - name: Install pinned Playwright dependencies
+        run: npm ci --prefix qa
+      - name: Install Chromium
+        working-directory: qa
+        run: npx playwright install --with-deps chromium
+      - name: Test production Premium component and entitlement fixtures
+        working-directory: qa
+        run: npm test
+      - name: Record component scope
+        if: always()
+        run: |
+          echo "QA runner: Playwright" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tested head: $AIM_TESTED_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Component harness only: Premium dialog, billing-disabled state, access fixtures, phone and desktop bounds. Does not verify live Firebase/Gemini or a signed-in user." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload fictional component evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: playwright-premium-harness-${{ env.AIM_TESTED_SHA }}
+          path: |
+            qa/playwright-report/harness/
+            qa/test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  deployed-preview:
+    name: Exact-head deployed phone smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      deployments: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.AIM_TESTED_SHA }}
+          persist-credentials: false
+      - name: Resolve exact-head READY Vercel preview
+        id: preview
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        with:
+          script: |
+            const sha = process.env.AIM_TESTED_SHA;
+            const { owner, repo } = context.repo;
+            for (let attempt = 0; attempt < 20; attempt++) {
+              const { data: deployments } = await github.rest.repos.listDeployments({ owner, repo, sha, per_page: 20 });
+              for (const deployment of deployments) {
+                if (deployment.sha !== sha || deployment.creator?.login !== 'vercel[bot]' || deployment.environment !== 'Preview') continue;
+                const { data: statuses } = await github.rest.repos.listDeploymentStatuses({ owner, repo, deployment_id: deployment.id, per_page: 1 });
+                const status = statuses[0];
+                if (status?.state !== 'success' || !status.environment_url) continue;
+                const url = new URL(status.environment_url);
+                if (url.protocol !== 'https:' || !url.hostname.startsWith('aim-2-') || !url.hostname.endsWith('-itsmelocsta-5904.vercel.app') || url.hostname.includes('-git-')) continue;
+                if (context.payload.pull_request) {
+                  const { data: current } = await github.rest.pulls.get({ owner, repo, pull_number: context.payload.pull_request.number });
+                  if (current.state !== 'open' || current.head.sha !== sha) throw new Error('BLOCKED: PR head changed or closed; refuse stale preview testing.');
+                }
+                core.setOutput('url', url.origin);
+                await core.summary.addRaw(`QA runner: Playwright\nTested head: ${sha}\nREADY Vercel preview: ${url.origin}\nGitHub deployment: ${deployment.id}\n`).write();
+                return;
+              }
+              if (attempt < 19) await new Promise(resolve => setTimeout(resolve, 15000));
+            }
+            throw new Error('BLOCKED: no immutable READY Vercel Preview deployment matching the PR head within five minutes.');
+      - name: Install pinned Playwright dependencies
+        run: npm ci --prefix qa
+      - name: Install Chromium
+        working-directory: qa
+        run: npx playwright install --with-deps chromium
+      - name: Probe deployed public phone UI and API boundary
+        working-directory: qa
+        run: npm run test:live
+        env:
+          AIM_PREVIEW_URL: ${{ steps.preview.outputs.url }}
+      - name: Record authenticated path prerequisites
+        if: always()
+        run: |
+          echo "Authenticated paths: BLOCKED — no authorized disposable email/Google test profile or protected-preview runner session configured." >> "$GITHUB_STEP_SUMMARY"
+          echo "Paths: onboarding answers/navigation; real plan generation; reload persistence; sign-out/sign-in persistence; signed-in Basic/Premium gates; rerouting; user-defined opportunities; Google workspace loading." >> "$GITHUB_STEP_SUMMARY"
+          echo "A live smoke PASS is not a full-path PASS. No purchases or production changes. Protection preserved; no secrets, traces, video, or authentication state uploaded." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload public-only live evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: playwright-live-public-${{ env.AIM_TESTED_SHA }}
+          path: |
+            qa/playwright-report/live/
+            qa/test-results/
+          if-no-files-found: warn
+          retention-days: 14

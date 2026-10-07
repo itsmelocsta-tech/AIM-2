@@ -89,11 +89,11 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
           <div className="flex items-center gap-2 mb-1">
             <Heart className="w-5 h-5 text-rose-400" />
             <h2 className="text-lg font-bold text-white tracking-tight">
-              Whole-Person Wellness & Vitality Engine
+              Your health and daily habits
             </h2>
           </div>
           <p className="text-xs text-slate-400">
-            High income and high impact require peak physical stamina, neurological clarity, and deep recovery.
+            Food, sleep, movement, and rest can help you feel better each day.
           </p>
         </div>
       </div>
@@ -103,7 +103,7 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
         <div className="lg:col-span-7 space-y-6">
           <form onSubmit={handleSaveLog} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md space-y-5">
             <h3 className="text-base font-bold text-white border-b border-slate-800 pb-3 flex items-center justify-between">
-              <span>Today’s Wellness Calibration</span>
+              <span>How you feel today</span>
               <span className="text-xs font-normal text-slate-400">{new Date().toLocaleDateString()}</span>
             </h3>
 
@@ -191,7 +191,7 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-slate-300 flex items-center gap-1.5">
                     <Smile className="w-3.5 h-3.5 text-sky-400" />
-                    <span>Stress Friction</span>
+                    <span>Stress</span>
                   </span>
                   <strong className="text-sky-400 font-bold">{stressLevel} / 10</strong>
                 </div>
@@ -258,7 +258,7 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
               <span>Evidence-Based Vitality Rituals</span>
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Non-negotiable foundational habits proven by neuroscience and physiology to maximize execution bandwidth.
+              Simple habits that can help you feel better and get through your day.
             </p>
 
             <div className="space-y-3">

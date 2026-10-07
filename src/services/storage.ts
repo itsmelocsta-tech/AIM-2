@@ -64,12 +64,12 @@ export const getTodayDateStr = (timeZone?: string) => getTodayDateString(timeZon
 
 export const DEFAULT_DAILY_PLAN: DailyPlan = {
   date: getTodayDateStr(),
-  theme: 'Clarity & Intentional Action',
+  theme: 'One step at a time',
   energyLevel: 8,
   availableHours: 6,
   priorityTasks: [],
   timeBlocks: [],
-  mindsetReminder: 'Take one meaningful step at a time toward the person you want to become.',
+  mindsetReminder: 'Take one step today toward your goal.',
   notes: '',
 };
 
@@ -79,11 +79,11 @@ export const DEFAULT_CHAT: ChatMessage[] = [
   {
     id: 'msg-1',
     role: 'aim',
-    content: `Hello. I am **AIM** (Artificial Intelligence for Manifestation) — your AI-powered personal life operating system.
+    content: `Hi, I’m **AIM**. I can help you make a plan for your life.
 
-I don't just remember what you said; I remember who you are trying to become.
+We’ll start with where you are now and where you want to go.
 
-To get started, **tell me about yourself. Don't hold back. I want the good, the bad, and the ugly.**`,
+**Tell me about yourself. What’s going on in your life right now?**`,
     timestamp: new Date().toISOString(),
     category: 'Journal',
   },

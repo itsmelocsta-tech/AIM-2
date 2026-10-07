@@ -145,7 +145,7 @@ export const ChatAdvisorModule: React.FC<ChatAdvisorProps> = ({
           />
           <span className="text-[11px] text-slate-400 block mt-2">
             {isThinking
-              ? 'AIM is synthesizing multi-step path...'
+              ? 'AIM is finding your next steps...'
               : isSpeaking
               ? 'Speaking response (click orb to stop)'
               : 'Click Orb to listen to last reflection'}
@@ -164,7 +164,7 @@ export const ChatAdvisorModule: React.FC<ChatAdvisorProps> = ({
             </li>
             <li className="flex items-start gap-1.5">
               <span className="text-emerald-400 font-bold">✓</span>
-              <span>Daily cash monetization & high-leverage focus</span>
+              <span>Ways to earn money and what to do next</span>
             </li>
             <li className="flex items-start gap-1.5">
               <span className="text-emerald-400 font-bold">✓</span>
@@ -244,7 +244,7 @@ export const ChatAdvisorModule: React.FC<ChatAdvisorProps> = ({
               </div>
               <div className="bg-slate-950 border border-slate-800 px-4 py-2.5 rounded-2xl flex items-center gap-2">
                 <RefreshCw className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
-                <span>AIM is analyzing your trajectory and formulating solutions...</span>
+                <span>AIM is looking at your situation and finding ways to help...</span>
               </div>
             </div>
           )}
@@ -285,7 +285,7 @@ export const ChatAdvisorModule: React.FC<ChatAdvisorProps> = ({
               type="text"
               value={inputText || ''}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Ask AIM anything: monetize a skill, solve an obstacle, map today, build a proposal..."
+              placeholder="Ask AIM for help with your day, a problem, a goal, or earning money..."
               className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
             <button

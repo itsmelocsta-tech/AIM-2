@@ -182,10 +182,10 @@ export const CheckInModule: React.FC<CheckInModuleProps> = ({
       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
         <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
           <Send className="w-4 h-4 text-indigo-400" />
-          Smart Check-In & Context Engine
+          Your check-in
         </h1>
         <p className="text-xs text-slate-400 mt-0.5">
-          Speak or type what you completed, what changed, or where you're blocked. AIM evaluates your update against confirmed operating facts to prevent accidental regressions.
+          Tell AIM what you finished, what changed, or where you need help. We’ll use what you’ve already shared to update your plan.
         </p>
 
         {/* Quick Action Chips */}

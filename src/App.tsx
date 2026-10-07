@@ -61,17 +61,23 @@ import { GlobalQuickInput } from './components/common/GlobalQuickInput';
 import { ConversationalHomeModule } from './components/modules/ConversationalHomeModule';
 import { FirstRunGuide } from './components/modules/FirstRunGuide';
 import { getUnlockedModules } from './services/moduleAccessService';
+import { DEFAULT_ENTITLEMENT, hasPremiumAccess } from './services/entitlementService';
+import { fetchEntitlement } from './services/entitlementApi';
+import { UpgradeModal } from './components/common/UpgradeModal';
 import { useAuth } from './context/AuthContext';
 import { firestoreRepository } from './services/repositories/firestoreRepository';
 import { scheduleRepository } from './services/repositories/scheduleRepository';
 import { AuthModal } from './components/auth/AuthModal';
 import { getTodayDateString } from './utils/dateTimeUtils';
+import { voiceEngine } from './services/voiceService';
 
 export default function App() {
   const { user, loading: isAuthLoading } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [entitlement, setEntitlement] = useState(DEFAULT_ENTITLEMENT);
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
 
   const [reauthenticationRequired, setReauthenticationRequired] = useState(false);
   useEffect(() => {
@@ -107,8 +113,9 @@ export default function App() {
     async function loadUserData() {
       setLoadedUserId(null);
       setLoadError(false);
-      if (!user) return;
+      if (!user) { setEntitlement(DEFAULT_ENTITLEMENT); return; }
       try {
+        setEntitlement(await fetchEntitlement());
         // Local caches predate account scoping. Never show one person's cache to another.
         if (storageService.getProfile().id !== user.uid) {
           storageService.clearAllData();
@@ -264,6 +271,11 @@ export default function App() {
       setToastMessage((prev) => (prev === msg ? null : prev));
     }, 3200);
   };
+
+  useEffect(() => {
+    voiceEngine.setErrorNotificationListener(message => showToast(message));
+    return () => voiceEngine.setErrorNotificationListener(null);
+  }, []);
 
   // State Persistence handlers
   const handleUpdateProfile = (profile: UserProfile) => {
@@ -424,7 +436,7 @@ export default function App() {
     } else if (actionType === 'create_task') {
       const newTask = {
         id: 'pt-' + Date.now(),
-        task: typeof payload === 'string' ? payload.substring(0, 60) : 'Execute strategic step',
+        task: typeof payload === 'string' ? payload.substring(0, 60) : 'Take your next step',
         category: 'Personal' as const,
         timeEstimate: '45m',
         impact: 'High' as const,
@@ -440,8 +452,8 @@ export default function App() {
   };
 
   const navigationTabs = [
-    { id: 'home', label: 'Today (Life OS)', icon: Sparkles },
-    { id: 'scanner', label: 'Opportunity Scanner', icon: Compass },
+    { id: 'home', label: 'Today', icon: Sparkles },
+    { id: 'scanner', label: 'Your Opportunities', icon: Compass },
     { id: 'projects', label: 'Projects', icon: Layers, count: aimProjects.length },
     { id: 'check-in', label: 'Check-In', icon: Send },
     { id: 'history', label: 'Audit History', icon: Clock },
@@ -465,6 +477,8 @@ export default function App() {
     wellnessLogs,
   }), [userProfile, calibration?.currentState, calibration?.changesWanted, calibration?.desiredState, aimContext, aimProjects, goals, memories, dailyPlan, wellnessLogs]);
   const visibleNavigationTabs = navigationTabs.filter((tab) => unlockedModules.has(tab.id as any));
+  const isPremium = hasPremiumAccess(entitlement);
+  const requirePremiumUi = (action: () => void) => { if (isPremium) action(); else setIsUpgradeOpen(true); };
   const isReady = Boolean(user && loadedUserId === user.uid);
   const isOnboarding = !isReady || !userProfile.onboardingCompleted;
   const guideStep = isReady && userProfile.onboardingCompleted && userProfile.firstRunGuideStep !== 'done'
@@ -519,7 +533,7 @@ export default function App() {
               <button
                 key={tab.id}
                 id={`nav-tab-${tab.id}`}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => tab.id === 'wellness' ? requirePremiumUi(() => setActiveTab(tab.id)) : setActiveTab(tab.id)}
                 style={{ animationDelay: `${index * 90}ms`, animationFillMode: 'both' }}
                 className={`animate-fadeIn flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
                   isActive
@@ -581,18 +595,18 @@ export default function App() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Today's Life OS
+                Today’s plan
               </button>
               <button
                 id="home-view-advisor-btn"
-                onClick={() => setHomeViewMode('advisor')}
+                onClick={() => requirePremiumUi(() => setHomeViewMode('advisor'))}
                 className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all ${
                   homeViewMode === 'advisor'
                     ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Advisor Sanctuary
+                Your Coaches
               </button>
             </div>
 
@@ -628,7 +642,7 @@ export default function App() {
                 onUpdateProfile={handleUpdateProfile}
                 onNavigateToTab={setActiveTab}
                 onOpenLifeUpdate={(initialText) => {
-                  setActiveTab('life-update');
+                  requirePremiumUi(() => setActiveTab('life-update'));
                 }}
                 onToast={showToast}
               />
@@ -808,6 +822,8 @@ export default function App() {
         onAuthenticated={() => setReauthenticationRequired(false)}
         onClose={() => setIsAuthModalOpen(false)}
       />
+
+      <UpgradeModal open={isUpgradeOpen} onClose={() => setIsUpgradeOpen(false)} entitlement={entitlement} />
 
       {/* Toast Alert Pill */}
       {toastMessage && (

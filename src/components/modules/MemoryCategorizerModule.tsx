@@ -141,7 +141,7 @@ export const MemoryCategorizerModule: React.FC<MemoryCategorizerProps> = ({
                   required
                   value={newTitle || ''}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. High-Converting Sales Script Architecture"
+                  placeholder="e.g. A script to help sell my services"
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
@@ -195,7 +195,7 @@ export const MemoryCategorizerModule: React.FC<MemoryCategorizerProps> = ({
                 >
                   <option value="normal">Normal</option>
                   <option value="high">High</option>
-                  <option value="critical">Critical / Core Anchor</option>
+                  <option value="critical">Very important</option>
                 </select>
               </div>
             </div>

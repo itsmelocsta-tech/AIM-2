@@ -308,7 +308,7 @@ export const aimContextService = {
       deferItems.push(`${p.name} (${p.status}: ${p.blockers?.[0] || 'deferred to protect primary focus'})`);
     }
     if (deferItems.length === 0) {
-      deferItems.push('Low-leverage administrative tasks during peak morning energy hours');
+      deferItems.push('Small chores that can wait until later');
       deferItems.push('Speculative opportunities that do not advance today\'s core priorities');
     }
 
@@ -322,7 +322,7 @@ export const aimContextService = {
       whereYouAre: whereYouAreText,
       whatChanged: 'Daily Operating System evaluated current project milestones and priorities.',
       highestPriorityGoal: primaryProject?.goal || 'Establish clear daily momentum on your top priority.',
-      blockingProgress: primaryProject?.blockers?.[0] || 'Define concrete next steps to avoid start friction.',
+      blockingProgress: primaryProject?.blockers?.[0] || 'Pick one clear next step.',
       moneyMove: {
         title: moneyMoveTitle,
         whyBestMove: moneyMoveWhy,

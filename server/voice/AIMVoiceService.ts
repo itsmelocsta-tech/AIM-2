@@ -1,4 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
+import { createHash } from 'node:crypto';
+import { getVoiceProfile, getProfileIdForSelection, normalizeAccentKey } from '../../src/services/voiceProfiles';
 
 export interface SpokenFormatOptions {
   emotion?: 'casual' | 'motivational' | 'planning' | 'reflective' | 'excited' | 'serious';
@@ -24,13 +26,15 @@ export interface VoiceSynthesisResponse {
   spokenText: string;
   emotionDetected: string;
   voiceNameUsed: string;
-  provider: 'gemini-tts' | 'fallback';
+  provider: 'gemini-tts';
   cached?: boolean;
+  modelUsed?: string;
 }
 
 // Memory cache for synthesized voice snippets (keyed by text + profileId)
-const audioCache = new Map<string, { audioBase64: string; mimeType: string; spokenText: string; timestamp: number }>();
+const audioCache = new Map<string, VoiceSynthesisResponse>();
 const MAX_CACHE_SIZE = 100;
+const TTS_MODELS = ['gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts'];
 
 export class AIMVoiceService {
   private static instance: AIMVoiceService;
@@ -187,39 +191,6 @@ export class AIMVoiceService {
     accentStyle: string = 'texan',
     emotion: string = 'casual'
   ): { voiceName: string; stylePrompt: string; locale: string } {
-    // Gemini 3.1 Flash TTS Prebuilt Voices:
-    // Masculine: 'Charon' (deep, resonant, grounded), 'Puck' (energetic, crisp), 'Fenrir' (confident, articulate)
-    // Feminine: 'Kore' (warm, natural, composed), 'Zephyr' (bright, melodic, expressive), 'Aoede' (lyrical, resonant)
-
-    let voiceName = gender === 'feminine' ? 'Kore' : 'Charon';
-    let regionalCadence = 'unhurried, grounded Texas Southwestern warmth with natural pacing and chest resonance';
-    let locale = 'en-US';
-
-    const normalizedAccent = accentStyle.toLowerCase().trim();
-
-    if (normalizedAccent === 'new_york' || normalizedAccent === 'new_york_city' || normalizedAccent.includes('york')) {
-      voiceName = gender === 'feminine' ? 'Zephyr' : 'Puck';
-      regionalCadence = 'energetic, dynamic, crisp New York metropolitan conversational rhythm with sharp articulation and lively flow';
-      locale = 'en-US';
-    } else if (normalizedAccent === 'southern' || normalizedAccent.includes('south') || normalizedAccent === 'louisiana_gulf_south' || normalizedAccent === 'appalachian') {
-      voiceName = gender === 'feminine' ? 'Zephyr' : 'Charon';
-      regionalCadence = 'warm, gentle Southeastern melodic rhythm with relaxed phrasing, hospitable warmth, and subtle elongation';
-      locale = 'en-US';
-    } else if (normalizedAccent === 'midwestern' || normalizedAccent === 'general_american' || normalizedAccent.includes('west_coast') || normalizedAccent.includes('new_england')) {
-      voiceName = gender === 'feminine' ? 'Kore' : 'Fenrir';
-      regionalCadence = 'calm, steady, open-hearted Midwestern American authenticity with balanced, sincere clarity and level pacing';
-      locale = 'en-US';
-    } else if (normalizedAccent === 'african' || normalizedAccent.includes('africa')) {
-      voiceName = gender === 'feminine' ? 'Aoede' : 'Fenrir';
-      regionalCadence = 'resonant, articulate Pan-African English inflection with rhythmic warmth, deliberate phrasing, and confident, inspiring delivery';
-      locale = 'en-NG';
-    } else {
-      // Texan / Default
-      voiceName = gender === 'feminine' ? 'Kore' : 'Charon';
-      regionalCadence = 'unhurried, grounded Texas Southwestern warmth with natural pacing, deep resonance, and reassuring presence';
-      locale = 'en-US';
-    }
-
     let emotionalInstruction = '';
     switch (emotion) {
       case 'motivational':
@@ -243,9 +214,12 @@ export class AIMVoiceService {
         break;
     }
 
-    const stylePrompt = `Speak in a ${regionalCadence}. ${emotionalInstruction} Use natural human breathing rhythm, contractions, and authentic pauses. Speak as a calm human teammate with no robotic stiffness.`;
+    // Use the same identity as the settings preview, rather than a separate server mapping.
+    const profile = getVoiceProfile(getProfileIdForSelection(gender, normalizeAccentKey(accentStyle)));
+    const voiceName = profile.geminiVoiceName;
+    const stylePrompt = `Speak conversationally to one person, like a relaxed, supportive teammate. Use a comfortable everyday pace, varied intonation, and short pauses at sentence boundaries. Keep the regional accent subtle: ${profile.accentTitle}. ${emotionalInstruction} Avoid an announcer voice, exaggerated accents, sing-song delivery, and mechanical emphasis. Read only the transcript below; do not speak these directions.`;
 
-    return { voiceName, stylePrompt, locale };
+    return { voiceName, stylePrompt, locale: profile.locale };
   }
 
   /**
@@ -304,129 +278,115 @@ export class AIMVoiceService {
     const emotion = req.emotion || this.detectEmotion(spokenText);
     const gender = req.gender || (req.voiceProfileId?.startsWith('feminine') ? 'feminine' : 'masculine');
     const accentStyle = req.accentStyle || req.voiceProfileId?.replace(/^(masculine|feminine)_/, '') || 'general_american';
+    const speakingRate = Number.isFinite(req.speakingRate) ? Math.min(1.3, Math.max(0.7, req.speakingRate!)) : 1;
+    const pitch = Number.isFinite(req.pitch) ? Math.min(1.3, Math.max(0.7, req.pitch!)) : 1;
+    const { voiceName, stylePrompt } = this.getGeminiVoiceMapping(gender, accentStyle, emotion);
 
     // 2. Check in-memory audio cache for instantaneous replay/preview
-    const cacheKey = `${spokenText.substring(0, 100)}_${gender}_${accentStyle}_${emotion}`;
+    const cacheKey = createHash('sha256').update(JSON.stringify({ spokenText, voiceName, accentStyle, emotion, speakingRate, pitch, models: TTS_MODELS })).digest('hex');
     const cached = audioCache.get(cacheKey);
     if (cached) {
       return {
-        audioBase64: cached.audioBase64,
-        mimeType: cached.mimeType,
-        spokenText: cached.spokenText,
-        emotionDetected: emotion,
-        voiceNameUsed: 'cached',
-        provider: 'gemini-tts',
+        ...cached,
         cached: true,
       };
     }
 
     // 3. Resolve Voice & Style Prompt
-    const { voiceName, stylePrompt } = this.getGeminiVoiceMapping(gender, accentStyle, emotion);
-
     // 4. Construct conversational speech prompt for Gemini TTS
-    const promptWithDirection = `${stylePrompt}
+    const pace = speakingRate < 0.9 ? 'slightly slower' : speakingRate > 1.1 ? 'slightly quicker' : 'comfortable, conversational';
+    const tone = pitch < 0.9 ? 'slightly lower' : pitch > 1.1 ? 'slightly lighter' : 'your natural';
+    const promptWithDirection = `${stylePrompt} Use ${pace} pacing and ${tone} vocal register.\n\nTranscript:\n${spokenText}`;
 
-"${spokenText}"`;
-
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-tts-preview',
-        contents: [
-          {
-            parts: [
-              {
-                text: promptWithDirection,
-              },
-            ],
-          },
-        ],
-        config: {
-          responseModalities: ['AUDIO'],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: voiceName,
+    let lastError: unknown;
+    for (const model of TTS_MODELS) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: [
+            {
+              parts: [
+                {
+                  text: promptWithDirection,
+                },
+              ],
+            },
+          ],
+          config: {
+            httpOptions: { timeout: 15000 },
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: voiceName,
+                },
               },
             },
           },
-        },
-      });
+        });
 
-      let rawBase64Audio: string | undefined;
-      let mimeType = 'audio/pcm;rate=24000';
+        let rawBase64Audio: string | undefined;
+        let mimeType = 'audio/pcm;rate=24000';
 
-      for (const candidate of response.candidates || []) {
-        for (const part of candidate.content?.parts || []) {
-          if (part.inlineData?.data) {
-            rawBase64Audio = part.inlineData.data;
-            if (part.inlineData.mimeType) {
-              mimeType = part.inlineData.mimeType;
+        for (const candidate of response.candidates || []) {
+          for (const part of candidate.content?.parts || []) {
+            if (part.inlineData?.data && part.inlineData.mimeType?.startsWith('audio/')) {
+              rawBase64Audio = part.inlineData.data;
+              if (part.inlineData.mimeType) {
+                mimeType = part.inlineData.mimeType;
+              }
+              break;
             }
-            break;
           }
+          if (rawBase64Audio) break;
         }
-        if (rawBase64Audio) break;
-      }
 
-      if (!rawBase64Audio) {
-        console.warn('[AIMVoiceService] Gemini TTS candidate parts contained no inline audio data');
-        return {
-          audioBase64: '',
-          mimeType: '',
+        if (!rawBase64Audio) {
+          lastError = new Error('Natural voice returned no audio');
+          continue;
+        }
+
+        // 5. Convert raw PCM base64 to standard WAV buffer and base64 string if needed
+        let finalAudioBase64 = rawBase64Audio;
+        let finalMimeType = mimeType;
+
+        if (
+          mimeType.includes('pcm') ||
+          (!mimeType.includes('wav') &&
+            !mimeType.includes('mp3') &&
+            !mimeType.includes('mpeg') &&
+            !mimeType.includes('ogg'))
+        ) {
+          const rawBuffer = Buffer.from(rawBase64Audio, 'base64');
+          const sampleRate = Number(mimeType.match(/rate=(\d+)/)?.[1] || 24000);
+          const wavBuffer = this.pcmToWav(rawBuffer, sampleRate, 1, 16);
+          finalAudioBase64 = wavBuffer.toString('base64');
+          finalMimeType = 'audio/wav';
+        }
+
+        // 6. Cache the synthesized audio
+        if (audioCache.size >= MAX_CACHE_SIZE) {
+          const oldestKey = audioCache.keys().next().value;
+          if (oldestKey) audioCache.delete(oldestKey);
+        }
+        const result: VoiceSynthesisResponse = {
+          audioBase64: finalAudioBase64,
+          mimeType: finalMimeType,
           spokenText,
           emotionDetected: emotion,
           voiceNameUsed: voiceName,
-          provider: 'fallback',
+          provider: 'gemini-tts',
+          modelUsed: model,
         };
+        audioCache.set(cacheKey, result);
+        return result;
+      } catch (err: any) {
+        lastError = err;
+        const status = Number(err?.status || err?.code);
+        if (status === 400 || status === 401 || status === 403) break;
+        // Try the other free-tier-capable neural model, never a device voice.
       }
-
-      // 5. Convert raw PCM base64 to standard WAV buffer and base64 string if needed
-      let finalAudioBase64 = rawBase64Audio;
-      let finalMimeType = mimeType;
-
-      if (
-        mimeType.includes('pcm') ||
-        (!mimeType.includes('wav') &&
-          !mimeType.includes('mp3') &&
-          !mimeType.includes('mpeg') &&
-          !mimeType.includes('ogg'))
-      ) {
-        const rawBuffer = Buffer.from(rawBase64Audio, 'base64');
-        const wavBuffer = this.pcmToWav(rawBuffer, 24000, 1, 16);
-        finalAudioBase64 = wavBuffer.toString('base64');
-        finalMimeType = 'audio/wav';
-      }
-
-      // 6. Cache the synthesized audio
-      if (audioCache.size >= MAX_CACHE_SIZE) {
-        const oldestKey = audioCache.keys().next().value;
-        if (oldestKey) audioCache.delete(oldestKey);
-      }
-      audioCache.set(cacheKey, {
-        audioBase64: finalAudioBase64,
-        mimeType: finalMimeType,
-        spokenText,
-        timestamp: Date.now(),
-      });
-
-      return {
-        audioBase64: finalAudioBase64,
-        mimeType: finalMimeType,
-        spokenText,
-        emotionDetected: emotion,
-        voiceNameUsed: voiceName,
-        provider: 'gemini-tts',
-      };
-    } catch (err: any) {
-      console.warn('[AIMVoiceService] Gemini TTS unavailable, returning fallback:', err?.message || err);
-      return {
-        audioBase64: '',
-        mimeType: '',
-        spokenText,
-        emotionDetected: emotion,
-        voiceNameUsed: voiceName,
-        provider: 'fallback',
-      };
     }
+    throw lastError || new Error('Natural voice is temporarily unavailable');
   }
 }

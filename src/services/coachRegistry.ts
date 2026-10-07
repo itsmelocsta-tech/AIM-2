@@ -7,7 +7,7 @@ export const COACH_CONFIGS: Record<CoachId, CoachConfig> = {
     shortLabel: 'Guidance',
     route: '/home',
     roleTitle: 'Guidance Coordinator',
-    subtitle: 'Primary daily navigator, schedule calibration, and life trajectory alignment.',
+    subtitle: 'Plan your day, pick what matters, and adjust when life changes.',
     orbVariant: 'guidance',
     themeColor: '#6366f1', // Indigo
     accentColor: '#38bdf8', // Sky
@@ -35,10 +35,10 @@ Provide concise, grounded, realistic, and clear answers. Never use generic motiv
   motivation: {
     id: 'motivation',
     label: 'Motivation',
-    shortLabel: 'Momentum',
+    shortLabel: 'Motivation',
     route: '/coach/motivation',
-    roleTitle: 'Momentum & Accountability Coach',
-    subtitle: 'Overcome friction, rebuild momentum, break inertia, and lock in daily execution.',
+    roleTitle: 'Motivation Coach',
+    subtitle: 'Get started, keep going, and find a manageable next step.',
     orbVariant: 'motivation',
     themeColor: '#f97316', // Orange
     accentColor: '#ef4444', // Red
@@ -49,7 +49,7 @@ Provide concise, grounded, realistic, and clear answers. Never use generic motiv
       'update_schedule_item_status',
       'save_coach_message',
     ],
-    openingPrompt: "What are we pushing through today? Tell me what's creating friction or what you want to conquer next.",
+    openingPrompt: "What feels hard today? Let’s find a small step you can take.",
     systemInstruction: `You are the Motivation Coach inside AIM, specialized in motivation, recovery, momentum, and accountability.
 You meet users where they are without shame or guilt.
 When a user struggles with inertia, procrastination, or fear:
@@ -67,8 +67,8 @@ Never use hollow cheerleading or aggressive shame. Frame every setback as useful
     label: 'Spiritual',
     shortLabel: 'Reflection',
     route: '/coach/spiritual',
-    roleTitle: 'Inner Alignment & Reflection Coach',
-    subtitle: 'Explore meaning, core values, emotional patterns, gratitude, and inner stillness.',
+    roleTitle: 'Spiritual Coach',
+    subtitle: 'Talk about your beliefs, what matters to you, and finding peace.',
     orbVariant: 'spiritual',
     themeColor: '#a855f7', // Purple
     accentColor: '#fbbf24', // Amber
@@ -77,7 +77,7 @@ Never use hollow cheerleading or aggressive shame. Frame every setback as useful
       'create_life_update_draft',
       'save_coach_message',
     ],
-    openingPrompt: "What has your spirit been showing you lately? Let’s create space for reflection, gratitude, and clarity.",
+    openingPrompt: "What’s been on your mind? Let’s talk about your beliefs and what helps you feel at peace.",
     systemInstruction: `You are the Spiritual Coach inside AIM, focused on reflection, beliefs, identity, core values, gratitude, emotional patterns, meaning, and inner peace.
 Support the user in connecting their outward daily actions with their deepest inner convictions and long-term calling.
 Ask thoughtful, contemplative questions that help unearth underlying feelings, unexamined assumptions, and quiet gratitude.
@@ -90,10 +90,10 @@ Maintain deep respect for diverse faiths, philosophies, spiritual practices, and
   health: {
     id: 'health',
     label: 'Health',
-    shortLabel: 'Vitality',
+    shortLabel: 'Health',
     route: '/coach/health',
-    roleTitle: 'Vitality & Whole-Person Wellness Coach',
-    subtitle: 'Evidence-based guidance for sleep, nutrition, movement, recovery, and stress reduction.',
+    roleTitle: 'Health Coach',
+    subtitle: 'Help with sleep, food, movement, rest, and stress.',
     orbVariant: 'health',
     themeColor: '#10b981', // Emerald
     accentColor: '#06b6d4', // Cyan
@@ -119,8 +119,8 @@ CRITICAL SAFETY BOUNDARY: You are not a doctor and cannot diagnose, prescribe, o
     label: 'Relationships',
     shortLabel: 'Connection',
     route: '/coach/relationships',
-    roleTitle: 'Communication & Relational Dynamics Coach',
-    subtitle: 'Navigate friendships, family, boundaries, conflict resolution, and authentic connection.',
+    roleTitle: 'Relationships Coach',
+    subtitle: 'Help with family, friends, honest talks, and getting along.',
     orbVariant: 'relationships',
     themeColor: '#f43f5e', // Rose
     accentColor: '#fb7185', // Coral
@@ -129,7 +129,7 @@ CRITICAL SAFETY BOUNDARY: You are not a doctor and cannot diagnose, prescribe, o
       'create_life_update_draft',
       'save_coach_message',
     ],
-    openingPrompt: "Who or what relationship dynamic is on your mind today? Let's unpack the conversation, boundary, or connection.",
+    openingPrompt: "Who’s on your mind today? Let’s talk about what happened and what you need.",
     systemInstruction: `You are the Relationships Coach inside AIM, helping users navigate friendships, family, parenting, dating, partnership, workplace communication, healthy boundaries, trust building, and conflict resolution.
 Offer empathetic, balanced perspectives that emphasize non-violent communication, clear expectations, self-respect, and mutual repair.
 Help users draft constructive messages or rehearse difficult conversations with calm clarity.

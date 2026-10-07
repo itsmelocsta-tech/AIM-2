@@ -1,3 +1,4 @@
+import { plainPlanLabel } from '../../utils/planLanguage';
 import React, { useState } from 'react';
 import {
   Calendar,
@@ -107,7 +108,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
     onToast('Priority task added to today’s plan.');
   };
 
-  // Run Morning Alignment with AIM AI
+  // Run Morning check-inment with AIM AI
   const handleGenerateMorningPlan = async () => {
     setIsGenerating(true);
     try {
@@ -209,7 +210,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
   // Sync Daily Plan to Google Drive
   const handleSyncToDrive = async () => {
     setIsSyncingDrive(true);
-    const content = `# AIM Daily Execution Plan - ${dailyPlan.date}\n\n**Focus Theme:** ${dailyPlan.theme}\n**Energy Level:** ${dailyPlan.energyLevel}/10\n**Mindset Anchor:** "${dailyPlan.mindsetReminder}"\n\n## Top Priority Tasks\n${dailyPlan.priorityTasks
+    const content = `# AIM Daily Plan - ${dailyPlan.date}\n\n**Focus Theme:** ${plainPlanLabel(dailyPlan.theme)}\n**Energy Level:** ${dailyPlan.energyLevel}/10\n**A reminder for today:** "${dailyPlan.mindsetReminder}"\n\n## Top Priority Tasks\n${dailyPlan.priorityTasks
       .map((t) => `- [${t.completed ? 'x' : ' '}] **${t.task}** (${t.category}, ${t.timeEstimate}, Impact: ${t.impact})`)
       .join('\n')}\n\n## Time Blocks\n${dailyPlan.timeBlocks
       .map((b) => `- [${b.completed ? 'x' : ' '}] **${b.time}** - ${b.title} (${b.details})`)
@@ -248,11 +249,11 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
           <div className="flex items-center gap-2 mb-1">
             <Calendar className="w-5 h-5 text-indigo-400" />
             <h2 className="text-lg font-bold text-white tracking-tight">
-              Daily Master Planner & Reflection Engine
+              Your daily plan
             </h2>
           </div>
           <p className="text-xs text-slate-400">
-            {dailyPlan.date} • Theme: <strong className="text-indigo-300 font-semibold">{dailyPlan.theme}</strong>
+            {dailyPlan.date} • Theme: <strong className="text-indigo-300 font-semibold">{plainPlanLabel(dailyPlan.theme)}</strong>
           </p>
         </div>
 
@@ -262,7 +263,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             className="flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-amber-950/80 hover:bg-amber-900/80 text-amber-300 border border-amber-800/80 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
           >
             <Sun className="w-3.5 h-3.5 text-amber-400" />
-            <span>Morning Align</span>
+            <span>Morning check-in</span>
           </button>
 
           <button
@@ -270,7 +271,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             className="flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-indigo-950/80 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-800/80 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
           >
             <Moon className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Evening Review</span>
+            <span>Evening check-in</span>
           </button>
 
           <button
@@ -284,13 +285,13 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
         </div>
       </div>
 
-      {/* Morning Alignment Modal / Drawer */}
+      {/* Morning check-inment Modal / Drawer */}
       {activeMode === 'morning_align' && (
         <div className="bg-slate-900 border border-amber-500/50 rounded-2xl p-6 shadow-2xl space-y-5 animate-fadeIn">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
               <Sun className="w-5 h-5 text-amber-400" />
-              <h3 className="text-base font-bold text-white">Morning Alignment: "How do you want today to go?"</h3>
+              <h3 className="text-base font-bold text-white">Morning check-in: "How do you want today to go?"</h3>
             </div>
             <button onClick={() => setActiveMode('plan')} className="text-xs text-slate-400 hover:text-slate-200">
               Close
@@ -367,13 +368,13 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               className="px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-md transition-all"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>{isGenerating ? 'Synthesizing Master Plan...' : 'Generate Ideal Plan'}</span>
+              <span>{isGenerating ? 'Making your plan...' : 'Make my daily plan'}</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* Evening Review Modal / Drawer */}
+      {/* Evening check-in Modal / Drawer */}
       {activeMode === 'evening_review' && (
         <div className="bg-slate-900 border border-indigo-500/50 rounded-2xl p-6 shadow-2xl space-y-5 animate-fadeIn">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -387,12 +388,12 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
           </div>
 
           <p className="text-xs text-slate-300 leading-relaxed">
-            AIM never shames missed tasks. We reflect, celebrate wins, extract patterns, and recalculate tomorrow’s trajectory with precision.
+            Missed something? That’s okay. We’ll look at what worked and make a plan for tomorrow.
           </p>
 
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">
-              What went well, what friction occurred, and what did you learn today?
+              What went well? What was hard? What did you learn?
             </label>
             <textarea
               rows={4}
@@ -405,7 +406,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
 
           <div>
             <label htmlFor="architect-routine" className="block text-xs font-medium text-slate-300 mb-1">
-              Architect: What will you set up to make the next finish easier? (optional)
+              What could make your next step easier? (optional)
             </label>
             <input
               id="architect-routine"
@@ -482,10 +483,10 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
         </div>
 
         <span className="text-xs text-slate-400 hidden sm:inline">
-          {plannerHorizon === 'today' && 'Daily execution & time blocks'}
-          {plannerHorizon === 'weekly' && '7-day momentum & pacing'}
-          {plannerHorizon === 'monthly' && '30-day identity manifestation'}
-          {plannerHorizon === 'timeline' && 'Adaptive trajectory history'}
+          {plannerHorizon === 'today' && 'Your tasks and schedule'}
+          {plannerHorizon === 'weekly' && 'Your week ahead'}
+          {plannerHorizon === 'monthly' && 'Your goals for this month'}
+          {plannerHorizon === 'timeline' && 'How your plan has changed'}
         </span>
       </div>
 
@@ -494,28 +495,28 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fadeIn">
           {/* Left Column: Top 3 Priority Tasks (5 Cols) */}
           <div className="lg:col-span-5 space-y-6">
-            <section aria-label="Drifter, Finisher, Architect workflow" className="bg-slate-900 border border-indigo-800/60 rounded-2xl p-5 space-y-3 shadow-md">
-              <h3 className="text-sm font-bold text-white">Drifter → Finisher → Architect</h3>
+            <section aria-label="Notice distractions, finish a step, make it easier" className="bg-slate-900 border border-indigo-800/60 rounded-2xl p-5 space-y-3 shadow-md">
+              <h3 className="text-sm font-bold text-white">Notice, finish, make it easier</h3>
               <p className="text-xs text-slate-300 leading-relaxed break-words">
-                <strong className="text-amber-300">Spot the drift:</strong>{' '}
-                {userProfile.finishingSystem?.driftTrigger || 'Name what pulls you off track in Morning Align. A distracted moment does not define you.'}
+                <strong className="text-amber-300">What pulls you away:</strong>{' '}
+                {userProfile.finishingSystem?.driftTrigger || 'Use your morning check-in to name what pulls you away. You can always start again.'}
               </p>
               <p className="text-xs text-slate-300 leading-relaxed break-words">
                 <strong className="text-emerald-300">Finish one thing:</strong>{' '}
                 {finisherTask ? finisherTask.task : dailyPlan.priorityTasks.length
-                  ? `All ${completedTasksCount} priorities checked off. Take that win into Evening Review.`
+                  ? `All ${completedTasksCount} priorities checked off. Take that win into Evening check-in.`
                   : 'Add one concrete priority below, then check it off when it is actually done.'}
               </p>
               <p className="text-xs text-slate-300 leading-relaxed break-words">
-                <strong className="text-indigo-300">Build the system:</strong>{' '}
-                {userProfile.finishingSystem?.protectiveRoutine || 'Use Evening Review to choose a repeatable setup for tomorrow.'}
+                <strong className="text-indigo-300">Make it easier:</strong>{' '}
+                {userProfile.finishingSystem?.protectiveRoutine || 'At your evening check-in, pick one thing that will make tomorrow easier.'}
               </p>
             </section>
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md space-y-5">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Zap className="w-4 h-4 text-emerald-400" />
-                  <span>Today’s High-Impact Priorities</span>
+                  <span>What matters most today</span>
                 </h3>
                 <span className="text-xs text-emerald-400 font-semibold">
                   {completedTasksCount} / {dailyPlan.priorityTasks.length} Done
@@ -598,7 +599,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             {/* Mindset Anchor Card */}
             <div className="bg-gradient-to-br from-indigo-950/60 to-slate-900 border border-indigo-900/40 rounded-2xl p-5 shadow-sm space-y-2">
               <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">
-                Psychological Anchor
+                A reminder for today
               </span>
               <p className="text-xs text-indigo-200 font-medium italic leading-relaxed">
                 "{dailyPlan.mindsetReminder}"
@@ -610,7 +611,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               <div className="bg-slate-900 border border-emerald-900/50 rounded-2xl p-5 shadow-md space-y-3">
                 <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Evening Trajectory Calibration</span>
+                  <span>Evening check-in</span>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">
                   {dailyPlan.eveningReflection.summary}
@@ -644,7 +645,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Clock className="w-4 h-4 text-indigo-400" />
-                  <span>Daily Execution Schedule & Time Blocks</span>
+                  <span>Your schedule</span>
                 </h3>
                 <span className="text-xs text-slate-400">{dailyPlan.availableHours} Productive Hours</span>
               </div>
@@ -677,7 +678,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                       {block.details && (
                         <div className="mt-2 text-[11px] text-slate-300 leading-relaxed bg-slate-900/70 p-2.5 rounded-lg border border-slate-800 space-y-1">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block">
-                            Execution Details:
+                            What to do:
                           </span>
                           <div className="whitespace-pre-line text-slate-200">
                             {block.details}
@@ -699,7 +700,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <BarChart2 className="w-4 h-4 text-indigo-400" />
-              <span>7-Day Strategic Momentum Pacing</span>
+              <span>Your plan for this week</span>
             </h3>
             <span className="text-xs text-indigo-300 font-mono">Week Active</span>
           </div>
@@ -730,7 +731,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                     <p className="text-[11px] text-slate-300 font-medium">
                       {isToday
                         ? dailyPlan.priorityTasks[0]?.task || 'Core Priority Sprint'
-                        : `Phase ${idx + 1} Execution Block`}
+                        : `Part ${idx + 1}`}
                     </p>
                   </div>
 
@@ -751,7 +752,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <Target className="w-4 h-4 text-emerald-400" />
-              <span>30-Day Identity & Milestone Roadmap</span>
+              <span>Your goals for this month</span>
             </h3>
             <span className="text-xs text-slate-400">{goals.length} Active Target Goals</span>
           </div>
@@ -786,7 +787,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <GitCommit className="w-4 h-4 text-indigo-400" />
-              <span>Continuous Execution Timeline & GPS Recalibration Trail</span>
+              <span>Your progress and plan changes</span>
             </h3>
           </div>
 
@@ -794,8 +795,8 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             <div className="relative">
               <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-indigo-600 border-2 border-slate-950" />
               <div className="bg-slate-950 border border-indigo-500/40 rounded-xl p-4 space-y-1">
-                <span className="text-[10px] text-indigo-400 font-mono">CURRENT TRAJECTORY</span>
-                <h4 className="text-xs font-bold text-white">{dailyPlan.theme}</h4>
+                <span className="text-[10px] text-indigo-400 font-mono">YOUR CURRENT PLAN</span>
+                <h4 className="text-xs font-bold text-white">{plainPlanLabel(dailyPlan.theme)}</h4>
                 <p className="text-xs text-slate-400">
                   {dailyPlan.priorityTasks.length} active priority tasks aligned with target identity: "{userProfile.desiredIdentity || 'High Performer'}".
                 </p>
@@ -806,9 +807,9 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-slate-700 border-2 border-slate-950" />
               <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-1">
                 <span className="text-[10px] text-slate-500 font-mono">90-DAY DESTINATION</span>
-                <h4 className="text-xs font-bold text-slate-200">Core Identity Manifestation</h4>
+                <h4 className="text-xs font-bold text-slate-200">What you’re working toward</h4>
                 <p className="text-xs text-slate-400">
-                  {userProfile.ninetyDayTrajectory || 'Consistent compounding execution of high-leverage milestones.'}
+                  {userProfile.ninetyDayTrajectory || 'Take one useful step at a time.'}
                 </p>
               </div>
             </div>

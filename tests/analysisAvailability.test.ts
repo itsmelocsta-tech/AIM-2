@@ -4,6 +4,13 @@ import type { Server } from 'node:http';
 const auth = vi.hoisted(() => ({ verify: vi.fn() }));
 vi.mock('firebase-admin/app', () => ({ getApps: () => [{}], initializeApp: vi.fn() }));
 vi.mock('firebase-admin/auth', () => ({ getAuth: () => ({ verifyIdToken: auth.verify }) }));
+vi.mock('firebase-admin/firestore', () => ({
+  getFirestore: () => ({
+    doc: () => ({
+      get: async () => ({ data: () => ({ plan: 'premium', status: 'active' }) }),
+    }),
+  }),
+}));
 
 beforeEach(() => {
   vi.resetModules();

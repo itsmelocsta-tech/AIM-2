@@ -1,4 +1,4 @@
-import { getApps, initializeApp, App } from 'firebase-admin/app';
+import { getApps, initializeApp, cert, App } from 'firebase-admin/app';
 import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
 import { Request, Response, NextFunction } from 'express';
 
@@ -12,11 +12,18 @@ export function getFirebaseAdminApp(): App | null {
     } else {
       const projectId = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0573723214';
       try {
+        const rawCredential = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+        const serviceAccount = rawCredential ? JSON.parse(rawCredential) : null;
+        if (serviceAccount && serviceAccount.project_id !== projectId) {
+          throw new Error('Firebase credential project does not match AIM');
+        }
         appInstance = initializeApp({
           projectId,
+          ...(serviceAccount ? { credential: cert(serviceAccount) } : {}),
         });
       } catch (err) {
-        console.warn('[firebaseAdmin] Failed to initialize admin app:', err);
+        // Credential parsing errors can include secret-bearing input; never log them.
+        console.warn('[firebaseAdmin] Unable to initialize the configured credential');
       }
     }
   }

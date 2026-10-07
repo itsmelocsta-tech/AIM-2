@@ -33,7 +33,7 @@ export const api = {
       console.error('API interactWithCoach error:', error);
       return {
         coachId: params.coachId,
-        displayText: `I'm here with you. Let's calibrate your daily momentum and focus on the immediate next win right now.`,
+        displayText: `I’m here with you. Let’s choose one useful thing to do next.`,
         spokenText: `I'm here with you. Let's focus on the immediate next step right now.`,
         intent: 'conversation',
         confidence: 0.85,
@@ -123,17 +123,17 @@ export const api = {
       if (error instanceof AuthenticationError) throw error;
       console.error('API generateMonetizationOffer error:', error);
       return {
-        title: 'Rapid High-Leverage Growth Sprint',
-        hook: `I will personally audit your highest-friction ${params.targetNiche} bottleneck and deliver a turnkey, conversion-ready asset within 48 hours.`,
+        title: 'A Simple Service Offer',
+        hook: `I will review your ${params.targetNiche} work and make something useful for you within two days.`,
         deliverables: [
-          'Full diagnostic audit of current acquisition or delivery bottleneck',
-          'Custom step-by-step optimization blueprint',
-          'Direct implementation and deliverable handoff',
+          'Find what makes it hard to get customers or finish work',
+          'A simple plan made for your needs',
+          'Ready-to-use work you can keep',
         ],
         pricingTiers: [
-          { name: 'Starter Sprint', price: params.pricePoint || '$750', description: 'Audit + tactical roadmap' },
-          { name: 'Full Delivery', price: '$2,500', description: 'Turnkey asset creation and 48h delivery' },
-          { name: 'Monthly Advisory', price: '$4,500/mo', description: 'Weekly sprints and continuous access' },
+          { name: 'Starter Sprint', price: params.pricePoint || '$750', description: 'A review and a simple plan' },
+          { name: 'Full Delivery', price: '$2,500', description: 'Ready-to-use work in two days' },
+          { name: 'Monthly Advisory', price: '$4,500/mo', description: 'Weekly help and check-ins' },
         ],
         coldOutreachScript: `Hey [Name]! Loved your work on [Project]. Noticed one quick area on your funnel where you might be leaking conversions. I put together a quick 3-point breakdown showing how to capture an extra 15-20% margin—mind if I send the 2-min loom over?`,
         followUpScript: `Hey [Name], following up on this! Even if you have this covered with your team, happy to send the breakdown PDF over if useful for your team review.`,
@@ -142,7 +142,7 @@ export const api = {
           'If this bottleneck was completely eliminated by Friday, what would that mean for your revenue?',
         ],
         todayActionChecklist: [
-          'Identify 15 target prospects matching ICP criteria',
+          'List 15 people who might need your service',
           'Send personalized outreach hook before noon',
           'Follow up with 3 open leads with a fast-action incentive today',
         ],
