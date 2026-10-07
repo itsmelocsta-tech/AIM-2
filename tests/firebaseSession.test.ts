@@ -1,14 +1,19 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ auth: { currentUser: null as any, authStateReady: vi.fn() }, token: vi.fn() }));
+const mocks = vi.hoisted(() => ({ auth: { currentUser: null as any, authStateReady: vi.fn() }, token: vi.fn(), firestoreArgs: [] as unknown[] }));
 vi.mock('firebase/app', () => ({ initializeApp: () => ({}), getApps: () => [], getApp: () => ({}) }));
-vi.mock('firebase/firestore', () => ({ getFirestore: () => ({}) }));
+vi.mock('firebase/firestore', () => ({ getFirestore: (...args: unknown[]) => { mocks.firestoreArgs = args; return {}; } }));
 vi.mock('firebase/auth', () => ({
   getAuth: () => mocks.auth, GoogleAuthProvider: class {}, signInWithPopup: vi.fn(),
   signInWithEmailAndPassword: vi.fn(), createUserWithEmailAndPassword: vi.fn(),
   signOut: vi.fn(), onAuthStateChanged: vi.fn(), signInAnonymously: vi.fn(),
 }));
 import { getIdToken } from '../src/services/firebaseClient';
+import firebaseConfig from '../firebase-applet-config.json';
 beforeEach(() => { vi.resetAllMocks(); mocks.auth.currentUser = null; });
+it('selects the existing named AIM database', () => {
+  expect(mocks.firestoreArgs).toEqual([expect.anything(), firebaseConfig.firestoreDatabaseId]);
+  expect(firebaseConfig.firestoreDatabaseId).not.toBe('(default)');
+});
 it('waits for restored session before reading the user', async () => {
   mocks.auth.authStateReady.mockImplementation(async () => { mocks.auth.currentUser = { getIdToken: mocks.token }; });
   mocks.token.mockResolvedValue('restored-token');
