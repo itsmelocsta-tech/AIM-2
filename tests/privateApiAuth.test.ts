@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Server } from 'node:http';
 
-const mocks = vi.hoisted(() => ({ verify: vi.fn(), initialize: vi.fn(), apps: vi.fn() }));
-vi.mock('firebase-admin/app', () => ({ getApps: mocks.apps, initializeApp: mocks.initialize }));
+const mocks = vi.hoisted(() => ({ verify: vi.fn(), initialize: vi.fn(), apps: vi.fn(), cert: vi.fn() }));
+vi.mock('firebase-admin/app', () => ({ getApps: mocks.apps, initializeApp: mocks.initialize, cert: mocks.cert }));
 vi.mock('firebase-admin/auth', () => ({ getAuth: () => ({ verifyIdToken: mocks.verify }) }));
 
 beforeEach(() => {
@@ -77,6 +77,45 @@ describe('private API authentication', () => {
     });
   });
 
+  it('uses a server-only service account for Firebase Admin on Vercel', async () => {
+    mocks.apps.mockReturnValue([]);
+    mocks.cert.mockReturnValue({ credential: 'verified' });
+    mocks.initialize.mockReturnValue({});
+    vi.stubEnv('FIREBASE_PROJECT_ID', 'aim-project');
+    vi.stubEnv('FIREBASE_SERVICE_ACCOUNT_JSON', JSON.stringify({ project_id: 'aim-project', client_email: 'admin@example.com', private_key: 'test-key' }));
+    try {
+      await withServer(async base => {
+        const response = await fetch(`${base}/api/aim/voice/format-spoken`, {
+          method: 'POST', headers: { Authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: 'Hello' }),
+        });
+        expect(response.status).toBe(200);
+      });
+      expect(mocks.cert).toHaveBeenCalledOnce();
+      expect(mocks.initialize).toHaveBeenCalledWith({ projectId: 'aim-project', credential: { credential: 'verified' } });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('rejects a service account from a different Firebase project', async () => {
+    mocks.apps.mockReturnValue([]);
+    vi.stubEnv('FIREBASE_PROJECT_ID', 'aim-project');
+    vi.stubEnv('FIREBASE_SERVICE_ACCOUNT_JSON', JSON.stringify({ project_id: 'other-project' }));
+    try {
+      await withServer(async base => {
+        const response = await fetch(`${base}/api/aim/voice/format-spoken`, {
+          method: 'POST', headers: { Authorization: 'Bearer valid-token' },
+        });
+        expect(response.status).toBe(500);
+      });
+      expect(mocks.cert).not.toHaveBeenCalled();
+      expect(mocks.verify).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('keeps health public', async () => {
     await withServer(async base => {
       expect((await fetch(`${base}/api/health`)).status).toBe(200);
@@ -91,5 +130,23 @@ it('reports verifier infrastructure failures as 503 without accepting the reques
       method: 'POST', headers: { Authorization: 'Bearer valid-token' },
     });
     expect(res.status).toBe(503);
+  });
+});
+
+it.each([['config', 'GET'], ['verify', 'POST'], ['status', 'GET']])('protects Play billing %s', async (path, method) => {
+  await withServer(async base => {
+    expect((await fetch(`${base}/api/aim/billing/${path}`, { method })).status).toBe(401);
+    expect(mocks.verify).not.toHaveBeenCalled();
+  });
+});
+
+it('does not mislabel a Firebase verifier network failure as a rejected account', async () => {
+  mocks.verify.mockRejectedValue(Object.assign(new Error('Error while making request: Connection to establish proxy tunnel timed out'), { code: 'auth/argument-error' }));
+  await withServer(async base => {
+    const res = await fetch(`${base}/api/aim/voice/format-spoken`, {
+      method: 'POST', headers: { Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(503);
+    expect(mocks.verify).toHaveBeenCalledWith('valid-token', true);
   });
 });
