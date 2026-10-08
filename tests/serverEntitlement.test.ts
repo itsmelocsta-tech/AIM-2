@@ -5,11 +5,20 @@ vi.mock('../server/billing/googlePlay', () => ({ currentSubscription: async (uid
   if (verified.unavailable) throw new Error('Unavailable');
   return verified.value;
 } }));
-import { isPremium, readEntitlement } from '../server/entitlementService';
+import { isPremium, readEntitlement, requireCoachAccess } from '../server/entitlementService';
 
 beforeEach(() => { verified.value = {}; verified.unavailable = false; verified.uid = ''; });
 
 describe('server Premium enforcement', () => {
+  it('keeps guidance free but rejects unverified specialist-coach access', async () => {
+    const next = vi.fn(), res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    await requireCoachAccess({ user: { uid: 'owner' }, body: { coachId: 'guidance' } } as any, res as any, next);
+    expect(next).toHaveBeenCalledOnce();
+    verified.value = { active: false };
+    next.mockClear();
+    await requireCoachAccess({ user: { uid: 'owner' }, body: { coachId: 'career' } } as any, res as any, next);
+    expect(next).not.toHaveBeenCalled(); expect(res.status).toHaveBeenCalledWith(403);
+  });
   it('rejects Basic and expired states', () => {
     expect(isPremium({ plan: 'basic', status: 'free' })).toBe(false);
     expect(isPremium({ plan: 'premium', status: 'expired' })).toBe(false);

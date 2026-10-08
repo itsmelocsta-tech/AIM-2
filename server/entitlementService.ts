@@ -39,3 +39,7 @@ export async function requirePremium(req: AuthenticatedRequest, res: Response, n
   (req as any).entitlement = entitlement;
   return next();
 }
+
+export function requireCoachAccess(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  return !req.body?.coachId || req.body.coachId === 'guidance' ? next() : requirePremium(req, res, next);
+}

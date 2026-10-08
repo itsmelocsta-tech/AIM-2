@@ -22,5 +22,6 @@ describe('progressive Life OS module access', () => {
     expect(modules.has('scanner')).toBe(false);
     expect(modules.has('projects')).toBe(false);
     expect(modules.has('wellness')).toBe(false);
+    expect(modules.has('life-update')).toBe(true);
   });
 });

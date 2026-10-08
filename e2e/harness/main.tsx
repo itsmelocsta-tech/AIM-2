@@ -9,6 +9,10 @@ import { DailyPlan, PriorityTask, UserProfile } from '../../src/types';
 import { getTodayDateString } from '../../src/utils/dateTimeUtils';
 import { OpportunityScannerModule } from '../../src/components/modules/OpportunityScannerModule';
 import { DEFAULT_PERSONAL_CONTEXT } from '../../src/services/aimContextService';
+import { AuthProvider } from '../../src/context/AuthContext';
+import { AccountDeletionPage } from '../../src/components/auth/AccountDeletionPage';
+import { AimHomeModule } from '../../src/components/modules/AimHomeModule';
+import { LifeUpdateModule } from '../../src/components/modules/LifeUpdateModule';
 import '../../src/index.css';
 
 const userId = 'playwright-alarm-user';
@@ -100,6 +104,17 @@ function AlarmHarness() {
   </main>;
 }
 
-createRoot(document.getElementById('root')!).render(new URLSearchParams(location.search).has('opportunities')
+function PlanUpdateHarness() {
+  const [view, setView] = useState('home');
+  return <main className="min-h-screen bg-slate-950 text-white p-4">{view === 'life-update'
+    ? <LifeUpdateModule userProfile={profile} dailyPlan={startingPlan} goals={[]} wellnessLogs={[]} lifeUpdates={[]} onUpdateLifeUpdates={() => undefined} onCommitReroute={async () => undefined} onCommitLifeNote={async () => undefined} onNavigateToTab={setView} onToast={() => undefined} />
+    : <AimHomeModule userProfile={profile} dailyPlan={startingPlan} context={DEFAULT_PERSONAL_CONTEXT} projects={[]} onRefreshRecommendation={async () => undefined} onNavigateToTab={setView} onToast={() => undefined} />}</main>;
+}
+
+createRoot(document.getElementById('root')!).render(new URLSearchParams(location.search).has('plan-update')
+  ? <PlanUpdateHarness />
+  : new URLSearchParams(location.search).has('delete-account')
+  ? <AuthProvider><AccountDeletionPage /></AuthProvider>
+  : new URLSearchParams(location.search).has('opportunities')
   ? <main className="min-h-screen bg-slate-950 text-white p-4"><OpportunityScannerModule context={DEFAULT_PERSONAL_CONTEXT} onToast={() => undefined} /></main>
   : <AlarmHarness />);

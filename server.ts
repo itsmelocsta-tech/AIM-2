@@ -9,10 +9,11 @@ import { AIMVoiceService } from './server/voice/AIMVoiceService';
 import { PLAIN_LANGUAGE_INSTRUCTION } from './server/plainLanguage';
 import { AIMOsService } from './server/aimOsService';
 import { requireAuth } from './server/firebaseAdmin';
-import { readEntitlement, requirePremium } from './server/entitlementService';
+import { readEntitlement, requirePremium, requireCoachAccess } from './server/entitlementService';
 import { billingRouter } from './server/billing/googlePlay';
 import { requireRerouteAllowance } from './server/rerouteQuota';
 import { playNotification } from './server/billing/playNotifications';
+import { deleteAccount } from './server/accountDeletion';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.post('/api/play/notifications', playNotification);
 app.use('/api/aim', requireAuth);
+app.delete('/api/aim/account', deleteAccount);
 app.use('/api/aim/billing', billingRouter);
 
 // Lazy Google GenAI Client
@@ -807,7 +809,7 @@ Return strictly valid JSON matching this schema:
 });
 
 // Coach Interaction Endpoint with Structured Outputs and Tool Coordination
-app.post('/api/aim/coach/interact', async (req: Request, res: Response) => {
+app.post('/api/aim/coach/interact', requireCoachAccess, async (req: Request, res: Response) => {
   const {
     coachId = 'guidance',
     message,

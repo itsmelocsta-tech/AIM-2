@@ -307,6 +307,11 @@ export default function App() {
   };
 
   const handleUpdateGoals = (gls: Goal[]) => {
+    const active = (items: Goal[]) => items.filter(goal => goal.status === 'active' || goal.status === 'recalculating').length;
+    if (!hasPremiumAccess(entitlement) && active(gls) > 1 && active(gls) > active(goals)) {
+      setIsUpgradeOpen(true);
+      return;
+    }
     setGoals(gls);
     storageService.saveGoals(gls);
     if (user?.uid) {
@@ -385,6 +390,7 @@ export default function App() {
     memory: MemoryItem;
   }) => {
     if (!user?.uid || data.profile.id !== user.uid) throw new Error('Sign in to save your starting plan.');
+    if (!hasPremiumAccess(entitlement)) data.goals = data.goals.slice(0, 1);
     scheduleRepository.syncDayFromPlan(user.uid, data.plan, data.profile.timeZone, true);
     await firestoreRepository.saveConfirmedOnboarding(user.uid, data);
     scheduleRepository.syncDayFromPlan(user.uid, data.plan, data.profile.timeZone);

@@ -113,7 +113,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
             <button
               id="aim-home-refresh-btn"
               onClick={handleRefresh}
@@ -132,6 +132,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
               <Send className="w-3.5 h-3.5" />
               <span>Check-In</span>
             </button>
+            <button id="aim-home-life-update-btn" onClick={() => onNavigateToTab('life-update')} className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Update my plan</button>
           </div>
         </div>
 

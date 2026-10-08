@@ -151,6 +151,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, reauthent
             >
               {loading ? 'Signing out...' : 'Sign Out of Account'}
             </button>
+            <a href="/delete-account" className="block text-center text-sm text-rose-300 underline">Delete my AIM account</a>
           </div>
         ) : (
           <div className="space-y-6">
