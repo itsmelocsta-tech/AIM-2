@@ -113,10 +113,13 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
       // The in-memory state still keeps the experience usable when storage is unavailable.
     }
     setOpportunityFocus(next);
-    if (next.category === 'jobs' && next.location) {
-      const nextConfig = { ...config, location: next.location };
+    if (next.category === 'jobs') {
+      const nextConfig = { ...config, location: next.location, description: next.description };
       setConfig(nextConfig);
       jobScannerService.saveConfig(nextConfig);
+      jobScannerService.saveListings([]);
+      setListings([]);
+      setSearchSuggestions(jobScannerService.getSearchSuggestions());
     }
     onToast('Opportunity focus saved. AIM will use your priorities instead of assuming them.');
   };
@@ -346,6 +349,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
               <p className="text-sm text-slate-400 mt-2">
                 {opportunityFocus.location ? `Location: ${opportunityFocus.location}` : 'No location limit set.'}
               </p>
+              <a className="block text-sm text-indigo-300 mt-4" href={`https://www.google.com/search?q=${encodeURIComponent([opportunityFocus.description, opportunityFocus.location].filter(Boolean).join(' '))}`} target="_blank" rel="noopener noreferrer">Open your opportunity search</a>
               <p className="text-xs text-slate-500 mt-4 max-w-2xl">
                 AIM has saved this as your opportunity target. This scanner will not substitute unrelated job listings or somebody else's filters. Live results only appear when a verified source for this opportunity type is connected.
               </p>
@@ -452,7 +456,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-950/60 border border-slate-800 text-xs">
             <MapPin className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
             <span className="text-slate-400">Search Center:</span>
-            <span className="font-semibold text-white truncate">{config?.location || 'Fort Worth, Texas'}</span>
+            <span className="font-semibold text-white truncate">{config?.location || 'No location limit'}</span>
           </div>
 
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-950/60 border border-slate-800 text-xs">
@@ -463,10 +467,10 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
               onChange={(e) => setRadiusMiles(Number(e.target.value))}
               className="bg-transparent font-semibold text-white focus:outline-none cursor-pointer"
             >
-              <option value={15} className="bg-slate-900 text-white">15 Miles (Fort Worth core)</option>
+              <option value={15} className="bg-slate-900 text-white">15 miles</option>
               <option value={25} className="bg-slate-900 text-white">25 Miles (FW + Arlington)</option>
-              <option value={35} className="bg-slate-900 text-white">35 Miles (FW + DFW Airport + Irving)</option>
-              <option value={50} className="bg-slate-900 text-white">50 Miles (Greater DFW Metro)</option>
+              <option value={35} className="bg-slate-900 text-white">35 miles</option>
+              <option value={50} className="bg-slate-900 text-white">50 miles</option>
             </select>
           </div>
 
@@ -573,7 +577,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
               No new qualifying company-vehicle driver listings found today.
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              All active employers in Fort Worth and the DFW Airport corridor were checked. No new postings or material pay/requirement changes occurred since your last verified run.
+              No new matches were returned. Check the search status above before treating this as a complete search.
             </p>
           </div>
         </div>
@@ -623,7 +627,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
                   AIM only shows job details it can check. Without a live job source, we <strong>won’t make up</strong> jobs, pay, or contact details.
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
-                  To find verified live openings that provide company vehicles without personal vehicle or CDL requirements, visit these official direct employer career portals or run pre-configured search queries:
+                  Open the search below to look for your chosen kind of work in your chosen area. Check each result before applying.
                 </p>
               </div>
             </div>
@@ -648,9 +652,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
                     <p className="text-[11px] text-slate-400 leading-relaxed mb-2">
                       {sug.notes}
                     </p>
-                    <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800/80 text-[11px] text-emerald-300/90 mb-2">
-                      <strong>Vehicle Policy:</strong> {sug.vehiclePolicyNote}
-                    </div>
+                    {sug.vehiclePolicyNote && <p className="text-[11px] text-slate-400 mb-2">Vehicle details: {sug.vehiclePolicyNote}</p>}
                     {sug.searchQuery && (
                       <div className="text-[10px] text-slate-500 font-mono truncate">
                         Query: {sug.searchQuery}
@@ -668,7 +670,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-xs font-bold text-indigo-400 hover:text-indigo-300"
                     >
-                      <span>Visit Career Portal</span>
+                      <span>Open search</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>

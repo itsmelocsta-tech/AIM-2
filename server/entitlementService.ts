@@ -1,7 +1,6 @@
 import { Response, NextFunction } from 'express';
-import { getFirestore } from 'firebase-admin/firestore';
-import { AuthenticatedRequest, getFirebaseAdminApp } from './firebaseAdmin';
-import firebaseConfig from '../firebase-applet-config.json';
+import { AuthenticatedRequest } from './firebaseAdmin';
+import { currentSubscription } from './billing/googlePlay';
 
 export type ServerAimPlan = 'basic' | 'premium';
 export interface ServerEntitlement { plan: ServerAimPlan; status: 'free'|'trial'|'active'|'grace'|'expired'; trialEndsAt?: string; renewsAt?: string; }
@@ -9,14 +8,20 @@ export interface ServerEntitlement { plan: ServerAimPlan; status: 'free'|'trial'
 export const BASIC_SERVER_ENTITLEMENT: ServerEntitlement = { plan: 'basic', status: 'free' };
 
 export async function readEntitlement(uid: string): Promise<ServerEntitlement> {
-  const app = getFirebaseAdminApp();
-  if (!app) return BASIC_SERVER_ENTITLEMENT;
   try {
-    const snap = await getFirestore(app, firebaseConfig.firestoreDatabaseId).doc(`users/${uid}/billing/entitlement`).get();
-    const data = snap.data() as ServerEntitlement | undefined;
-    return data?.plan ? data : BASIC_SERVER_ENTITLEMENT;
-  } catch (error) {
-    console.warn('[entitlements] Defaulting to Basic because entitlement could not be verified:', error);
+    // Never trust /users billing data: users own that hierarchy. Google Play
+    // verification reads the server-only purchase record and rechecks Google.
+    const subscription = await currentSubscription(uid);
+    if (!subscription.active || !('expiresAt' in subscription) ||
+        !subscription.expiresAt || Date.parse(subscription.expiresAt) <= Date.now() ||
+        !Number.isFinite(Date.parse(subscription.expiresAt))) return BASIC_SERVER_ENTITLEMENT;
+    return {
+      plan: 'premium',
+      status: subscription.state === 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD' ? 'grace' : 'active',
+      renewsAt: subscription.expiresAt,
+    };
+  } catch {
+    console.warn('[entitlements] Paid access could not be verified; using Basic access.');
     return BASIC_SERVER_ENTITLEMENT;
   }
 }

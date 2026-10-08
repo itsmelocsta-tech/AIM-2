@@ -8,6 +8,14 @@ export function buildReroutedDailyPlan(plan: DailyPlan, analysis: LifeUpdateAnal
     throw new Error('AIM did not return a usable reroute. Your plan was not changed.');
   }
   if (analysis.planImpact === 'none') return plan;
+  const context = proposal.updatedPlanFields || {};
+  for (const [key, value] of Object.entries(context)) {
+    const min = key === 'energyLevel' ? 1 : 0;
+    const max = key === 'energyLevel' ? 10 : 24;
+    if (!['availableHours', 'energyLevel'].includes(key) || typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
+      throw new Error('AIM returned an invalid time or energy change. Your plan was not changed.');
+    }
+  }
 
   const affectedTasks = new Set(analysis.affectedTaskIds || []);
   const affectedBlocks = new Set(analysis.affectedTimeBlockIds || []);
@@ -46,8 +54,28 @@ export function buildReroutedDailyPlan(plan: DailyPlan, analysis: LifeUpdateAnal
     currentBlockIds.add(item.id);
   }
 
+  if (context.availableHours !== undefined) {
+    const minutes = (clock: string) => {
+      const match = clock.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+      if (!match) throw new Error('AIM returned an unreadable time. Your plan was not changed.');
+      let hour = Number(match[1]);
+      const minute = Number(match[2] || 0);
+      if (minute > 59 || hour > (match[3] ? 12 : 23) || (match[3] && hour < 1)) throw new Error('AIM returned an invalid time. Your plan was not changed.');
+      if (match[3]) hour = hour % 12 + (match[3].toLowerCase() === 'pm' ? 12 : 0);
+      return hour * 60 + minute;
+    };
+    const scheduledMinutes = timeBlocks.filter(block => !block.completed).reduce((sum, block) => {
+      const range = block.time.split(/\s*[-–—]\s*/);
+      if (range.length !== 2) throw new Error('AIM returned an incomplete time block. Your plan was not changed.');
+      const start = minutes(range[0]), end = minutes(range[1]);
+      return sum + (end > start ? end - start : end - start + 1440);
+    }, 0);
+    if (scheduledMinutes > context.availableHours * 60) throw new Error('This plan still needs more time than you have. Ask AIM to shorten it before confirming. Your plan was not changed.');
+  }
+
   return {
     ...plan,
+    ...context,
     priorityTasks,
     timeBlocks,
     theme: proposal.newTopPriority?.trim() ? `Focus: ${proposal.newTopPriority.trim()}` : plan.theme,
@@ -57,6 +85,8 @@ export function buildReroutedDailyPlan(plan: DailyPlan, analysis: LifeUpdateAnal
 export function describeReroute(before: DailyPlan, after: DailyPlan): { changed: string[]; removed: string[] } {
   const changed: string[] = [];
   const removed: string[] = [];
+  if (before.availableHours !== after.availableHours) changed.push(`Available time: ${after.availableHours} hours`);
+  if (before.energyLevel !== after.energyLevel) changed.push(`Energy: ${after.energyLevel}/10`);
   const priorTasks = new Map(before.priorityTasks.map(task => [task.id, task]));
   const nextTaskIds = new Set(after.priorityTasks.map(task => task.id));
   const priorBlocks = new Map(before.timeBlocks.map(block => [block.id, block]));

@@ -18,6 +18,7 @@ export const JOB_STORAGE_KEYS = {
 
 export interface JobScannerConfig {
   location: string;
+  description?: string;
   radiusMiles: number;
   weekdayScheduleEnabled: boolean;
   scheduledTime: string; // e.g. "07:30"
@@ -519,7 +520,12 @@ export const jobScannerService = {
   },
 
   getSearchSuggestions(): JobSearchSuggestion[] {
-    return VERIFIED_DFW_SEARCH_SUGGESTIONS;
+    const focus = this.getConfig();
+    const query = [focus.description || 'jobs', focus.location].filter(Boolean).join(' ');
+    return [{ id: 'user-job-search', title: query, organization: 'Google Search',
+      url: `https://www.google.com/search?q=${encodeURIComponent(query)}`, searchQuery: query,
+      notes: 'Open this search to check current results. AIM has not verified job openings.',
+      category: 'search_query', location: focus.location || 'No location limit' }];
   },
 
   getListings(): JobListing[] {
@@ -789,20 +795,13 @@ export const jobScannerService = {
     // When live API is not connected and demo data is disabled:
     if (!allowDemo && candidatePool.length === 0) {
       const summaryMessage =
-        'Live job search API not connected. Verified direct employer career portals and real-world search queries provided below.';
+        'Automatic job search is not connected yet. Open your saved search below to check current opportunities.';
 
       const scanRun: JobScanRun = {
         id: 'scan-' + Date.now(),
         scanStartTime: startTime,
         scanCompletionTime: new Date().toISOString(),
-        sourcesSearched: [
-          'Trinity Metro ACCESS Van Careers (Fort Worth)',
-          'Enterprise Mobility Careers (Fort Worth / DFW)',
-          'The Parking Spot Careers (DFW)',
-          'Quest Diagnostics Courier Routes (Fort Worth)',
-          'City of Fort Worth Careers Portal',
-          'Google Jobs Texas Search Engine',
-        ],
+        sourcesSearched: [],
         candidatesFound: 0,
         excludedCount: 0,
         newMatchesCount: 0,
@@ -810,8 +809,8 @@ export const jobScannerService = {
         status: 'success',
         isWeekdayScheduled,
         summaryMessage,
-        searchRadiusMiles: 35,
-        searchCenter: 'Fort Worth, Texas',
+        searchRadiusMiles: this.getConfig().radiusMiles,
+        searchCenter: this.getConfig().location || 'No location limit',
         isMock: false,
         liveProviderConnected: false,
       };
@@ -829,7 +828,7 @@ export const jobScannerService = {
         materialChanges: [],
         noNewQualifyingListings: verifiedStored.length === 0,
         allRankedListings: this.rankListings(verifiedStored),
-        searchSuggestions: VERIFIED_DFW_SEARCH_SUGGESTIONS,
+        searchSuggestions: this.getSearchSuggestions(),
         liveProviderConnected: false,
         isDemoData: false,
       };
@@ -937,21 +936,14 @@ export const jobScannerService = {
     const summaryMessage = allowDemo
       ? `DEMO DATA: Loaded ${candidatePool.length} simulated sample positions for UI testing. None are live verified openings.`
       : noNewQualifyingListings
-      ? 'No new qualifying company-vehicle driver listings found today.'
-      : `Discovered ${newMatchesCount} new qualifying listing(s) and ${materialChangesCount} material change(s) across Fort Worth & DFW.`;
+      ? 'No new matches were returned from the supplied listings.'
+      : `Discovered ${newMatchesCount} new qualifying listing(s) and ${materialChangesCount} material change(s) for your saved search.`;
 
     const scanRun: JobScanRun = {
       id: 'scan-' + Date.now(),
       scanStartTime: startTime,
       scanCompletionTime: new Date().toISOString(),
-      sourcesSearched: [
-        'The Parking Spot Careers (DFW)',
-        'Enterprise Mobility Careers (Fort Worth / DFW)',
-        'Quest Diagnostics Courier Routes (Fort Worth)',
-        'Sewell Automotive Courtesy Shuttles (Fort Worth)',
-        'Trinity Metro ACCESS Van Careers (Fort Worth)',
-        'Marriott DFW Airport Hotel Shuttles',
-      ],
+      sourcesSearched: [...new Set(candidatePool.map(item => item.sourceName).filter(Boolean))],
       candidatesFound: candidatePool.length,
       excludedCount,
       newMatchesCount,
@@ -959,8 +951,8 @@ export const jobScannerService = {
       status: 'success',
       isWeekdayScheduled,
       summaryMessage,
-      searchRadiusMiles: 35,
-      searchCenter: 'Fort Worth, Texas',
+      searchRadiusMiles: this.getConfig().radiusMiles,
+      searchCenter: this.getConfig().location || 'No location limit',
       isMock: allowDemo,
       liveProviderConnected: false,
     };
@@ -978,7 +970,7 @@ export const jobScannerService = {
       materialChanges: detectedMaterialChanges,
       noNewQualifyingListings,
       allRankedListings,
-      searchSuggestions: VERIFIED_DFW_SEARCH_SUGGESTIONS,
+      searchSuggestions: this.getSearchSuggestions(),
       liveProviderConnected: false,
       isDemoData: allowDemo,
     };
