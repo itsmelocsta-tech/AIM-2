@@ -94,7 +94,7 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
 
     await page.locator('#nav-tab-planner').click();
     await expect(page.locator('#daily-planner-module')).toContainText('2 Productive Hours');
-    await page.locator('#nav-tab-home').click();
+    await page.locator('#daily-planner-module').getByRole('button', { name: 'Today', exact: true }).click();
 
     await expect(page.locator('#nav-tab-scanner')).toBeVisible();
     await expect(page.locator('#nav-tab-scanner')).toHaveText('Your Opportunities');
