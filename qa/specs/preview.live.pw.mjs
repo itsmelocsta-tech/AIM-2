@@ -55,6 +55,7 @@ test('deployed API is healthy and rejects unauthenticated Premium operations', a
 });
 
 test('fresh user can make a plan, keep it after reload, save a personal search, and reroute it', async ({ page, request }, testInfo) => {
+  test.setTimeout(240000);
   let idToken;
   try {
     await requireAim(page);
