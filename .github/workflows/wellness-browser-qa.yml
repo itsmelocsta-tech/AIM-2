@@ -1,0 +1,31 @@
+name: Saved wellness Browser QA
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  saved-wellness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+      - run: bun install --frozen-lockfile
+      - run: npm ci --prefix qa
+      - run: npx playwright install --with-deps chromium
+        working-directory: qa
+      - run: npx playwright test --config=wellness.config.mjs
+        working-directory: qa
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: playwright-saved-wellness-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            qa/playwright-report/wellness/
+            qa/test-results/
+          retention-days: 14

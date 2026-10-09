@@ -22,6 +22,8 @@ import {
 import { DailyPlan, PriorityTask, TimeBlock, UserProfile, Goal } from '../../types';
 import { api } from '../../services/api';
 import { driveService } from '../../services/driveService';
+import { ActivityAlarmControls } from '../common/ActivityAlarmControls';
+import { scheduleRepository } from '../../services/repositories/scheduleRepository';
 import { ensureDetailedTaskGuidance } from '../../utils/taskGuidance';
 import { groundedEveningReflection, morningPlanContext, nextFinisherTask, reconcilePriorityTasks, reconcileTimeBlocks } from '../../services/finishingWorkflow';
 
@@ -314,7 +316,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
-                Available Productive Hours: <strong className="text-indigo-400">{availableHours} hrs</strong>
+                Available Productive {availableHours === 1 ? 'Hour' : 'Hours'}: <strong className="text-indigo-400">{availableHours} {availableHours === 1 ? 'hr' : 'hrs'}</strong>
               </label>
               <input
                 type="range"
@@ -647,9 +649,18 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                   <Clock className="w-4 h-4 text-indigo-400" />
                   <span>Your schedule</span>
                 </h3>
-                <span className="text-xs text-slate-400">{dailyPlan.availableHours} Productive Hours</span>
+                <span className="text-xs text-slate-400">{dailyPlan.availableHours} Productive {dailyPlan.availableHours === 1 ? 'Hour' : 'Hours'}</span>
               </div>
 
+              <ActivityAlarmControls
+                userId={userProfile.id || ''}
+                items={scheduleRepository.getAlarmItems(userProfile.id || '').filter(item =>
+                  dailyPlan.timeBlocks.some(block => block.id === item.id)
+                  || dailyPlan.priorityTasks.some(task => `activity-${task.id}` === item.id)
+                )}
+                label="Agree to this plan · set alarms"
+                showWhenEmpty
+              />
               <div className="space-y-3">
                 {dailyPlan.timeBlocks.map((block) => (
                   <div

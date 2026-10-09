@@ -42,6 +42,7 @@ import { aimContextService, DEFAULT_PERSONAL_CONTEXT } from './services/aimConte
 import { jobScannerService } from './services/jobScannerService';
 import { Header } from './components/common/Header';
 import { CoachShell } from './components/coach/CoachShell';
+import { AimAlarmClock } from './components/common/AimAlarmClock';
 import { AimHomeModule } from './components/modules/AimHomeModule';
 import { OpportunityScannerModule } from './components/modules/OpportunityScannerModule';
 import { MyProjectsModule } from './components/modules/MyProjectsModule';
@@ -107,6 +108,22 @@ export default function App() {
   const [homeViewMode, setHomeViewMode] = useState<'daily_os' | 'advisor'>('daily_os');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!user) return;
+    let current = true;
+    const refresh = async () => {
+      try {
+        const verified = await fetchEntitlement();
+        if (current) setEntitlement(verified);
+      } catch (error) {
+        console.warn('[App] Could not refresh Premium status:', error);
+        if (current) setEntitlement(DEFAULT_ENTITLEMENT);
+      }
+    };
+    window.addEventListener('aim:entitlement-changed', refresh);
+    return () => { current = false; window.removeEventListener('aim:entitlement-changed', refresh); };
+  }, [user?.uid]);
+
   // Load user data from Firestore when auth state changes
   useEffect(() => {
     let isCancelled = false;
@@ -115,7 +132,14 @@ export default function App() {
       setLoadError(false);
       if (!user) { setEntitlement(DEFAULT_ENTITLEMENT); return; }
       try {
-        setEntitlement(await fetchEntitlement());
+        // Premium status is a separate server boundary. A temporary billing/auth API
+        // failure must not prevent an authenticated user from loading their Firestore workspace.
+        try {
+          setEntitlement(await fetchEntitlement());
+        } catch (error) {
+          console.warn('[App] Could not load Premium status; continuing with Basic access:', error);
+          setEntitlement(DEFAULT_ENTITLEMENT);
+        }
         // Local caches predate account scoping. Never show one person's cache to another.
         if (storageService.getProfile().id !== user.uid) {
           storageService.clearAllData();
@@ -295,6 +319,11 @@ export default function App() {
   };
 
   const handleUpdateGoals = (gls: Goal[]) => {
+    const active = (items: Goal[]) => items.filter(goal => goal.status === 'active' || goal.status === 'recalculating').length;
+    if (!hasPremiumAccess(entitlement) && active(gls) > 1 && active(gls) > active(goals)) {
+      setIsUpgradeOpen(true);
+      return;
+    }
     setGoals(gls);
     storageService.saveGoals(gls);
     if (user?.uid) {
@@ -303,6 +332,12 @@ export default function App() {
   };
 
   const handleUpdateDailyPlan = (plan: DailyPlan) => {
+    const completedTasks = new Set(plan.priorityTasks.filter(task => task.completed).map(task => `activity-${task.id}`));
+    plan = { ...plan, timeBlocks: plan.timeBlocks.map(block => completedTasks.has(block.id) ? { ...block, completed: true } : block) };
+    if (user?.uid) {
+      try { scheduleRepository.syncDayFromPlan(user.uid, plan, userProfile.timeZone); }
+      catch (error) { showToast(error instanceof Error ? error.message : 'Could not update this schedule.'); return; }
+    }
     setDailyPlan(plan);
     storageService.saveDailyPlan(plan);
     if (user?.uid) {
@@ -367,6 +402,7 @@ export default function App() {
     memory: MemoryItem;
   }) => {
     if (!user?.uid || data.profile.id !== user.uid) throw new Error('Sign in to save your starting plan.');
+    if (!hasPremiumAccess(entitlement)) data.goals = data.goals.slice(0, 1);
     scheduleRepository.syncDayFromPlan(user.uid, data.plan, data.profile.timeZone, true);
     await firestoreRepository.saveConfirmedOnboarding(user.uid, data);
     scheduleRepository.syncDayFromPlan(user.uid, data.plan, data.profile.timeZone);
@@ -486,10 +522,19 @@ export default function App() {
     : undefined;
   const currentTab = guideStep === 'planner' ? 'planner' : guideStep === 'check-in' ? 'check-in' : guideStep === 'intro' ? 'home' : activeTab;
 
-  const advanceGuide = () => {
+  const advanceGuide = async () => {
     if (!guideStep) return;
     const next = guideStep === 'intro' ? 'planner' : guideStep === 'planner' ? 'check-in' : 'done';
-    handleUpdateProfile({ ...userProfile, firstRunGuideStep: next });
+    const profile = { ...userProfile, firstRunGuideStep: next };
+    setUserProfile(profile);
+    storageService.saveProfile(profile);
+    if (user?.uid) {
+      try {
+        await firestoreRepository.saveUserProfile(user.uid, profile);
+      } catch (error) {
+        console.warn('Unable to save first-run guide progress.');
+      }
+    }
     if (next === 'done') setActiveTab('home');
   };
 
@@ -506,6 +551,7 @@ export default function App() {
 
   return (
     <div id="aim-app-root" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+      <AimAlarmClock userId={isReady ? user!.uid : null} />
       {/* Top Minimal Header with Live Weather & Time */}
       <Header
         userProfile={userProfile}
@@ -533,7 +579,7 @@ export default function App() {
               <button
                 key={tab.id}
                 id={`nav-tab-${tab.id}`}
-                onClick={() => tab.id === 'wellness' ? requirePremiumUi(() => setActiveTab(tab.id)) : setActiveTab(tab.id)}
+                onClick={() => setActiveTab(tab.id)}
                 style={{ animationDelay: `${index * 90}ms`, animationFillMode: 'both' }}
                 className={`animate-fadeIn flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
                   isActive
@@ -619,6 +665,7 @@ export default function App() {
                 projects={aimProjects}
                 topJobMatch={topJobMatch}
                 dailyRecommendation={dailyRecommendation}
+                onUpdatePlan={handleUpdateDailyPlan}
                 onRefreshRecommendation={handleRefreshRecommendation}
                 onNavigateToTab={setActiveTab}
                 onSelectProject={(id) => {
@@ -642,7 +689,7 @@ export default function App() {
                 onUpdateProfile={handleUpdateProfile}
                 onNavigateToTab={setActiveTab}
                 onOpenLifeUpdate={(initialText) => {
-                  requirePremiumUi(() => setActiveTab('life-update'));
+                  setActiveTab('life-update');
                 }}
                 onToast={showToast}
               />
@@ -657,6 +704,7 @@ export default function App() {
         {isReady && !guideStep && currentTab === 'scanner' && (
           <OpportunityScannerModule
             context={aimContext}
+            onUpdateContext={handleUpdateAimContext}
             onJobApplied={handleJobApplied}
             onToast={showToast}
           />

@@ -11,8 +11,12 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
 
-      match /{subcollection=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Billing is readable by its owner but only trusted Admin SDK code may write it.
+      // A separate deny match would not override the recursive owner's allow.
+      match /{collectionId}/{document=**} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null && request.auth.uid == userId
+                     && collectionId != 'billing';
       }
     }
   }

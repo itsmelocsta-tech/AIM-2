@@ -1,5 +1,4 @@
 import express, { Request, Response } from 'express';
-import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { AIMCoreWisdomEngine } from './server/wisdom/AIMCoreWisdomEngine';
@@ -10,15 +9,22 @@ import { AIMVoiceService } from './server/voice/AIMVoiceService';
 import { PLAIN_LANGUAGE_INSTRUCTION } from './server/plainLanguage';
 import { AIMOsService } from './server/aimOsService';
 import { requireAuth } from './server/firebaseAdmin';
-import { readEntitlement, requirePremium } from './server/entitlementService';
+import { readEntitlement, requirePremium, requireCoachAccess } from './server/entitlementService';
+import { billingRouter } from './server/billing/googlePlay';
+import { requireRerouteAllowance } from './server/rerouteQuota';
+import { playNotification } from './server/billing/playNotifications';
+import { deleteAccount } from './server/accountDeletion';
+import { applyExplicitAvailableHours } from './server/lifeUpdateNormalization';
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
+app.post('/api/play/notifications', playNotification);
 app.use('/api/aim', requireAuth);
+app.delete('/api/aim/account', deleteAccount);
+app.use('/api/aim/billing', billingRouter);
 
 // Lazy Google GenAI Client
 let genAIClient: GoogleGenAI | null = null;
@@ -483,7 +489,7 @@ Return JSON with:
 });
 
 // Life Update & Adaptive Plan GPS Rerouting
-app.post('/api/aim/life-update-analyze', requirePremium, async (req: Request, res: Response) => {
+app.post('/api/aim/life-update-analyze', requireRerouteAllowance, async (req: Request, res: Response) => {
   const { content, currentGoals, currentDailyPlan, userProfile } = req.body;
   if (typeof content !== 'string' || !content.trim() || !currentDailyPlan) {
     return res.status(400).json({ error: 'A life update and current plan are required.' });
@@ -521,8 +527,8 @@ ${goalsSummary}
 ${tasksSummary}
 - Today's Time Blocks:
 ${scheduleSummary}
-- Energy Level: ${currentDailyPlan?.energyLevel || 8}/10
-- Available Hours: ${currentDailyPlan?.availableHours || 8} hrs
+- Energy Level: ${currentDailyPlan?.energyLevel ?? 8}/10
+- Available Hours: ${currentDailyPlan?.availableHours ?? 8} hrs
 
 YOUR MISSION:
 1. Identify the core life change, facts, and emotional/logistical implications.
@@ -534,6 +540,7 @@ YOUR MISSION:
    - To remove an unfinished item, put its ID in removedTaskIds or removedTimeBlockIds and in the affected IDs.
    - Do not claim a job lead, action, or schedule block exists unless it is present in the supplied state.
    - PRESERVE COMPLETED TASKS AND EXISTING WINS COMPLETELY.
+   - updatedPlanFields is optional: omit it unless the user explicitly changes time or energy. If available time or energy changes, return updatedPlanFields with the new availableHours (0 to 24) or energyLevel (1 to 10). Use the user's explicit numbers. A reduced time budget affects all unfinished time blocks: include their IDs and ensure their total duration fits the new budget. Preserve completed blocks.
    - Do NOT use guilt-based language or shame. Recalculate calmly with encouraging, pragmatic steps.
    - If the update is purely informational or positive reflection with no plan changes needed, set planImpact="none" and explain that nothing needs to change yet.
    - Never predict or display lifespan, death date, or estimated time of death.
@@ -591,6 +598,10 @@ Return strictly valid JSON matching this schema:
     ],
     "updatedProfileFields": {
       "primaryObstacle": "Updated obstacle if changed"
+    },
+    "updatedPlanFields": {
+      "availableHours": 2,
+      "energyLevel": 5
     }
   }
 }`;
@@ -608,8 +619,10 @@ Return strictly valid JSON matching this schema:
     });
 
     const parsed = JSON.parse(response.text || '{}');
+    applyExplicitAvailableHours(parsed, content, currentDailyPlan);
     if (parsed?.affectedTimeBlockIds == null) parsed.affectedTimeBlockIds = [];
     if (parsed?.affectedGoalIds == null) parsed.affectedGoalIds = [];
+    if (parsed?.affectedTaskIds == null) parsed.affectedTaskIds = [];
     if (!['none', 'minor', 'major'].includes(parsed?.planImpact) ||
         !Array.isArray(parsed?.affectedTaskIds) || !Array.isArray(parsed?.affectedTimeBlockIds) ||
         !Array.isArray(parsed?.affectedGoalIds) ||
@@ -659,6 +672,7 @@ ${desiredState}
 TASK:
 Use all three answers: start from their present circumstances, prioritize the changes they explicitly asked for, and aim toward their eventual identity and goals (including any financial, relationship, health, or other goals they named).
 Identify what they need, what they can build on, and what might get in their way. Offer three realistic plans with different levels of effort. Use the exact simple titles below. Tailor all descriptions and steps to this person. Each step starts with a familiar action verb and names something they can actually do. Do not assume their goal is about money or business. A bigger change must still fit their time, responsibilities, and resources.
+If they explicitly state how many hours they have today or an energy rating, include those numbers in startingPlanContext. Otherwise omit those fields. Do not replace a stated time budget with a default. Use availableHours from 0 to 24 and energyLevel from 1 to 10.
 
 Return strictly valid JSON matching this schema:
 {
@@ -670,6 +684,7 @@ Return strictly valid JSON matching this schema:
   },
   "recommendedOptionId": "option-1",
   "recommendedReason": "A short, plain explanation of why this plan fits your situation",
+  "startingPlanContext": {},
   "pathways": [
     {
       "id": "option-1",
@@ -797,7 +812,7 @@ Return strictly valid JSON matching this schema:
 });
 
 // Coach Interaction Endpoint with Structured Outputs and Tool Coordination
-app.post('/api/aim/coach/interact', async (req: Request, res: Response) => {
+app.post('/api/aim/coach/interact', requireCoachAccess, async (req: Request, res: Response) => {
   const {
     coachId = 'guidance',
     message,
@@ -1423,32 +1438,5 @@ app.post('/api/aim/recommendations/daily', async (req: Request, res: Response) =
   }
 });
 
-// Vite middleware setup
-async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`AIM Life OS server running on http://0.0.0.0:${PORT}`);
-  });
-}
-
 export { app };
-
-if (process.env.NODE_ENV !== 'test' && !process.env.VITEST && !process.env.VERCEL) {
-  startServer();
-}
-
 export default app;

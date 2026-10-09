@@ -180,7 +180,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
         updatedAt: new Date().toISOString(),
         inputType: voiceTranscript ? 'voice' : 'text',
         originalContent: content,
-        voiceTranscript: voiceTranscript || undefined,
+        ...(voiceTranscript ? { voiceTranscript } : {}),
         confirmedSummary: result.importantLifeChange || content,
         categories: result.categories || ['General life context'],
         entities: result.entities || [],
@@ -192,15 +192,15 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
         userConfirmed: false,
         planChangeRequested: true,
         rerouteStatus: 'pending',
-        rerouteExplanation: result.proposedReroute?.explanation,
+        ...(result.proposedReroute?.explanation ? { rerouteExplanation: result.proposedReroute.explanation } : {}),
         previousPlanSnapshot: {
           priorityTasks: dailyPlan.priorityTasks,
           timeBlocks: dailyPlan.timeBlocks,
         },
-        whatChanged: result.proposedReroute?.whatChanged,
-        whatWasRemovedOrPaused: result.proposedReroute?.whatWasRemovedOrPaused,
-        newTopPriority: result.proposedReroute?.newTopPriority,
-        nextSpecificAction: result.proposedReroute?.nextSpecificAction,
+        ...(result.proposedReroute?.whatChanged ? { whatChanged: result.proposedReroute.whatChanged } : {}),
+        ...(result.proposedReroute?.whatWasRemovedOrPaused ? { whatWasRemovedOrPaused: result.proposedReroute.whatWasRemovedOrPaused } : {}),
+        ...(result.proposedReroute?.newTopPriority ? { newTopPriority: result.proposedReroute.newTopPriority } : {}),
+        ...(result.proposedReroute?.nextSpecificAction ? { nextSpecificAction: result.proposedReroute.nextSpecificAction } : {}),
       };
 
       setPendingUpdateRecord(newRecord);
@@ -260,7 +260,9 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
         rerouteExplanation: `Updated ${changes.length} part${changes.length === 1 ? '' : 's'} of your plan based on what changed.`,
         whatChanged: changes,
         whatWasRemovedOrPaused: diff.removed,
-        nextSpecificAction: updatedPlan.priorityTasks.find(task => !task.completed)?.task,
+        ...(updatedPlan.priorityTasks.find(task => !task.completed)?.task
+          ? { nextSpecificAction: updatedPlan.priorityTasks.find(task => !task.completed)!.task }
+          : {}),
         newPlanSnapshot: {
           priorityTasks: updatedPlan.priorityTasks,
           timeBlocks: updatedPlan.timeBlocks,
