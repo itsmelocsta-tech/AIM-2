@@ -316,7 +316,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
-                Available Productive Hours: <strong className="text-indigo-400">{availableHours} hrs</strong>
+                Available Productive {availableHours === 1 ? 'Hour' : 'Hours'}: <strong className="text-indigo-400">{availableHours} {availableHours === 1 ? 'hr' : 'hrs'}</strong>
               </label>
               <input
                 type="range"
@@ -649,7 +649,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                   <Clock className="w-4 h-4 text-indigo-400" />
                   <span>Your schedule</span>
                 </h3>
-                <span className="text-xs text-slate-400">{dailyPlan.availableHours} Productive Hours</span>
+                <span className="text-xs text-slate-400">{dailyPlan.availableHours} Productive {dailyPlan.availableHours === 1 ? 'Hour' : 'Hours'}</span>
               </div>
 
               <ActivityAlarmControls
