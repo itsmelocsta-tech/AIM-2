@@ -16,6 +16,10 @@ export default defineConfig({
     viewport: { width: 390, height: 844 },
     isMobile: true,
     hasTouch: true,
+    // The authorized automation secret stays in runner memory. Never record headers.
+    extraHTTPHeaders: process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+      ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET }
+      : {},
     trace: 'off', video: 'off', screenshot: 'off',
   },
 });
