@@ -59,7 +59,7 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
   try {
     await requireAim(page);
     await page.getByRole('button', { name: 'Get started', exact: true }).click();
-    const account = page.getByRole('heading', { name: 'AIM Account & Security' }).locator('xpath=../..');
+    const account = page.getByRole('heading', { name: 'AIM Account & Security' }).locator('xpath=../../..');
     await account.getByRole('button', { name: 'Create Account', exact: true }).click();
     const tag = crypto.randomUUID();
     await account.getByLabel('Email Address').fill(`aim-qa-${tag}@example.com`);
