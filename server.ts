@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 16882)
-Total output lines: 1442
-
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
@@ -674,7 +671,74 @@ ${desiredState}
 
 TASK:
 Use all three answers: start from their present circumstances, prioritize the changes they explicitly asked for, and aim toward their eventual identity and goals (including any financial, relationship, health, or other goals they named).
-Identify what they need, what they can build on, and what might get…882 tokens truncated…ible progress toward the goal you named"
+Identify what they need, what they can build on, and what might get in their way. Offer three realistic plans with different levels of effort. Use the exact simple titles below. Tailor all descriptions and steps to this person. Each step starts with a familiar action verb and names something they can actually do. Do not assume their goal is about money or business. A bigger change must still fit their time, responsibilities, and resources.
+If they explicitly state how many hours they have today or an energy rating, include those numbers in startingPlanContext. Otherwise omit those fields. Do not replace a stated time budget with a default. Use availableHours from 0 to 24 and energyLevel from 1 to 10.
+
+Return strictly valid JSON matching this schema:
+{
+  "analysis": {
+    "coreGapSummary": "One or two short sentences about where you are now and what you need next",
+    "hiddenStrengths": ["Something you already do well", "Strength 2"],
+    "primaryBottlenecks": ["Something getting in your way", "Core obstacle 2"],
+    "empoweringInsight": "One honest, encouraging sentence tied to what you shared"
+  },
+  "recommendedOptionId": "option-1",
+  "recommendedReason": "A short, plain explanation of why this plan fits your situation",
+  "startingPlanContext": {},
+  "pathways": [
+    {
+      "id": "option-1",
+      "title": "Start Small",
+      "tagline": "Take a few simple steps to get started this week.",
+      "pace": "A few small steps",
+      "focus": "Simple things you can do with the time and resources you have",
+      "whyItFits": "Explain how these small steps help with the problem you described",
+      "actionPlan48h": [
+        "One specific action you can take today or tomorrow",
+        "One next action you can take after that"
+      ],
+      "first7DaysMilestones": [
+        "Something you can finish by day 3",
+        "Something you can finish by day 7"
+      ],
+      "obstaclesNeutralized": ["A problem this plan helps you work on"],
+      "projected30DayOutcome": "What you could work toward over the next 30 days"
+    },
+    {
+      "id": "option-2",
+      "title": "Build a Routine",
+      "tagline": "Make steady progress with a routine you can keep.",
+      "pace": "A steady pace",
+      "focus": "A simple routine that fits your life and goal",
+      "whyItFits": "Explain how a steady routine helps you reach your goal",
+      "actionPlan48h": [
+        "Choose a regular time for one useful task",
+        "Take one specific step toward your goal"
+      ],
+      "first7DaysMilestones": [
+        "Try your routine for three days",
+        "Review what worked and adjust your routine"
+      ],
+      "obstaclesNeutralized": ["Having trouble finding time or keeping a routine"],
+      "projected30DayOutcome": "A routine you can keep and progress you can see"
+    },
+    {
+      "id": "option-3",
+      "title": "Make a Bigger Change",
+      "tagline": "Put more time and effort into one important change.",
+      "pace": "More time and effort",
+      "focus": "One bigger change that fits your needs and resources",
+      "whyItFits": "Explain why this bigger change could help and what it asks of you",
+      "actionPlan48h": [
+        "Choose one important change and check what you need to make it",
+        "Take the first practical step or ask someone for help"
+      ],
+      "first7DaysMilestones": [
+        "Set aside time and gather what you need",
+        "Finish the first part of your bigger change"
+      ],
+      "obstaclesNeutralized": ["A problem you named that needs more time or support"],
+      "projected30DayOutcome": "Possible progress toward the goal you named"
     }
   ],
   "synthesizedProfile": {
