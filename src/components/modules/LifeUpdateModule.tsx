@@ -1057,3 +1057,5 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
         </div>
       )}
     </div>
+  );
+};
