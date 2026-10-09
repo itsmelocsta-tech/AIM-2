@@ -112,13 +112,8 @@ export default function App() {
     if (!user) return;
     let current = true;
     const refresh = async () => {
-      try {
-        const verified = await fetchEntitlement();
-        if (current) setEntitlement(verified);
-      } catch (error) {
-        console.warn('[App] Could not refresh Premium status:', error);
-        if (current) setEntitlement(DEFAULT_ENTITLEMENT);
-      }
+      const verified = await fetchEntitlement();
+      if (current) setEntitlement(verified);
     };
     window.addEventListener('aim:entitlement-changed', refresh);
     return () => { current = false; window.removeEventListener('aim:entitlement-changed', refresh); };
@@ -132,14 +127,7 @@ export default function App() {
       setLoadError(false);
       if (!user) { setEntitlement(DEFAULT_ENTITLEMENT); return; }
       try {
-        // Premium status is a separate server boundary. A temporary billing/auth API
-        // failure must not prevent an authenticated user from loading their Firestore workspace.
-        try {
-          setEntitlement(await fetchEntitlement());
-        } catch (error) {
-          console.warn('[App] Could not load Premium status; continuing with Basic access:', error);
-          setEntitlement(DEFAULT_ENTITLEMENT);
-        }
+        setEntitlement(await fetchEntitlement());
         // Local caches predate account scoping. Never show one person's cache to another.
         if (storageService.getProfile().id !== user.uid) {
           storageService.clearAllData();
@@ -522,10 +510,19 @@ export default function App() {
     : undefined;
   const currentTab = guideStep === 'planner' ? 'planner' : guideStep === 'check-in' ? 'check-in' : guideStep === 'intro' ? 'home' : activeTab;
 
-  const advanceGuide = () => {
+  const advanceGuide = async () => {
     if (!guideStep) return;
     const next = guideStep === 'intro' ? 'planner' : guideStep === 'planner' ? 'check-in' : 'done';
-    handleUpdateProfile({ ...userProfile, firstRunGuideStep: next });
+    const profile = { ...userProfile, firstRunGuideStep: next };
+    setUserProfile(profile);
+    storageService.saveProfile(profile);
+    if (user?.uid) {
+      try {
+        await firestoreRepository.saveUserProfile(user.uid, profile);
+      } catch (error) {
+        console.warn('Unable to save first-run guide progress.');
+      }
+    }
     if (next === 'done') setActiveTab('home');
   };
 

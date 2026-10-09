@@ -91,6 +91,7 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
     await expect(page.getByText('Getting started · 2 of 3')).toBeVisible();
     await page.getByRole('button', { name: 'Show me how to update AIM' }).click();
     await page.getByRole('button', { name: 'Finish and go to Today' }).click();
+    await expect(page.getByText(/Getting started · \d of 3/)).toHaveCount(0);
 
     await page.locator('#nav-tab-planner').click();
     await expect(page.locator('#daily-planner-module')).toContainText('2 Productive Hours');
@@ -108,6 +109,7 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
     await expect(page.getByText('Looking for: Illustration clients')).toBeVisible();
     await expect.poll(() => page.evaluate(() => localStorage.getItem('aim_personal_operating_context_v1'))).toContain('opportunityFocus');
     await page.reload();
+    await expect(page.getByText(/Getting started · \d of 3/)).toHaveCount(0);
     await expect(page.locator('#nav-tab-scanner')).toHaveText('Your Opportunities');
     await page.locator('#nav-tab-scanner').click();
     await expect(page.getByRole('heading', { name: 'Your Opportunities' })).toBeVisible();
