@@ -180,7 +180,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
         updatedAt: new Date().toISOString(),
         inputType: voiceTranscript ? 'voice' : 'text',
         originalContent: content,
-        voiceTranscript: voiceTranscript || undefined,
+        ...(voiceTranscript ? { voiceTranscript } : {}),
         confirmedSummary: result.importantLifeChange || content,
         categories: result.categories || ['General life context'],
         entities: result.entities || [],
