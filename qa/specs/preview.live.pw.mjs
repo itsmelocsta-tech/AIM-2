@@ -54,7 +54,7 @@ test('deployed API is healthy and rejects unauthenticated Premium operations', a
   }
 });
 
-test('fresh user can make a plan, keep it after reload, save a personal search, and reroute it', async ({ page, request }, testInfo) => {
+test('fresh user can make a plan, keep it after reload, save a personal search, and reroute it', async ({ page }, testInfo) => {
   test.setTimeout(240000);
   let idToken;
   try {
@@ -127,7 +127,7 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
   } finally {
     // The test removes only the disposable account it just created. Keep the ID token in memory only.
     if (idToken) {
-      const deleted = await request.delete(new URL('/api/aim/account', testInfo.project.use.baseURL || process.env.AIM_PREVIEW_URL).href, {
+      const deleted = await page.request.delete(new URL('/api/aim/account', testInfo.project.use.baseURL || process.env.AIM_PREVIEW_URL).href, {
         headers: { Authorization: `Bearer ${idToken}` },
         data: { confirmed: true },
       });
