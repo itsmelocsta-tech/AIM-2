@@ -223,10 +223,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, reauthent
 
             <form onSubmit={handleEmailAuth} className="space-y-3.5">
               <div>
-                <label className="block text-xs text-slate-400 font-medium mb-1">Email Address</label>
+                <label htmlFor="aim-auth-email" className="block text-xs text-slate-400 font-medium mb-1">Email Address</label>
                 <div className="relative">
                   <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
                   <input
+                    id="aim-auth-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -238,10 +239,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, reauthent
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 font-medium mb-1">Password</label>
+                <label htmlFor="aim-auth-password" className="block text-xs text-slate-400 font-medium mb-1">Password</label>
                 <div className="relative">
                   <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
                   <input
+                    id="aim-auth-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
