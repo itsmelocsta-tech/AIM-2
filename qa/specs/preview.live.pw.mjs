@@ -93,7 +93,7 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
     await page.getByRole('button', { name: 'Finish and go to Today' }).click();
 
     await page.locator('#nav-tab-planner').click();
-    await expect(page.locator('#daily-planner-module')).toContainText('Available Productive Hours: 2 hrs');
+    await expect(page.locator('#daily-planner-module')).toContainText('2 Productive Hours');
     await page.getByRole('button', { name: 'Today' }).click();
 
     await expect(page.locator('#nav-tab-scanner')).toBeVisible();
@@ -122,7 +122,7 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
     await page.locator('#btn-confirm-reroute').click();
     await expect(page.locator('#aim-rerouted-success-card')).toBeVisible({ timeout: 45000 });
     await page.locator('#nav-tab-planner').click();
-    await expect(page.locator('#daily-planner-module')).toContainText('Available Productive Hours: 1 hrs');
+    await expect(page.locator('#daily-planner-module')).toContainText('1 Productive Hour');
     await expect(page.locator('#nav-tab-wellness')).toBeVisible();
   } finally {
     // The test removes only the disposable account it just created. Keep the ID token in memory only.
