@@ -196,6 +196,11 @@ export interface JobMaterialChange {
 }
 
 export interface PersonalOperatingContext {
+  opportunityFocus?: {
+    category: 'jobs' | 'business' | 'clients' | 'funding' | 'education' | 'housing' | 'creative' | 'other';
+    description: string;
+    location: string;
+  };
   location: string;
   searchRadiusMiles: number;
   hasPersonalVehicle?: boolean;

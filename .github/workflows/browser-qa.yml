@@ -25,12 +25,9 @@ jobs:
         with:
           ref: ${{ env.AIM_TESTED_SHA }}
           persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
       - name: Install application dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
       - name: Install pinned Playwright dependencies
         run: npm ci --prefix qa
       - name: Install Chromium
@@ -106,6 +103,7 @@ jobs:
         run: npm run test:live
         env:
           AIM_PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       - name: Record authenticated path prerequisites
         if: always()
         run: |

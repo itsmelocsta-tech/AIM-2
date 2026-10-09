@@ -9,6 +9,7 @@ import { DailyPlan, PriorityTask, UserProfile } from '../../src/types';
 import { getTodayDateString } from '../../src/utils/dateTimeUtils';
 import { OpportunityScannerModule } from '../../src/components/modules/OpportunityScannerModule';
 import { DEFAULT_PERSONAL_CONTEXT } from '../../src/services/aimContextService';
+import type { PersonalOperatingContext } from '../../src/types';
 import { AuthProvider } from '../../src/context/AuthContext';
 import { AccountDeletionPage } from '../../src/components/auth/AccountDeletionPage';
 import { AimHomeModule } from '../../src/components/modules/AimHomeModule';
@@ -111,10 +112,22 @@ function PlanUpdateHarness() {
     : <AimHomeModule userProfile={profile} dailyPlan={startingPlan} context={DEFAULT_PERSONAL_CONTEXT} projects={[]} onRefreshRecommendation={async () => undefined} onNavigateToTab={setView} onToast={() => undefined} />}</main>;
 }
 
+function OpportunityHarness() {
+  const [context, setContext] = useState<PersonalOperatingContext>(() => {
+    try { return JSON.parse(localStorage.getItem('fictional-opportunity-context') || 'null') || DEFAULT_PERSONAL_CONTEXT; }
+    catch { return DEFAULT_PERSONAL_CONTEXT; }
+  });
+  const updateContext = (next: PersonalOperatingContext) => {
+    setContext(next);
+    localStorage.setItem('fictional-opportunity-context', JSON.stringify(next));
+  };
+  return <main className="min-h-screen bg-slate-950 text-white p-4"><OpportunityScannerModule context={context} onUpdateContext={updateContext} onToast={() => undefined} /></main>;
+}
+
 createRoot(document.getElementById('root')!).render(new URLSearchParams(location.search).has('plan-update')
   ? <PlanUpdateHarness />
   : new URLSearchParams(location.search).has('delete-account')
   ? <AuthProvider><AccountDeletionPage /></AuthProvider>
   : new URLSearchParams(location.search).has('opportunities')
-  ? <main className="min-h-screen bg-slate-950 text-white p-4"><OpportunityScannerModule context={DEFAULT_PERSONAL_CONTEXT} onToast={() => undefined} /></main>
+  ? <OpportunityHarness />
   : <AlarmHarness />);

@@ -558,7 +558,7 @@ export default function App() {
               <button
                 key={tab.id}
                 id={`nav-tab-${tab.id}`}
-                onClick={() => tab.id === 'wellness' ? requirePremiumUi(() => setActiveTab(tab.id)) : setActiveTab(tab.id)}
+                onClick={() => setActiveTab(tab.id)}
                 style={{ animationDelay: `${index * 90}ms`, animationFillMode: 'both' }}
                 className={`animate-fadeIn flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
                   isActive
@@ -683,6 +683,7 @@ export default function App() {
         {isReady && !guideStep && currentTab === 'scanner' && (
           <OpportunityScannerModule
             context={aimContext}
+            onUpdateContext={handleUpdateAimContext}
             onJobApplied={handleJobApplied}
             onToast={showToast}
           />
