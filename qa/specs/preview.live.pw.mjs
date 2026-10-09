@@ -94,7 +94,7 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
 
     await page.locator('#nav-tab-planner').click();
     await expect(page.locator('#daily-planner-module')).toContainText('2 Productive Hours');
-    await page.getByRole('button', { name: 'Today' }).click();
+    await page.locator('#nav-tab-home').click();
 
     await expect(page.locator('#nav-tab-scanner')).toBeVisible();
     await expect(page.locator('#nav-tab-scanner')).toHaveText('Your Opportunities');
@@ -114,7 +114,7 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
     await expect(page.getByRole('link', { name: 'Open your opportunity search' })).toHaveAttribute('href', 'https://www.google.com/search?q=Illustration%20clients%20Austin');
     await expect(page.getByText(/Fort Worth|DFW|driver jobs/i)).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Today' }).click();
+    await page.locator('#nav-tab-home').click();
     await page.getByRole('button', { name: 'Update my plan' }).click();
     await page.locator('#life-update-textarea').fill('I only have one hour available today, not two. Shorten my plan to fit one hour.');
     await page.locator('#life-update-submit-btn').click();
