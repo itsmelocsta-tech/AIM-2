@@ -22,6 +22,9 @@ export async function deleteAccount(req: AuthenticatedRequest, res: Response) {
     await db.collection('playSubscriptions').doc(uid).delete();
     const purchases = await db.collection('playPurchaseOwners').where('uid', '==', uid).get();
     for (const purchase of purchases.docs) await purchase.ref.delete();
+    const reports = await db.collection('aiContentReports').where('uid', '==', uid).get();
+    for (const report of reports.docs) await report.ref.delete();
+    await db.collection('aiReportAllowances').doc(uid).delete();
     // Keep the sign-in usable for retry if data cleanup fails. Remove Auth last.
     await getAuth(app).deleteUser(uid);
     return res.set('Cache-Control', 'no-store').json({ deleted: true });

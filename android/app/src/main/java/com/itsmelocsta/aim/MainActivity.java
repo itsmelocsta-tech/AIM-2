@@ -8,6 +8,10 @@ import android.os.Bundle;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceError;
+import android.widget.FrameLayout;
+import android.os.Build;
+import android.view.WindowInsets;
 import android.widget.Toast;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
@@ -41,18 +45,38 @@ public class MainActivity extends Activity implements PurchasesUpdatedListener {
     private String idToken;
     private boolean busy;
     private ActivityAlarms activityAlarms;
+    private NativeDictation dictation;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         activityAlarms = new ActivityAlarms(this);
+        dictation = new NativeDictation(this);
         web = new WebView(this);
-        setContentView(web);
+        FrameLayout container = new FrameLayout(this);
+        container.setBackgroundColor(android.graphics.Color.rgb(2, 6, 23));
+        container.addView(web);
+        container.setOnApplyWindowInsetsListener((view, insets) -> {
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets safe = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout() | WindowInsets.Type.ime());
+                view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
+            } else view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
+            return insets;
+        });
+        setContentView(container);
+        if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, () -> { if (web.canGoBack()) web.goBack(); else finish(); });
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setAllowFileAccess(false);
         web.getSettings().setAllowContentAccess(false);
         web.getSettings().setMixedContentMode(android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         web.setWebViewClient(new WebViewClient() {
+            @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                if (!request.isForMainFrame() || isFinishing()) return;
+                new AlertDialog.Builder(MainActivity.this).setTitle("AIM could not connect")
+                    .setMessage("Check your internet connection and try again. Your saved account data is kept.")
+                    .setPositiveButton("Retry", (dialog, which) -> web.loadUrl(BuildConfig.APP_ORIGIN))
+                    .setNegativeButton("Close", (dialog, which) -> finish()).show();
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 if (!request.isForMainFrame()) return false;
@@ -65,6 +89,12 @@ public class MainActivity extends Activity implements PurchasesUpdatedListener {
         });
         // AndroidX injects this object only into this exact origin. No wildcard or unrestricted JS interface.
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(web, "AIMSpeech", Collections.singleton(BuildConfig.APP_ORIGIN),
+                (view, message, origin, mainFrame, proxy) -> {
+                    if (!mainFrame || !BuildConfig.APP_ORIGIN.equals(origin.toString())) return;
+                    try { JSONObject data = new JSONObject(message.getData()); runOnUiThread(() -> dictation.handle(data, proxy)); }
+                    catch (Exception ignored) {}
+                });
             WebViewCompat.addWebMessageListener(web, "AIMAlarms", Collections.singleton(BuildConfig.APP_ORIGIN),
                 (view, message, origin, mainFrame, proxy) -> {
                     if (!mainFrame || !BuildConfig.APP_ORIGIN.equals(origin.toString())) return;
@@ -261,6 +291,8 @@ public class MainActivity extends Activity implements PurchasesUpdatedListener {
     @Override public void onRequestPermissionsResult(int code, String[] permissions, int[] grants) {
         super.onRequestPermissionsResult(code, permissions, grants);
         activityAlarms.onPermissionResult(code);
+        dictation.onPermissionResult(code);
     }
-    @Override protected void onDestroy() { if (billing != null) billing.endConnection(); network.shutdownNow(); web.destroy(); super.onDestroy(); }
+    @Override protected void onStop() { dictation.cancel(); super.onStop(); }
+    @Override protected void onDestroy() { dictation.destroy(); if (billing != null) billing.endConnection(); network.shutdownNow(); web.destroy(); super.onDestroy(); }
 }

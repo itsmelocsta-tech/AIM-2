@@ -4,11 +4,21 @@ import App from './App.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
 import './index.css';
 import { AccountDeletionPage } from './components/auth/AccountDeletionPage';
+import { PrivacyPolicyPage, TermsOfUsePage } from './components/legal/LegalPages';
+
+const path = window.location.pathname.replace(/\/$/, '') || '/';
+const publicPage = path === '/privacy'
+  ? <PrivacyPolicyPage />
+  : path === '/terms'
+    ? <TermsOfUsePage />
+    : null;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
-      {window.location.pathname === '/delete-account' ? <AccountDeletionPage /> : <App />}
-    </AuthProvider>
+    {publicPage || (
+      <AuthProvider>
+        {path === '/delete-account' ? <AccountDeletionPage /> : <App />}
+      </AuthProvider>
+    )}
   </StrictMode>,
 );

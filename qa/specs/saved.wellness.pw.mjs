@@ -7,6 +7,7 @@ test('Basic user opens saved wellness through real App navigation and saves afte
       ? route.continue() : route.abort();
   });
   await page.goto('/qa/wellness-harness/');
+  await page.getByRole('button', { name: 'Agree and continue' }).click();
   await page.locator('#nav-tab-wellness').click();
   await expect(page.locator('#wellness-engine-module')).toBeVisible();
   await expect(page.getByRole('dialog', { name: 'Unlock AIM Premium' })).toBeHidden();

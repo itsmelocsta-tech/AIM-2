@@ -15,6 +15,8 @@ import { requireRerouteAllowance } from './server/rerouteQuota';
 import { playNotification } from './server/billing/playNotifications';
 import { deleteAccount } from './server/accountDeletion';
 import { applyExplicitAvailableHours } from './server/lifeUpdateNormalization';
+import { reportAiContent } from './server/aiContentReports';
+import { generateWithFallback } from './server/generateWithFallback';
 
 dotenv.config();
 
@@ -24,12 +26,11 @@ app.use(express.json({ limit: '10mb' }));
 app.post('/api/play/notifications', playNotification);
 app.use('/api/aim', requireAuth);
 app.delete('/api/aim/account', deleteAccount);
+app.post('/api/aim/content-reports', reportAiContent);
 app.use('/api/aim/billing', billingRouter);
 
 // Lazy Google GenAI Client
 let genAIClient: GoogleGenAI | null = null;
-const AIM_MODEL = 'gemini-3.7-flash';
-const FALLBACK_MODELS = ['gemini-3.7-flash', 'gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
 
 function getGenAI(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -48,74 +49,6 @@ function getGenAI(): GoogleGenAI | null {
     });
   }
   return genAIClient;
-}
-
-// Resilient helper to execute GenAI requests with immediate failover on high-demand 503s
-async function generateWithFallback(
-  ai: GoogleGenAI,
-  params: {
-    contents: any;
-    config?: any;
-    preferredModel?: string;
-  }
-): Promise<any> {
-  const modelsToTry = [
-    params.preferredModel || AIM_MODEL,
-    ...FALLBACK_MODELS.filter((m) => m !== (params.preferredModel || AIM_MODEL)),
-  ];
-
-  let lastError: any = null;
-
-  for (let mIdx = 0; mIdx < modelsToTry.length; mIdx++) {
-    const model = modelsToTry[mIdx];
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: params.contents,
-        config: { ...params.config, systemInstruction: [params.config?.systemInstruction, PLAIN_LANGUAGE_INSTRUCTION].filter(Boolean).join('\n\n') },
-      });
-      if (response && (response.text || response.candidates?.length)) {
-        return response;
-      }
-    } catch (err: any) {
-      lastError = err;
-      const errMsg = err?.message || String(err);
-      const isHighDemand =
-        errMsg.includes('503') ||
-        errMsg.includes('UNAVAILABLE') ||
-        errMsg.includes('high demand') ||
-        errMsg.includes('429') ||
-        errMsg.includes('RESOURCE_EXHAUSTED') ||
-        errMsg.includes('overloaded');
-
-      const isNetworkTimeout = errMsg.includes('timeout') || errMsg.includes('ECONNRESET');
-
-      // If high demand, instantly switch to next available model in the fallback chain without stalled delays
-      if (isHighDemand && mIdx < modelsToTry.length - 1) {
-        console.info(`[GenAI] Model ${model} under high demand; seamlessly switching to ${modelsToTry[mIdx + 1]}...`);
-        continue;
-      }
-
-      // If network timeout on first attempt, brief backoff retry
-      if (isNetworkTimeout) {
-        try {
-          await new Promise((r) => setTimeout(r, 750));
-          const retryResponse = await ai.models.generateContent({
-            model,
-            contents: params.contents,
-            config: { ...params.config, systemInstruction: [params.config?.systemInstruction, PLAIN_LANGUAGE_INSTRUCTION].filter(Boolean).join('\n\n') },
-          });
-          if (retryResponse && (retryResponse.text || retryResponse.candidates?.length)) {
-            return retryResponse;
-          }
-        } catch (retryErr: any) {
-          lastError = retryErr;
-        }
-      }
-    }
-  }
-
-  throw lastError || new Error('All GenAI models failed to respond');
 }
 
 const AIM_SYSTEM_INSTRUCTION = `You are AIM (Artificial Intelligence for Manifestation), an AI-powered personal Life Operating System and thinking partner.
@@ -279,16 +212,7 @@ app.post('/api/aim/chat', async (req: Request, res: Response) => {
       currentSchedule,
     });
 
-    if (!ai) {
-      return res.json({
-        reply: `I hear you clearly on "${message}". Looking at your focus for today, your primary next priority is: ${coachContext.priorityAssessment.immediateActionForNow}. How can we make tangible progress on this right now?`,
-        extractedCategory: contextCategory || 'General Guidance',
-        suggestedActions: [
-          { title: 'Define immediate next milestone', type: 'task' },
-          { title: 'Log key insight in AIM memory', type: 'memory' }
-        ]
-      });
-    }
+    if (!ai) return res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
 
     const systemPrompt = `${AIM_SYSTEM_INSTRUCTION}
 
@@ -326,16 +250,8 @@ Remember: Give a real, genuine, articulate, empathetic answer specifically addre
       reply: replyText,
       timestamp: new Date().toISOString()
     });
-  } catch (error: any) {
-    console.warn('Chat endpoint resilient fallback:', error?.message);
-    res.json({
-      reply: `I heard you clearly: "${message}". Let's keep your focus anchored and take the next practical step toward your goals today.`,
-      extractedCategory: contextCategory || 'General Guidance',
-      timestamp: new Date().toISOString(),
-      suggestedActions: [
-        { title: 'Focus on primary today priority', type: 'task' }
-      ]
-    });
+  } catch {
+    res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
   }
 });
 
@@ -394,7 +310,7 @@ Return a structured JSON object strictly with the following schema:
 }`;
 
     if (!ai) {
-      return res.json(fallbackOffer);
+      return res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
     }
 
     const response = await generateWithFallback(ai, {
@@ -409,7 +325,7 @@ Return a structured JSON object strictly with the following schema:
     res.json(parsed);
   } catch (error: any) {
     console.warn('Monetization endpoint resilient fallback:', error?.message);
-    res.json(fallbackOffer);
+    res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
   }
 });
 
@@ -949,47 +865,7 @@ Respond strictly as a JSON object:
   ]
 }`;
 
-    if (!ai) {
-      // Intelligent offline response based on message content and coach
-      const isScheduleQuestion = /what should i do|schedule|free hours|next|time/i.test(message);
-      const isCompleteAction = /finished|done|completed|checked off/i.test(message);
-
-      let displayText = `I hear you on "${message}". Looking at your active priorities, let's focus on: ${coachContext.priorityAssessment.immediateActionForNow}`;
-      let spokenText = `I hear you. Let's focus on your immediate next priority right now.`;
-      const fallbackActions: any[] = [];
-
-      if (coachId === 'guidance' && isScheduleQuestion) {
-        displayText = `Looking at your schedule and active priorities, your top focus right now is "${coachContext.priorityAssessment.immediateActionForNow}". Let's dedicate the next focused block to making tangible progress on this.`;
-        spokenText = `Looking at your schedule, your top focus right now is to work on your primary priority. Let's get that done.`;
-      } else if (coachId === 'motivation') {
-        displayText = `Getting started can be hard. Try two minutes on "${coachContext.priorityAssessment.immediateActionForNow}". Then see how you feel.`;
-        spokenText = `Let's take the smallest step forward right now: spend two minutes getting started, and take it one step at a time.`;
-      }
-
-      if (isCompleteAction) {
-        fallbackActions.push({
-          type: 'completeTask',
-          payload: { query: message.replace(/finished|done|completed|checked off/gi, '').trim() }
-        });
-      }
-
-      return res.json({
-        coachId,
-        displayText,
-        spokenText,
-        intent: 'conversation',
-        confidence: 0.9,
-        followUpQuestion: 'What is the single most important thing you want to accomplish next?',
-        actions: fallbackActions,
-        recommendedActions: [
-          {
-            label: 'Focus on Priority',
-            reason: 'Commit to your immediate task',
-            actionType: 'none',
-          },
-        ],
-      });
-    }
+    if (!ai) return res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
 
     const formattedContents = [
       ...conversationHistory.slice(-6).map((h: { role: string; content: string }) => ({
@@ -1024,21 +900,11 @@ Respond strictly as a JSON object:
     parsed.coachId = coachId;
 
     res.json(parsed);
-  } catch (error: any) {
-    console.warn('Coach interact resilient fallback:', error?.message);
-    res.json({
-      coachId: coachId || 'guidance',
-      displayText: `I'm here with you. Let's look at what's in front of you today and take the next practical step.`,
-      spokenText: `I'm here with you. Let's look at what's in front of you today and take the next step.`,
-      intent: 'conversation',
-      confidence: 0.8,
-      followUpQuestion: 'How can I best support your focus right now?',
-      recommendedActions: [],
-    });
+  } catch {
+    res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
   }
 });
 
-// Priority Intelligence Assessment Endpoint
 app.post('/api/aim/intelligence/priority-assessment', (req: Request, res: Response) => {
   try {
     const userLifeContext = req.body || {};
@@ -1111,7 +977,7 @@ Return JSON:
 }`;
 
     if (!ai) {
-      return res.json(defaultCreativeFallback);
+      return res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
     }
 
     const response = await generateWithFallback(ai, {
@@ -1126,7 +992,7 @@ Return JSON:
     res.json(parsed);
   } catch (error: any) {
     console.warn('Creative studio endpoint resilient fallback:', error?.message);
-    res.json(defaultCreativeFallback);
+    res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
   }
 });
 

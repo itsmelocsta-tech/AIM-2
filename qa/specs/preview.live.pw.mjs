@@ -63,14 +63,17 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
     const account = page.getByRole('heading', { name: 'AIM Account & Security' }).locator('xpath=../../..');
     await account.getByRole('button', { name: 'Create Account', exact: true }).click();
     const tag = crypto.randomUUID();
-    await account.getByLabel('Email Address').fill(`aim-qa-${tag}@example.com`);
-    await account.getByLabel('Password').fill(`AIM-QA-${tag}-7z!`);
+    const email = `aim-qa-${tag}@example.com`;
+    const password = `AIM-QA-${tag}-7z!`;
+    await account.getByLabel('Email Address').fill(email);
+    await account.getByLabel('Password').fill(password);
     const signupResponse = page.waitForResponse(response => response.url().includes('identitytoolkit.googleapis.com') && response.url().includes('accounts:signUp'));
     await account.getByRole('button', { name: 'Create Isolated Account' }).click();
     const signup = await (await signupResponse).json();
     if (!signup.idToken) throw new Error('BLOCKED: Firebase did not return a test-account session.');
     idToken = signup.idToken;
 
+    await page.getByRole('button', { name: 'Agree and continue' }).click({ timeout: 30000 });
     await expect(page.locator('#aim-current-state-textarea')).toBeVisible({ timeout: 30000 });
     await page.locator('#aim-current-state-textarea').fill('I am starting an illustration business and need steady work with illustration clients. I also want to sleep better.');
     await page.getByRole('button', { name: /Next: What you want to change/ }).click();
@@ -86,6 +89,7 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
     // Drop the browser cache. The profile and starting plan must hydrate from Firebase.
     await page.evaluate(() => localStorage.clear());
     await page.reload();
+    await page.getByRole('button', { name: 'Agree and continue' }).click({ timeout: 45000 });
     await expect(page.getByText('Getting started · 1 of 3')).toBeVisible({ timeout: 45000 });
     await page.getByRole('button', { name: 'Show me today’s plan' }).click();
     await expect(page.getByText('Getting started · 2 of 3')).toBeVisible();
@@ -126,6 +130,21 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
     await page.locator('#nav-tab-planner').click();
     await expect(page.locator('#daily-planner-module')).toContainText('1 Productive Hour');
     await expect(page.locator('#nav-tab-wellness')).toBeVisible();
+
+    // Exercise actual sign-out/sign-in, not just reload hydration.
+    await page.getByRole('button', { name: `Account: ${email}` }).click();
+    await page.getByRole('button', { name: 'Sign Out of Account' }).click();
+    await page.getByRole('button', { name: 'Get started', exact: true }).click();
+    const login = page.getByRole('heading', { name: 'AIM Account & Security' }).locator('xpath=../../..');
+    await login.getByLabel('Email Address').fill(email);
+    await login.getByLabel('Password').fill(password);
+    const signedIn = page.waitForResponse(response => response.url().includes('accounts:signInWithPassword'));
+    await login.locator('button[type="submit"]').click();
+    idToken = (await (await signedIn).json()).idToken;
+    await page.locator('#nav-tab-planner').click({ timeout: 30000 });
+    await expect(page.locator('#daily-planner-module')).toContainText('1 Productive Hour');
+    await page.locator('#nav-tab-scanner').click();
+    await expect(page.getByText('Looking for: Illustration clients')).toBeVisible();
   } finally {
     // The test removes only the disposable account it just created. Keep the ID token in memory only.
     if (idToken) {
@@ -137,5 +156,13 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
         throw new Error(`Disposable QA account cleanup failed with HTTP ${deleted.status()}.`);
       }
     }
+  }
+});
+
+test('privacy, terms and deletion information are reachable without an AIM account', async ({ page }) => {
+  await requireAim(page);
+  for (const [path, title] of [['/privacy', 'AIM Privacy Policy'], ['/terms', 'AIM Terms of Use'], ['/delete-account', 'Delete your AIM account']]) {
+    await page.goto(path);
+    await expect(page.getByRole('heading', { name: title })).toBeVisible();
   }
 });

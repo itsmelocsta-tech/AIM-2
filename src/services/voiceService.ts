@@ -1,4 +1,5 @@
 import { authenticatedFetch } from './authenticatedFetch';
+import { nativeDictation } from './nativeDictation';
 import {
   VoiceState,
   SpeakerState,
@@ -63,6 +64,7 @@ export class VoiceEngine {
   private speakerState: SpeakerState = 'ready';
 
   private onResultCallback: ((text: string) => void) | null = null;
+  private onListeningChange: ((listening: boolean) => void) | null = null;
   private onVoiceStateChange: ((state: VoiceState) => void) | null = null;
   private onSpeakerStateChange: ((state: SpeakerState) => void) | null = null;
   private onErrorNotification: ((message: string, canRetry: boolean) => void) | null = null;
@@ -93,8 +95,8 @@ export class VoiceEngine {
     if (typeof window !== 'undefined') {
       const SpeechRecognition =
         (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        this.recognition = new SpeechRecognition();
+      this.recognition = nativeDictation() || (SpeechRecognition ? new SpeechRecognition() : null);
+      if (this.recognition) {
         this.recognition.continuous = false;
         this.recognition.interimResults = true;
         this.recognition.lang = 'en-US';
@@ -125,12 +127,14 @@ export class VoiceEngine {
         };
 
         this.recognition.onend = () => {
+          this.onListeningChange?.(false);
           if (this.voiceState === 'listening' || this.voiceState === 'transcribing') {
             this.setVoiceState('idle');
           }
         };
 
         this.recognition.onerror = (e: any) => {
+          this.onListeningChange?.(false);
           console.warn('[VoiceEngine] Speech recognition error:', e);
           this.setVoiceState(e.error === 'not-allowed' ? 'error' : 'idle');
         };
@@ -653,6 +657,7 @@ export class VoiceEngine {
   ): boolean {
     if (!this.recognition) return false;
     this.onResultCallback = onResult;
+    this.onListeningChange = onStateChange || null;
 
     try {
       this.stopSpeaking(true);
@@ -676,6 +681,7 @@ export class VoiceEngine {
         // Ignore
       }
       this.setVoiceState('idle');
+      this.onListeningChange?.(false);
     }
   }
 

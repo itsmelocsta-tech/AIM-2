@@ -21,7 +21,7 @@ it('requires explicit confirmation and a recent authenticated session', async ()
 });
 it('deletes only the authenticated owner and removes Auth after associated data', async () => {
   const res = response(); await deleteAccount(request(), res);
-  expect(calls.removed).toEqual(['users/owner', 'rerouteAllowances/owner', 'playSubscriptions/owner', 'owner:owner']);
+  expect(calls.removed).toEqual(['users/owner', 'rerouteAllowances/owner', 'playSubscriptions/owner', 'owner:owner', 'owner:owner', 'aiReportAllowances/owner']);
   expect(calls.auth).toEqual(['owner']); expect(res.json).toHaveBeenCalledWith({ deleted: true });
 });
 it('keeps sign-in available for a retry when data removal fails', async () => {

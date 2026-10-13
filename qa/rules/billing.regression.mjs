@@ -53,3 +53,11 @@ test('owners retain profile and nested workspace access while other users are de
   }
   await assertSucceeds(getDocs(collection(owner, 'users/alice/wellness')));
 });
+
+test('AI report records and allowances are server-only', async () => {
+  const db = env.authenticatedContext('alice').firestore();
+  for (const path of ['aiContentReports/report', 'aiReportAllowances/alice']) {
+    await assertFails(setDoc(doc(db, path), { uid: 'alice', content: 'fictional' }));
+    await assertFails(getDoc(doc(db, path)));
+  }
+});

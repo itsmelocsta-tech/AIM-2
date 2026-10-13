@@ -43,6 +43,10 @@ export function AccountDeletionPage() {
       </>}
       {message && <p role="alert" className="text-rose-300">{message}</p>}
       <a href="/" className="block text-indigo-300 underline">Back to AIM</a>
+      <nav aria-label="Legal information" className="flex flex-wrap gap-4 border-t border-slate-800 pt-4 text-sm">
+        <a href="/privacy" className="text-indigo-300 underline">Privacy policy</a>
+        <a href="/terms" className="text-indigo-300 underline">Terms of use</a>
+      </nav>
     </section>
     <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
   </main>;

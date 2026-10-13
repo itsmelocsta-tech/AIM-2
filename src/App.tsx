@@ -66,6 +66,8 @@ import { DEFAULT_ENTITLEMENT, hasPremiumAccess } from './services/entitlementSer
 import { fetchEntitlement } from './services/entitlementApi';
 import { UpgradeModal } from './components/common/UpgradeModal';
 import { useAuth } from './context/AuthContext';
+import { AILimitedUseNotice } from './components/legal/LegalPages';
+import { ReportAiResponse } from './components/common/ReportAiResponse';
 import { firestoreRepository } from './services/repositories/firestoreRepository';
 import { scheduleRepository } from './services/repositories/scheduleRepository';
 import { AuthModal } from './components/auth/AuthModal';
@@ -73,12 +75,32 @@ import { getTodayDateString } from './utils/dateTimeUtils';
 import { voiceEngine } from './services/voiceService';
 
 export default function App() {
-  const { user, loading: isAuthLoading } = useAuth();
+  const { user, loading: isAuthLoading, logOut } = useAuth();
+  const [aiNoticeAccepted, setAiNoticeAccepted] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [entitlement, setEntitlement] = useState(DEFAULT_ENTITLEMENT);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setAiNoticeAccepted(false);
+      return;
+    }
+    try {
+      setAiNoticeAccepted(localStorage.getItem(`aim_ai_data_notice_v1:${user.uid}`) === 'accepted');
+    } catch {
+      setAiNoticeAccepted(false);
+    }
+  }, [user?.uid]);
+
+  const acceptAiNotice = () => {
+    if (user) {
+      try { localStorage.setItem(`aim_ai_data_notice_v1:${user.uid}`, 'accepted'); } catch { /* session-only acceptance */ }
+    }
+    setAiNoticeAccepted(true);
+  };
 
   const [reauthenticationRequired, setReauthenticationRequired] = useState(false);
   useEffect(() => {
@@ -86,8 +108,13 @@ export default function App() {
       setReauthenticationRequired(true);
       setIsAuthModalOpen(true);
     };
+    const requestUpgrade = () => setIsUpgradeOpen(true);
     window.addEventListener('aim:authentication-required', requestSignIn);
-    return () => window.removeEventListener('aim:authentication-required', requestSignIn);
+    window.addEventListener('aim:subscription-required', requestUpgrade);
+    return () => {
+      window.removeEventListener('aim:authentication-required', requestSignIn);
+      window.removeEventListener('aim:subscription-required', requestUpgrade);
+    };
   }, []);
 
   // Default to calm, conversational home
@@ -225,7 +252,7 @@ export default function App() {
     return () => {
       isCancelled = true;
     };
-  }, [user]);
+  }, [user?.uid]);
 
   const topJobMatch = jobScannerService.getListings().find((j) => j.fitRating === 'strong_fit' && j.status === 'active' && j.provenance === 'verified' && !j.isMock && !j.is_mock) || null;
   const [dailyRecommendation, setDailyRecommendation] = useState<DailyActionRecommendation | null>(null);
@@ -548,6 +575,11 @@ export default function App() {
     dailyPlan.priorityTasks.length +
     wellnessLogs.length +
     lifeUpdates.length;
+
+  // Do not mount modules which may automatically call AI until the user agrees.
+  if (user && isReady && !aiNoticeAccepted) {
+    return <AILimitedUseNotice onContinue={acceptAiNotice} onSignOut={() => { void logOut(); }} />;
+  }
 
   return (
     <div id="aim-app-root" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
@@ -883,6 +915,15 @@ export default function App() {
           <span>{toastMessage}</span>
         </div>
       )}
+      <footer className="border-t border-slate-800 bg-slate-950 px-4 py-5 text-center text-xs text-slate-400">
+        <nav aria-label="Legal information" className="flex flex-wrap justify-center gap-x-5 gap-y-2">
+          <a className="underline hover:text-white" href="/privacy">Privacy policy</a>
+          <a className="underline hover:text-white" href="/terms">Terms of use</a>
+          <a className="underline hover:text-white" href="/delete-account">Delete account</a>
+          {isReady && <ReportAiResponse feature={currentTab} />}
+        </nav>
+        <p className="mt-2">© {new Date().getFullYear()} Awakened Minds Group Inc.</p>
+      </footer>
     </div>
   );
 }

@@ -1,0 +1,30 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { nativeDictation } from '../src/services/nativeDictation';
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+it('delivers a matching final Android transcript once and releases the microphone state', () => {
+  const bridge = { postMessage: vi.fn(), onmessage: null as any };
+  vi.stubGlobal('window', { AIMSpeech: bridge });
+  const recognition = nativeDictation()!;
+  recognition.onresult = vi.fn(); recognition.onend = vi.fn();
+  recognition.start();
+  const id = JSON.parse(bridge.postMessage.mock.calls[0][0]).id;
+  bridge.onmessage({ data: JSON.stringify({ id: 'unrelated', text: 'wrong transcript' }) });
+  expect(recognition.onresult).not.toHaveBeenCalled();
+  bridge.onmessage({ data: JSON.stringify({ id, text: 'Fictional dictated goal' }) });
+  expect(recognition.onresult).toHaveBeenCalledOnce();
+  expect(recognition.onend).toHaveBeenCalledOnce();
+  expect(bridge.onmessage).toBeNull();
+});
+it('ends a hung native session after 90 seconds without inventing a transcript', async () => {
+  vi.useFakeTimers();
+  const bridge = { postMessage: vi.fn(), onmessage: null as any };
+  vi.stubGlobal('window', { AIMSpeech: bridge });
+  const recognition = nativeDictation()!;
+  recognition.onresult = vi.fn(); recognition.onerror = vi.fn(); recognition.onend = vi.fn();
+  recognition.start();
+  await vi.advanceTimersByTimeAsync(90000);
+  expect(JSON.parse(bridge.postMessage.mock.calls[1][0]).action).toBe('stop');
+  expect(recognition.onresult).not.toHaveBeenCalled();
+  expect(recognition.onerror).toHaveBeenCalledWith({ error: 'timeout' });
+  expect(recognition.onend).toHaveBeenCalledOnce();
+});

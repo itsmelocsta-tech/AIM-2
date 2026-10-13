@@ -60,3 +60,15 @@ it('does not analyze two answers or an empty middle answer', async () => {
     }
   });
 });
+
+it('does not invent successful chat or coach responses when AI is unavailable', async () => {
+  await withServer(async base => {
+    for (const route of ['chat', 'coach/interact']) {
+      const result = await fetch(`${base}/api/aim/${route}`, { method: 'POST', headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'Fictional goal', coachId: 'guidance' }) });
+      expect(result.status).toBe(503);
+      const body = await result.json();
+      expect(body).not.toHaveProperty('reply');
+      expect(body).not.toHaveProperty('displayText');
+    }
+  });
+});
