@@ -42,6 +42,7 @@ import { aimContextService, DEFAULT_PERSONAL_CONTEXT } from './services/aimConte
 import { jobScannerService } from './services/jobScannerService';
 import { Header } from './components/common/Header';
 import { CoachShell } from './components/coach/CoachShell';
+import { AimAlarmClock } from './components/common/AimAlarmClock';
 import { AimHomeModule } from './components/modules/AimHomeModule';
 import { OpportunityScannerModule } from './components/modules/OpportunityScannerModule';
 import { MyProjectsModule } from './components/modules/MyProjectsModule';
@@ -65,6 +66,8 @@ import { DEFAULT_ENTITLEMENT, hasPremiumAccess } from './services/entitlementSer
 import { fetchEntitlement } from './services/entitlementApi';
 import { UpgradeModal } from './components/common/UpgradeModal';
 import { useAuth } from './context/AuthContext';
+import { AILimitedUseNotice } from './components/legal/LegalPages';
+import { ReportAiResponse } from './components/common/ReportAiResponse';
 import { firestoreRepository } from './services/repositories/firestoreRepository';
 import { scheduleRepository } from './services/repositories/scheduleRepository';
 import { AuthModal } from './components/auth/AuthModal';
@@ -72,12 +75,33 @@ import { getTodayDateString } from './utils/dateTimeUtils';
 import { voiceEngine } from './services/voiceService';
 
 export default function App() {
-  const { user, loading: isAuthLoading } = useAuth();
+  const { user, loading: isAuthLoading, logOut } = useAuth();
+  const [aiNoticeAccepted, setAiNoticeAccepted] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [entitlement, setEntitlement] = useState(DEFAULT_ENTITLEMENT);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  const [isGuideSaving, setIsGuideSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setAiNoticeAccepted(false);
+      return;
+    }
+    try {
+      setAiNoticeAccepted(localStorage.getItem(`aim_ai_data_notice_v1:${user.uid}`) === 'accepted');
+    } catch {
+      setAiNoticeAccepted(false);
+    }
+  }, [user?.uid]);
+
+  const acceptAiNotice = () => {
+    if (user) {
+      try { localStorage.setItem(`aim_ai_data_notice_v1:${user.uid}`, 'accepted'); } catch { /* session-only acceptance */ }
+    }
+    setAiNoticeAccepted(true);
+  };
 
   const [reauthenticationRequired, setReauthenticationRequired] = useState(false);
   useEffect(() => {
@@ -85,8 +109,13 @@ export default function App() {
       setReauthenticationRequired(true);
       setIsAuthModalOpen(true);
     };
+    const requestUpgrade = () => setIsUpgradeOpen(true);
     window.addEventListener('aim:authentication-required', requestSignIn);
-    return () => window.removeEventListener('aim:authentication-required', requestSignIn);
+    window.addEventListener('aim:subscription-required', requestUpgrade);
+    return () => {
+      window.removeEventListener('aim:authentication-required', requestSignIn);
+      window.removeEventListener('aim:subscription-required', requestUpgrade);
+    };
   }, []);
 
   // Default to calm, conversational home
@@ -107,6 +136,22 @@ export default function App() {
   const [homeViewMode, setHomeViewMode] = useState<'daily_os' | 'advisor'>('daily_os');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!user) return;
+    let current = true;
+    const refresh = async () => {
+      try {
+        const verified = await fetchEntitlement();
+        if (current) setEntitlement(verified);
+      } catch (error) {
+        console.warn('[App] Could not refresh Premium status:', error);
+        if (current) setEntitlement(DEFAULT_ENTITLEMENT);
+      }
+    };
+    window.addEventListener('aim:entitlement-changed', refresh);
+    return () => { current = false; window.removeEventListener('aim:entitlement-changed', refresh); };
+  }, [user?.uid]);
+
   // Load user data from Firestore when auth state changes
   useEffect(() => {
     let isCancelled = false;
@@ -115,7 +160,14 @@ export default function App() {
       setLoadError(false);
       if (!user) { setEntitlement(DEFAULT_ENTITLEMENT); return; }
       try {
-        setEntitlement(await fetchEntitlement());
+        // Premium status is a separate server boundary. A temporary billing/auth API
+        // failure must not prevent an authenticated user from loading their Firestore workspace.
+        try {
+          setEntitlement(await fetchEntitlement());
+        } catch (error) {
+          console.warn('[App] Could not load Premium status; continuing with Basic access:', error);
+          setEntitlement(DEFAULT_ENTITLEMENT);
+        }
         // Local caches predate account scoping. Never show one person's cache to another.
         if (storageService.getProfile().id !== user.uid) {
           storageService.clearAllData();
@@ -201,7 +253,7 @@ export default function App() {
     return () => {
       isCancelled = true;
     };
-  }, [user]);
+  }, [user?.uid]);
 
   const topJobMatch = jobScannerService.getListings().find((j) => j.fitRating === 'strong_fit' && j.status === 'active' && j.provenance === 'verified' && !j.isMock && !j.is_mock) || null;
   const [dailyRecommendation, setDailyRecommendation] = useState<DailyActionRecommendation | null>(null);
@@ -290,19 +342,36 @@ export default function App() {
     setMemories(mems);
     storageService.saveMemories(mems);
     if (user?.uid) {
+      for (const removed of memories.filter(memory => !mems.some(next => next.id === memory.id))) {
+        firestoreRepository.deleteUserMemory(user.uid, removed.id).catch(() => showToast('A note could not be deleted from your account. Please retry.'));
+      }
       firestoreRepository.saveUserMemories(user.uid, mems).catch(console.warn);
     }
   };
 
   const handleUpdateGoals = (gls: Goal[]) => {
+    const active = (items: Goal[]) => items.filter(goal => goal.status === 'active' || goal.status === 'recalculating').length;
+    if (!hasPremiumAccess(entitlement) && active(gls) > 1 && active(gls) > active(goals)) {
+      setIsUpgradeOpen(true);
+      return;
+    }
     setGoals(gls);
     storageService.saveGoals(gls);
     if (user?.uid) {
+      for (const removed of goals.filter(goal => !gls.some(next => next.id === goal.id))) {
+        firestoreRepository.deleteUserGoal(user.uid, removed.id).catch(() => showToast('A goal could not be deleted from your account. Please retry.'));
+      }
       firestoreRepository.saveUserGoals(user.uid, gls).catch(console.warn);
     }
   };
 
   const handleUpdateDailyPlan = (plan: DailyPlan) => {
+    const completedTasks = new Set(plan.priorityTasks.filter(task => task.completed).map(task => `activity-${task.id}`));
+    plan = { ...plan, timeBlocks: plan.timeBlocks.map(block => completedTasks.has(block.id) ? { ...block, completed: true } : block) };
+    if (user?.uid) {
+      try { scheduleRepository.syncDayFromPlan(user.uid, plan, userProfile.timeZone); }
+      catch (error) { showToast(error instanceof Error ? error.message : 'Could not update this schedule.'); return; }
+    }
     setDailyPlan(plan);
     storageService.saveDailyPlan(plan);
     if (user?.uid) {
@@ -367,6 +436,7 @@ export default function App() {
     memory: MemoryItem;
   }) => {
     if (!user?.uid || data.profile.id !== user.uid) throw new Error('Sign in to save your starting plan.');
+    if (!hasPremiumAccess(entitlement)) data.goals = data.goals.slice(0, 1);
     scheduleRepository.syncDayFromPlan(user.uid, data.plan, data.profile.timeZone, true);
     await firestoreRepository.saveConfirmedOnboarding(user.uid, data);
     scheduleRepository.syncDayFromPlan(user.uid, data.plan, data.profile.timeZone);
@@ -486,11 +556,19 @@ export default function App() {
     : undefined;
   const currentTab = guideStep === 'planner' ? 'planner' : guideStep === 'check-in' ? 'check-in' : guideStep === 'intro' ? 'home' : activeTab;
 
-  const advanceGuide = () => {
-    if (!guideStep) return;
+  const advanceGuide = async () => {
+    if (!guideStep || isGuideSaving || !user?.uid) return;
     const next = guideStep === 'intro' ? 'planner' : guideStep === 'planner' ? 'check-in' : 'done';
-    handleUpdateProfile({ ...userProfile, firstRunGuideStep: next });
-    if (next === 'done') setActiveTab('home');
+    const profile = { ...userProfile, firstRunGuideStep: next };
+    setIsGuideSaving(true);
+    try {
+      await firestoreRepository.saveUserProfile(user.uid, profile);
+      storageService.saveProfile(profile);
+      setUserProfile(profile);
+      if (next === 'done') setActiveTab('home');
+    } catch {
+      showToast('Your guide progress could not be saved. Please try again.');
+    } finally { setIsGuideSaving(false); }
   };
 
   useEffect(() => {
@@ -504,11 +582,17 @@ export default function App() {
     wellnessLogs.length +
     lifeUpdates.length;
 
+  // Do not mount modules which may automatically call AI until the user agrees.
+  if (user && isReady && !aiNoticeAccepted) {
+    return <AILimitedUseNotice onContinue={acceptAiNotice} onSignOut={() => { void logOut(); }} />;
+  }
+
   return (
     <div id="aim-app-root" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+      <AimAlarmClock userId={isReady ? user!.uid : null} />
       {/* Top Minimal Header with Live Weather & Time */}
       <Header
-        userProfile={userProfile}
+        userProfile={isReady ? userProfile : DEFAULT_PROFILE}
         driveState={driveState}
         onOpenDriveModal={() => setIsDriveModalOpen(true)}
         onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
@@ -519,7 +603,7 @@ export default function App() {
         userEmail={user?.email || (user?.isAnonymous ? 'Guest Account' : null)}
         activeTab={currentTab}
         setActiveTab={setActiveTab}
-        unlockedSpacesCount={totalLearnedItems}
+        unlockedSpacesCount={isReady ? totalLearnedItems : 0}
         isOnboarding={isOnboarding || Boolean(guideStep)}
       />
 
@@ -533,7 +617,7 @@ export default function App() {
               <button
                 key={tab.id}
                 id={`nav-tab-${tab.id}`}
-                onClick={() => tab.id === 'wellness' ? requirePremiumUi(() => setActiveTab(tab.id)) : setActiveTab(tab.id)}
+                onClick={() => setActiveTab(tab.id)}
                 style={{ animationDelay: `${index * 90}ms`, animationFillMode: 'both' }}
                 className={`animate-fadeIn flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
                   isActive
@@ -582,7 +666,7 @@ export default function App() {
             onToast={showToast}
           />
         ) : currentTab === 'home' && (guideStep === 'intro' ? (
-          <FirstRunGuide step="intro" profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
+          <FirstRunGuide step="intro" profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} saving={isGuideSaving} />
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-1.5 max-w-sm mx-auto mb-2">
@@ -619,6 +703,7 @@ export default function App() {
                 projects={aimProjects}
                 topJobMatch={topJobMatch}
                 dailyRecommendation={dailyRecommendation}
+                onUpdatePlan={handleUpdateDailyPlan}
                 onRefreshRecommendation={handleRefreshRecommendation}
                 onNavigateToTab={setActiveTab}
                 onSelectProject={(id) => {
@@ -642,7 +727,7 @@ export default function App() {
                 onUpdateProfile={handleUpdateProfile}
                 onNavigateToTab={setActiveTab}
                 onOpenLifeUpdate={(initialText) => {
-                  requirePremiumUi(() => setActiveTab('life-update'));
+                  setActiveTab('life-update');
                 }}
                 onToast={showToast}
               />
@@ -651,12 +736,13 @@ export default function App() {
         ))}
 
         {(guideStep === 'planner' || guideStep === 'check-in') && (
-          <FirstRunGuide step={guideStep} profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
+          <FirstRunGuide step={guideStep} profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} saving={isGuideSaving} />
         )}
 
         {isReady && !guideStep && currentTab === 'scanner' && (
           <OpportunityScannerModule
             context={aimContext}
+            onUpdateContext={handleUpdateAimContext}
             onJobApplied={handleJobApplied}
             onToast={showToast}
           />
@@ -835,6 +921,15 @@ export default function App() {
           <span>{toastMessage}</span>
         </div>
       )}
+      <footer className="border-t border-slate-800 bg-slate-950 px-4 py-5 text-center text-xs text-slate-400">
+        <nav aria-label="Legal information" className="flex flex-wrap justify-center gap-x-5 gap-y-2">
+          <a className="underline hover:text-white" href="/privacy">Privacy policy</a>
+          <a className="underline hover:text-white" href="/terms">Terms of use</a>
+          <a className="underline hover:text-white" href="/delete-account">Delete account</a>
+          {isReady && <ReportAiResponse feature={currentTab} />}
+        </nav>
+        <p className="mt-2">© {new Date().getFullYear()} Awakened Minds Group Inc.</p>
+      </footer>
     </div>
   );
 }

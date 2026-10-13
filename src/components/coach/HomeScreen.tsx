@@ -37,6 +37,9 @@ import {
 } from '../../types';
 import { CoachOrb } from './CoachOrb';
 import { scheduleRepository } from '../../services/repositories/scheduleRepository';
+import { storageService } from '../../services/storage';
+import { ActivityAlarmControls } from '../common/ActivityAlarmControls';
+import { commitActivities, hasNativeAlarms, nativeAlarmRequest, prepareAlarmSound, SCHEDULE_CHANGE } from '../../services/activityAlarms';
 import { voiceEngine } from '../../services/voiceService';
 import { api } from '../../services/api';
 import { actionExecutionEngine } from '../../services/actionExecutionEngine';
@@ -127,7 +130,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   useEffect(() => {
     loadSchedule();
-  }, [userProfile.id, effectiveTz]);
+    const refresh = () => { void loadSchedule(); };
+    window.addEventListener(SCHEDULE_CHANGE, refresh);
+    return () => window.removeEventListener(SCHEDULE_CHANGE, refresh);
+  }, [userProfile.id, effectiveTz, dailyPlan]);
 
   // Voice Engine State subscription
   useEffect(() => {
@@ -259,13 +265,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   // Handlers for Schedule Actions
   const handleUpdateStatus = async (item: ScheduleItem, nextStatus: ScheduleItemStatus) => {
     try {
+      if (nextStatus === 'in_progress') {
+        await prepareAlarmSound();
+        if (hasNativeAlarms()) {
+          const permission = await nativeAlarmRequest('permissions');
+          if (!permission.ready) onToast(permission.message);
+        }
+        // Start Now moves a future block to now, retaining its intended duration.
+        if (Date.parse(item.startAt) > Date.now()) {
+          const duration = Date.parse(item.endAt) - Date.parse(item.startAt);
+          const start = Date.now();
+          item = await scheduleRepository.saveScheduleItem({ ...item, startAt: new Date(start).toISOString(), endAt: new Date(start + duration).toISOString() });
+        }
+      }
       const updated = await scheduleRepository.updateScheduleItemStatus(
         item.id,
         nextStatus,
         userProfile.id || 'default_user'
       );
       setScheduleItems((prev) => prev.map((i) => (i.id === item.id ? updated : i)));
+      if (nextStatus === 'in_progress') commitActivities(userProfile.id || 'default_user', [updated]);
       onToast(`Updated: ${item.title}`);
+      onUpdateDailyPlan?.(storageService.getDailyPlan());
     } catch {
       onToast('Failed to update schedule item.');
     }
@@ -281,6 +302,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       });
       setScheduleItems((prev) => prev.map((i) => (i.id === item.id ? updated : i)));
       onToast(`Added +${minutesToAdd}m to ${item.title}`);
+      onUpdateDailyPlan?.(storageService.getDailyPlan());
     } catch {
       onToast('Failed to extend time.');
     }
@@ -554,6 +576,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               )}
             </div>
 
+            <ActivityAlarmControls userId={userProfile.id || 'default_user'} items={[current]} />
             {/* Action Bar for Current Block */}
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800">
               {current.status !== 'in_progress' ? (
@@ -653,7 +676,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2 pt-1 border-t border-slate-800/60">
+                  <ActivityAlarmControls userId={userProfile.id || 'default_user'} items={[item]} />
+                  <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-800/60">
                     <button
                       type="button"
                       onClick={() => handleUpdateStatus(item, 'in_progress')}

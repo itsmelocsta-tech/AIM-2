@@ -22,5 +22,10 @@ describe('progressive Life OS module access', () => {
     expect(modules.has('scanner')).toBe(false);
     expect(modules.has('projects')).toBe(false);
     expect(modules.has('wellness')).toBe(false);
+    expect(modules.has('life-update')).toBe(true);
+  });
+  it('keeps a saved opportunity focus reachable after onboarding text is cleared', () => {
+    const modules = getUnlockedModules({ ...baseInput, profile: { ...DEFAULT_PROFILE, onboardingCompleted: true }, context: { ...DEFAULT_PERSONAL_CONTEXT, opportunityFocus: { category: 'creative', description: 'Illustration clients', location: 'Austin' } } });
+    expect(modules.has('scanner')).toBe(true);
   });
 });

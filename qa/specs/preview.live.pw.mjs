@@ -1,4 +1,27 @@
-import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+const firebaseConfig = JSON.parse(readFileSync(new URL('../../firebase-applet-config.json', import.meta.url), 'utf8'));
+import { test, expect, request } from '@playwright/test';
+
+test.beforeEach(async ({ page }) => {
+  const secret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  if (!secret) return;
+  const preview = new URL(process.env.AIM_PREVIEW_URL);
+  if (preview.protocol !== 'https:' || !/^aim-2-[a-z0-9]+-itsmelocsta-5904\.vercel\.app$/.test(preview.hostname)) {
+    throw new Error('BLOCKED: refuse automation access for an unverified preview origin.');
+  }
+  // Establish a host-scoped cookie without following redirects or forwarding the
+  // secret to third-party resources. Browser/API requests share this context.
+  try {
+    const response = await page.request.get(new URL('/', preview.origin).href, {
+      headers: { 'x-vercel-protection-bypass': secret, 'x-vercel-set-bypass-cookie': 'true' },
+      maxRedirects: 0,
+    });
+    if (response.status() >= 400) throw new Error('access rejected');
+  } catch {
+    // Do not include Playwright's request log: it may contain secret headers.
+    throw new Error('BLOCKED: authorized preview access could not be established.');
+  }
+});
 
 async function requireAim(page) {
   const response = await page.goto('/');
@@ -21,13 +44,160 @@ test('exact-head deployed AIM renders its public phone entry and account control
   await page.screenshot({ path: testInfo.outputPath('public-phone-entry.png') });
 });
 
-test('deployed API is healthy and rejects unauthenticated Premium operations', async ({ page, request }) => {
+test('deployed API is healthy and rejects unauthenticated Premium operations', async ({ page }) => {
   await requireAim(page);
+  const request = page.request;
   const health = await request.get('/api/health');
   expect(health.status(), 'Deployed /api/health status').toBe(200);
   expect((await health.json()).status).toBe('ok');
   for (const route of ['monetize', 'creative', 'life-update-analyze']) {
     const response = await request.post(`/api/aim/${route}`, { data: {} });
     expect(response.status(), `${route} must require Firebase authentication`).toBe(401);
+  }
+});
+
+test('fresh user can make a plan, keep it after reload, save a personal search, and reroute it', async ({ page }, testInfo) => {
+  test.setTimeout(300000);
+  page.setDefaultTimeout(15000);
+  const cleanupRequest = await request.newContext({ timeout: 20000 });
+  let idToken;
+  let completedFlow = false;
+  const tag = crypto.randomUUID();
+  const email = `aim-qa-${tag}@example.com`;
+  const password = `AIM-QA-${tag}-7z!`;
+  try {
+    await requireAim(page);
+    await page.getByRole('button', { name: 'Get started', exact: true }).click();
+    const account = page.getByRole('heading', { name: 'AIM Account & Security' }).locator('xpath=../../..');
+    await account.getByRole('button', { name: 'Create Account', exact: true }).click();
+    await account.getByLabel('Email Address').fill(email);
+    await account.getByLabel('Password').fill(password);
+    const signupResponse = page.waitForResponse(response => response.url().includes('identitytoolkit.googleapis.com') && response.url().includes('accounts:signUp'));
+    await account.getByRole('button', { name: 'Create Isolated Account' }).click();
+    const signup = await (await signupResponse).json();
+    if (!signup.idToken) throw new Error('BLOCKED: Firebase did not return a test-account session.');
+    idToken = signup.idToken;
+
+    await page.getByRole('button', { name: 'Agree and continue' }).click({ timeout: 30000 });
+    await page.getByRole('button', { name: 'Report an AI response' }).click();
+    await page.getByLabel('Response to report').fill('Fictional QA response submitted for report-path verification.');
+    await page.getByRole('button', { name: 'Send report', exact: true }).click();
+    await expect(page.getByText('Report received. The AIM team can review it.')).toBeVisible();
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
+    testInfo.annotations.push({ type: 'verified', description: 'Email signup, consent, and real report persistence PASS.' });
+    await expect(page.locator('#aim-current-state-textarea')).toBeVisible({ timeout: 30000 });
+    await page.locator('#aim-current-state-textarea').fill('I am starting an illustration business and need steady work with illustration clients. I also want to sleep better.');
+    await page.getByRole('button', { name: /Next: What you want to change/ }).click();
+    await page.locator('#aim-changes-wanted-textarea').fill('I have two hours available today and want a small, clear plan.');
+    await page.getByRole('button', { name: /Next: Who you want to be/ }).click();
+    await page.locator('#aim-desired-state-textarea').fill('I want to earn a steady living as an illustrator.');
+    await page.getByRole('button', { name: 'Build my starting plan' }).click();
+    await expect(page.locator('#aim-pathway-selection-module')).toBeVisible({ timeout: 90000 });
+    await expect(page.locator('#aim-pathway-selection-module').locator('[id^="pathway-card-"]')).toHaveCount(3);
+    await page.getByRole('button', { name: 'Use this plan' }).first().click();
+    await expect(page.getByText('Getting started · 1 of 3')).toBeVisible({ timeout: 45000 });
+
+    // Drop the browser cache. The profile and starting plan must hydrate from Firebase.
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await page.getByRole('button', { name: 'Agree and continue' }).click({ timeout: 45000 });
+    await expect(page.getByText('Getting started · 1 of 3')).toBeVisible({ timeout: 45000 });
+    await page.getByRole('button', { name: 'Show me today’s plan' }).click();
+    await expect(page.getByText('Getting started · 2 of 3')).toBeVisible();
+    await page.getByRole('button', { name: 'Show me how to update AIM' }).click();
+    await page.getByRole('button', { name: 'Finish and go to Today' }).click();
+    await expect(page.getByText(/Getting started · \d of 3/)).toHaveCount(0);
+
+    await page.locator('#nav-tab-planner').click();
+    await expect(page.locator('#daily-planner-module')).toContainText('2 Productive Hours');
+    await page.locator('#daily-planner-module').getByRole('button', { name: 'Today', exact: true }).click();
+
+    await expect(page.locator('#nav-tab-scanner')).toBeVisible();
+    await expect(page.locator('#nav-tab-scanner')).toHaveText('Your Opportunities');
+    await page.locator('#nav-tab-scanner').click();
+    await expect(page.getByRole('heading', { name: 'Your Opportunities' })).toBeVisible();
+    await page.locator('select').selectOption('creative');
+    const setup = page.locator('#opportunity-scanner-setup');
+    await setup.locator('textarea').fill('Illustration clients');
+    await setup.locator('input').fill('Austin');
+    await setup.locator('#save-opportunity-focus-btn').click();
+    await expect(page.getByText('Looking for: Illustration clients')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('aim_personal_operating_context_v1'))).toContain('opportunityFocus');
+    await page.reload();
+    await expect(page.getByText(/Getting started · \d of 3/)).toHaveCount(0);
+    await expect(page.locator('#nav-tab-scanner')).toHaveText('Your Opportunities');
+    await page.locator('#nav-tab-scanner').click();
+    await expect(page.getByRole('heading', { name: 'Your Opportunities' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Open your opportunity search' })).toHaveAttribute('href', 'https://www.google.com/search?q=Illustration%20clients%20Austin');
+    await expect(page.getByText(/Fort Worth|DFW|driver jobs/i)).toHaveCount(0);
+
+    await page.locator('#nav-tab-home').click();
+    await page.getByRole('button', { name: 'Update my plan' }).click();
+    await page.locator('#life-update-textarea').fill('I only have one hour available today, not two. Shorten my plan to fit one hour.');
+    await page.locator('#life-update-submit-btn').click();
+    await expect(page.locator('#btn-confirm-reroute')).toBeVisible({ timeout: 60000 });
+    await page.locator('#btn-confirm-reroute').click();
+    await expect(page.locator('#aim-rerouted-success-card')).toBeVisible({ timeout: 45000 });
+    await page.locator('#nav-tab-planner').click();
+    await expect(page.locator('#daily-planner-module')).toContainText('1 Productive Hour');
+    await expect(page.locator('#nav-tab-wellness')).toBeVisible();
+
+    testInfo.annotations.push({ type: 'verified', description: 'Real plan, guide, opportunity persistence and one-hour reroute PASS.' });
+
+    // Account must remain tappable inside a phone viewport without force-clicking.
+    const accountBounds = await page.locator('#aim-account-btn').boundingBox();
+    expect(accountBounds).not.toBeNull();
+    expect(accountBounds.x).toBeGreaterThanOrEqual(0);
+    expect(accountBounds.x + accountBounds.width).toBeLessThanOrEqual(390);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+    // Exercise actual sign-out/sign-in, not just reload hydration.
+    await page.getByRole('button', { name: `Account: ${email}` }).click();
+    await page.getByRole('button', { name: 'Sign Out of Account' }).click();
+    await page.getByRole('button', { name: 'Get started', exact: true }).click();
+    const login = page.getByRole('heading', { name: 'AIM Account & Security' }).locator('xpath=../../..');
+    await login.getByLabel('Email Address').fill(email);
+    await login.getByLabel('Password').fill(password);
+    const signedIn = page.waitForResponse(response => response.url().includes('accounts:signInWithPassword'));
+    await login.locator('button[type="submit"]').click();
+    idToken = (await (await signedIn).json()).idToken;
+    await page.locator('#nav-tab-planner').click({ timeout: 30000 });
+    await expect(page.locator('#daily-planner-module')).toContainText('1 Productive Hour');
+    await page.locator('#nav-tab-scanner').click();
+    await expect(page.getByText('Looking for: Illustration clients')).toBeVisible();
+    completedFlow = true;
+    testInfo.annotations.push({ type: 'verified', description: 'Real plan, guide, opportunity persistence, reroute and email re-sign-in PASS.' });
+  } finally {
+    // Give cleanup its own budget and renew only the disposable test account's session.
+    testInfo.setTimeout(testInfo.timeout + 60000);
+    if (idToken) {
+      try {
+        const renewed = await cleanupRequest.post(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`, {
+          data: { email, password, returnSecureToken: true }, timeout: 20000, maxRedirects: 0,
+        });
+        if (renewed.ok()) idToken = (await renewed.json()).idToken || idToken;
+        const deleted = await cleanupRequest.delete(new URL('/api/aim/account', testInfo.project.use.baseURL || process.env.AIM_PREVIEW_URL).href, {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET } : {}),
+          }, data: { confirmed: true }, timeout: 30000, maxRedirects: 0,
+        });
+        if (deleted.status() !== 200) throw new Error('Cleanup rejected.');
+        testInfo.annotations.push({ type: 'cleanup', description: 'Disposable account and reported content deleted.' });
+      } catch {
+        testInfo.annotations.push({ type: 'cleanup', description: 'FAILED: disposable QA account cleanup needs attention.' });
+        if (completedFlow) throw new Error('Disposable QA account cleanup did not finish.');
+        console.warn('Disposable QA account cleanup did not finish; preserve the primary test failure.');
+      }
+    }
+    await cleanupRequest.dispose();
+  }
+});
+
+test('privacy, terms and deletion information are reachable without an AIM account', async ({ page }) => {
+  await requireAim(page);
+  for (const [path, title] of [['/privacy', 'AIM Privacy Policy'], ['/terms', 'AIM Terms of Use'], ['/delete-account', 'Delete your AIM account']]) {
+    await page.goto(path);
+    await expect(page.getByRole('heading', { name: title })).toBeVisible();
   }
 });

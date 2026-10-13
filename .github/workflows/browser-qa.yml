@@ -103,17 +103,18 @@ jobs:
         run: npm run test:live
         env:
           AIM_PREVIEW_URL: ${{ steps.preview.outputs.url }}
-      - name: Record authenticated path prerequisites
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - name: Record live path scope
         if: always()
         run: |
-          echo "Authenticated paths: BLOCKED — no authorized disposable email/Google test profile or protected-preview runner session configured." >> "$GITHUB_STEP_SUMMARY"
-          echo "Paths: onboarding answers/navigation; real plan generation; reload persistence; sign-out/sign-in persistence; signed-in Basic/Premium gates; rerouting; user-defined opportunities; Google workspace loading." >> "$GITHUB_STEP_SUMMARY"
-          echo "A live smoke PASS is not a full-path PASS. No purchases or production changes. Protection preserved; no secrets, traces, video, or authentication state uploaded." >> "$GITHUB_STEP_SUMMARY"
+          echo "Email-authenticated journey: exercised by the Playwright test above with a disposable account; account cleanup is checked in the same test." >> "$GITHUB_STEP_SUMMARY"
+          echo "Google OAuth, Google Drive sync, and Play purchases are not exercised by this run. Purchases remain disabled." >> "$GITHUB_STEP_SUMMARY"
+          echo "No production changes. Preview protection preserved; no tokens, authentication state, traces, or video uploaded." >> "$GITHUB_STEP_SUMMARY"
       - name: Upload public-only live evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: playwright-live-public-${{ env.AIM_TESTED_SHA }}
+          name: playwright-live-${{ env.AIM_TESTED_SHA }}
           path: |
             qa/playwright-report/live/
             qa/test-results/

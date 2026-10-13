@@ -228,6 +228,7 @@ export interface PathwayOption {
 }
 
 export interface CrossReferenceResult {
+  startingPlanContext?: Pick<Partial<DailyPlan>, 'availableHours' | 'energyLevel'>;
   analysis: {
     coreGapSummary: string;
     hiddenStrengths: string[];
@@ -343,6 +344,7 @@ export interface LifeUpdateAnalysisResult {
       recalculatedPath?: string;
     }[];
     updatedProfileFields?: Partial<UserProfile>;
+    updatedPlanFields?: Pick<Partial<DailyPlan>, 'availableHours' | 'energyLevel'>;
   };
 }
 

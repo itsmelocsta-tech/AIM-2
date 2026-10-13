@@ -89,5 +89,6 @@ describe('Drifter → Finisher → Architect', () => {
     expect(planner).toContain('Next to finish');
     expect(planner).toContain('Write at 9am with notifications off');
     expect(home).toContain('Your finishing setup: Write at 9am with notifications off');
+    expect(home).toContain('Update my plan');
   });
 });

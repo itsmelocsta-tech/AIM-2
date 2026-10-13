@@ -2,6 +2,7 @@ import { ScheduleItem, ScheduleItemStatus, CoachId, DailyPlan } from '../../type
 import { getEffectiveTimeZone, getTodayDateString, createUtcIsoFromLocal } from '../../utils/dateTimeUtils';
 import { ensureDetailedTaskGuidance, isVagueGuidance } from '../../utils/taskGuidance';
 import { storageService } from '../storage';
+import { SCHEDULE_CHANGE } from '../activityAlarms';
 
 const SCHEDULE_STORAGE_KEY = 'aim_canonical_schedule_items';
 
@@ -92,6 +93,9 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
 }
 
 export class ScheduleRepository {
+  public getAlarmItems(userId: string): ScheduleItem[] {
+    return this.getStoredItems().filter(item => item.userId === userId);
+  }
   private syncedDayKey(userId: string, date: string): string {
     return `aim_schedule_synced_${userId}_${date}`;
   }
@@ -118,16 +122,22 @@ export class ScheduleRepository {
       const [start, end] = block.time.split(/\s*[-–—]\s*/);
       if (!start || !end) throw new Error('AIM returned an incomplete time block. Your plan was not changed.');
       const startAt = createUtcIsoFromLocal(plan.date, parseClock(start), tz);
-      const endAt = createUtcIsoFromLocal(plan.date, parseClock(end), tz);
+      const prior = byId.get(block.id);
+      const endClock = parseClock(end);
+      let endAt = createUtcIsoFromLocal(plan.date, endClock, tz);
+      // A started activity may legitimately cross midnight. Preserve its explicit UTC end.
+      if (prior && Date.parse(prior.startAt) === Date.parse(startAt) && Date.parse(prior.endAt) > Date.parse(startAt) && Date.parse(endAt) <= Date.parse(startAt)) {
+        const priorEndClock = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(prior.endAt));
+        if (priorEndClock === endClock) endAt = prior.endAt;
+      }
       if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
         throw new Error('AIM returned a time block that ends before it starts. Your plan was not changed.');
       }
-      const prior = byId.get(block.id);
       return {
         id: block.id, userId, title: block.title,
         description: block.details,
         startAt, endAt, timeZone: tz,
-        status: block.completed ? 'completed' : 'scheduled',
+        status: block.completed ? 'completed' : prior?.status === 'completed' ? 'scheduled' : prior?.status || 'scheduled',
         priority: prior?.priority || 'medium',
         sourceCoachId: prior?.sourceCoachId || 'guidance',
         createdAt: prior?.createdAt || now,
@@ -135,12 +145,18 @@ export class ScheduleRepository {
       } as ScheduleItem;
     });
     if (validateOnly) return;
+    const planItemIds = new Set(items.map(item => item.id));
     const kept = existing.filter(item => {
       if (item.userId !== userId) return true;
       const localDate = new Intl.DateTimeFormat('en-CA', {
         timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
       }).format(new Date(item.startAt));
-      return localDate !== plan.date;
+      if (localDate !== plan.date) return true;
+      // Start-now activities are canonical schedule items even when they were
+      // launched from a priority card instead of a planner time block. Keep an
+      // active one while rebuilding the saved plan after reload; otherwise its
+      // finish alarm loses the schedule item it is attached to.
+      return item.status === 'in_progress' && !planItemIds.has(item.id);
     });
     this.saveStoredItems([...kept, ...items]);
     try {
@@ -163,6 +179,7 @@ export class ScheduleRepository {
   private saveStoredItems(items: ScheduleItem[]): void {
     try {
       localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(items));
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event(SCHEDULE_CHANGE));
     } catch (e) {
       console.warn('Failed to persist schedule items:', e);
     }
@@ -299,7 +316,7 @@ export class ScheduleRepository {
    */
   public async saveScheduleItem(item: ScheduleItem): Promise<ScheduleItem> {
     const allItems = this.getStoredItems();
-    const existingIndex = allItems.findIndex((i) => i.id === item.id);
+    const existingIndex = allItems.findIndex((i) => i.id === item.id && i.userId === item.userId);
     const updatedItem = {
       ...item,
       description: ensureDetailedTaskGuidance(item.title, item.description),
@@ -326,7 +343,7 @@ export class ScheduleRepository {
     userId: string
   ): Promise<ScheduleItem> {
     const allItems = this.getStoredItems();
-    const item = allItems.find((i) => i.id === id);
+    const item = allItems.find((i) => i.id === id && i.userId === userId);
     if (!item) {
       throw new Error(`Schedule item ${id} not found.`);
     }
@@ -355,7 +372,7 @@ export class ScheduleRepository {
         userId,
         updatedAt: nowIso,
       };
-      const idx = allItems.findIndex((i) => i.id === newItem.id);
+      const idx = allItems.findIndex((i) => i.id === newItem.id && i.userId === userId);
       if (idx >= 0) {
         allItems[idx] = withUpdate;
       } else {
@@ -376,7 +393,7 @@ export class ScheduleRepository {
    */
   public async deleteScheduleItem(id: string, userId: string): Promise<void> {
     const allItems = this.getStoredItems();
-    const filtered = allItems.filter((i) => i.id !== id);
+    const filtered = allItems.filter((i) => i.id !== id || i.userId !== userId);
     this.saveStoredItems(filtered);
     this.syncWithDailyPlan(filtered);
   }

@@ -39,6 +39,19 @@ function analysis(overrides: Partial<LifeUpdateAnalysisResult> = {}): LifeUpdate
 }
 
 describe('confirmed life update reroute', () => {
+  it('applies and describes explicit time and energy changes', () => {
+    const result = buildReroutedDailyPlan(currentPlan, analysis({
+      proposedReroute: { ...analysis().proposedReroute, updatedPlanFields: { availableHours: 2, energyLevel: 4 } },
+    }));
+    expect(result.availableHours).toBe(2); expect(result.energyLevel).toBe(4);
+    expect(describeReroute(currentPlan, result).changed).toContain('Available time: 2 hours');
+    expect(() => buildReroutedDailyPlan(currentPlan, analysis({ proposedReroute: {
+      ...analysis().proposedReroute, updatedPlanFields: { availableHours: -1 },
+    } }))).toThrow('invalid time');
+    expect(() => buildReroutedDailyPlan(currentPlan, analysis({ proposedReroute: {
+      ...analysis().proposedReroute, updatedPlanFields: { availableHours: 0.5 },
+    } }))).toThrow('more time than you have');
+  });
   it('keeps completed and unrelated work while applying only ID-matched changes', () => {
     const result = buildReroutedDailyPlan(currentPlan, analysis());
     expect(result.priorityTasks.map(task => task.task)).toEqual([

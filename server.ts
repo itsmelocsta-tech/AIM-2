@@ -1,5 +1,4 @@
 import express, { Request, Response } from 'express';
-import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { AIMCoreWisdomEngine } from './server/wisdom/AIMCoreWisdomEngine';
@@ -10,20 +9,28 @@ import { AIMVoiceService } from './server/voice/AIMVoiceService';
 import { PLAIN_LANGUAGE_INSTRUCTION } from './server/plainLanguage';
 import { AIMOsService } from './server/aimOsService';
 import { requireAuth } from './server/firebaseAdmin';
-import { readEntitlement, requirePremium } from './server/entitlementService';
+import { readEntitlement, requirePremium, requireCoachAccess } from './server/entitlementService';
+import { billingRouter } from './server/billing/googlePlay';
+import { requireRerouteAllowance } from './server/rerouteQuota';
+import { playNotification } from './server/billing/playNotifications';
+import { deleteAccount } from './server/accountDeletion';
+import { applyExplicitAvailableHours } from './server/lifeUpdateNormalization';
+import { reportAiContent } from './server/aiContentReports';
+import { generateWithFallback } from './server/generateWithFallback';
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
+app.post('/api/play/notifications', playNotification);
 app.use('/api/aim', requireAuth);
+app.delete('/api/aim/account', deleteAccount);
+app.post('/api/aim/content-reports', reportAiContent);
+app.use('/api/aim/billing', billingRouter);
 
 // Lazy Google GenAI Client
 let genAIClient: GoogleGenAI | null = null;
-const AIM_MODEL = 'gemini-3.7-flash';
-const FALLBACK_MODELS = ['gemini-3.7-flash', 'gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
 
 function getGenAI(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -42,74 +49,6 @@ function getGenAI(): GoogleGenAI | null {
     });
   }
   return genAIClient;
-}
-
-// Resilient helper to execute GenAI requests with immediate failover on high-demand 503s
-async function generateWithFallback(
-  ai: GoogleGenAI,
-  params: {
-    contents: any;
-    config?: any;
-    preferredModel?: string;
-  }
-): Promise<any> {
-  const modelsToTry = [
-    params.preferredModel || AIM_MODEL,
-    ...FALLBACK_MODELS.filter((m) => m !== (params.preferredModel || AIM_MODEL)),
-  ];
-
-  let lastError: any = null;
-
-  for (let mIdx = 0; mIdx < modelsToTry.length; mIdx++) {
-    const model = modelsToTry[mIdx];
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: params.contents,
-        config: { ...params.config, systemInstruction: [params.config?.systemInstruction, PLAIN_LANGUAGE_INSTRUCTION].filter(Boolean).join('\n\n') },
-      });
-      if (response && (response.text || response.candidates?.length)) {
-        return response;
-      }
-    } catch (err: any) {
-      lastError = err;
-      const errMsg = err?.message || String(err);
-      const isHighDemand =
-        errMsg.includes('503') ||
-        errMsg.includes('UNAVAILABLE') ||
-        errMsg.includes('high demand') ||
-        errMsg.includes('429') ||
-        errMsg.includes('RESOURCE_EXHAUSTED') ||
-        errMsg.includes('overloaded');
-
-      const isNetworkTimeout = errMsg.includes('timeout') || errMsg.includes('ECONNRESET');
-
-      // If high demand, instantly switch to next available model in the fallback chain without stalled delays
-      if (isHighDemand && mIdx < modelsToTry.length - 1) {
-        console.info(`[GenAI] Model ${model} under high demand; seamlessly switching to ${modelsToTry[mIdx + 1]}...`);
-        continue;
-      }
-
-      // If network timeout on first attempt, brief backoff retry
-      if (isNetworkTimeout) {
-        try {
-          await new Promise((r) => setTimeout(r, 750));
-          const retryResponse = await ai.models.generateContent({
-            model,
-            contents: params.contents,
-            config: { ...params.config, systemInstruction: [params.config?.systemInstruction, PLAIN_LANGUAGE_INSTRUCTION].filter(Boolean).join('\n\n') },
-          });
-          if (retryResponse && (retryResponse.text || retryResponse.candidates?.length)) {
-            return retryResponse;
-          }
-        } catch (retryErr: any) {
-          lastError = retryErr;
-        }
-      }
-    }
-  }
-
-  throw lastError || new Error('All GenAI models failed to respond');
 }
 
 const AIM_SYSTEM_INSTRUCTION = `You are AIM (Artificial Intelligence for Manifestation), an AI-powered personal Life Operating System and thinking partner.
@@ -273,16 +212,7 @@ app.post('/api/aim/chat', async (req: Request, res: Response) => {
       currentSchedule,
     });
 
-    if (!ai) {
-      return res.json({
-        reply: `I hear you clearly on "${message}". Looking at your focus for today, your primary next priority is: ${coachContext.priorityAssessment.immediateActionForNow}. How can we make tangible progress on this right now?`,
-        extractedCategory: contextCategory || 'General Guidance',
-        suggestedActions: [
-          { title: 'Define immediate next milestone', type: 'task' },
-          { title: 'Log key insight in AIM memory', type: 'memory' }
-        ]
-      });
-    }
+    if (!ai) return res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
 
     const systemPrompt = `${AIM_SYSTEM_INSTRUCTION}
 
@@ -320,16 +250,8 @@ Remember: Give a real, genuine, articulate, empathetic answer specifically addre
       reply: replyText,
       timestamp: new Date().toISOString()
     });
-  } catch (error: any) {
-    console.warn('Chat endpoint resilient fallback:', error?.message);
-    res.json({
-      reply: `I heard you clearly: "${message}". Let's keep your focus anchored and take the next practical step toward your goals today.`,
-      extractedCategory: contextCategory || 'General Guidance',
-      timestamp: new Date().toISOString(),
-      suggestedActions: [
-        { title: 'Focus on primary today priority', type: 'task' }
-      ]
-    });
+  } catch {
+    res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
   }
 });
 
@@ -388,7 +310,7 @@ Return a structured JSON object strictly with the following schema:
 }`;
 
     if (!ai) {
-      return res.json(fallbackOffer);
+      return res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
     }
 
     const response = await generateWithFallback(ai, {
@@ -403,7 +325,7 @@ Return a structured JSON object strictly with the following schema:
     res.json(parsed);
   } catch (error: any) {
     console.warn('Monetization endpoint resilient fallback:', error?.message);
-    res.json(fallbackOffer);
+    res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
   }
 });
 
@@ -483,7 +405,7 @@ Return JSON with:
 });
 
 // Life Update & Adaptive Plan GPS Rerouting
-app.post('/api/aim/life-update-analyze', requirePremium, async (req: Request, res: Response) => {
+app.post('/api/aim/life-update-analyze', requireRerouteAllowance, async (req: Request, res: Response) => {
   const { content, currentGoals, currentDailyPlan, userProfile } = req.body;
   if (typeof content !== 'string' || !content.trim() || !currentDailyPlan) {
     return res.status(400).json({ error: 'A life update and current plan are required.' });
@@ -521,8 +443,8 @@ ${goalsSummary}
 ${tasksSummary}
 - Today's Time Blocks:
 ${scheduleSummary}
-- Energy Level: ${currentDailyPlan?.energyLevel || 8}/10
-- Available Hours: ${currentDailyPlan?.availableHours || 8} hrs
+- Energy Level: ${currentDailyPlan?.energyLevel ?? 8}/10
+- Available Hours: ${currentDailyPlan?.availableHours ?? 8} hrs
 
 YOUR MISSION:
 1. Identify the core life change, facts, and emotional/logistical implications.
@@ -534,6 +456,7 @@ YOUR MISSION:
    - To remove an unfinished item, put its ID in removedTaskIds or removedTimeBlockIds and in the affected IDs.
    - Do not claim a job lead, action, or schedule block exists unless it is present in the supplied state.
    - PRESERVE COMPLETED TASKS AND EXISTING WINS COMPLETELY.
+   - updatedPlanFields is optional: omit it unless the user explicitly changes time or energy. If available time or energy changes, return updatedPlanFields with the new availableHours (0 to 24) or energyLevel (1 to 10). Use the user's explicit numbers. A reduced time budget affects all unfinished time blocks: include their IDs and ensure their total duration fits the new budget. Preserve completed blocks.
    - Do NOT use guilt-based language or shame. Recalculate calmly with encouraging, pragmatic steps.
    - If the update is purely informational or positive reflection with no plan changes needed, set planImpact="none" and explain that nothing needs to change yet.
    - Never predict or display lifespan, death date, or estimated time of death.
@@ -591,6 +514,10 @@ Return strictly valid JSON matching this schema:
     ],
     "updatedProfileFields": {
       "primaryObstacle": "Updated obstacle if changed"
+    },
+    "updatedPlanFields": {
+      "availableHours": 2,
+      "energyLevel": 5
     }
   }
 }`;
@@ -608,8 +535,10 @@ Return strictly valid JSON matching this schema:
     });
 
     const parsed = JSON.parse(response.text || '{}');
+    applyExplicitAvailableHours(parsed, content, currentDailyPlan);
     if (parsed?.affectedTimeBlockIds == null) parsed.affectedTimeBlockIds = [];
     if (parsed?.affectedGoalIds == null) parsed.affectedGoalIds = [];
+    if (parsed?.affectedTaskIds == null) parsed.affectedTaskIds = [];
     if (!['none', 'minor', 'major'].includes(parsed?.planImpact) ||
         !Array.isArray(parsed?.affectedTaskIds) || !Array.isArray(parsed?.affectedTimeBlockIds) ||
         !Array.isArray(parsed?.affectedGoalIds) ||
@@ -659,6 +588,7 @@ ${desiredState}
 TASK:
 Use all three answers: start from their present circumstances, prioritize the changes they explicitly asked for, and aim toward their eventual identity and goals (including any financial, relationship, health, or other goals they named).
 Identify what they need, what they can build on, and what might get in their way. Offer three realistic plans with different levels of effort. Use the exact simple titles below. Tailor all descriptions and steps to this person. Each step starts with a familiar action verb and names something they can actually do. Do not assume their goal is about money or business. A bigger change must still fit their time, responsibilities, and resources.
+If they explicitly state how many hours they have today or an energy rating, include those numbers in startingPlanContext. Otherwise omit those fields. Do not replace a stated time budget with a default. Use availableHours from 0 to 24 and energyLevel from 1 to 10.
 
 Return strictly valid JSON matching this schema:
 {
@@ -670,6 +600,7 @@ Return strictly valid JSON matching this schema:
   },
   "recommendedOptionId": "option-1",
   "recommendedReason": "A short, plain explanation of why this plan fits your situation",
+  "startingPlanContext": {},
   "pathways": [
     {
       "id": "option-1",
@@ -797,7 +728,7 @@ Return strictly valid JSON matching this schema:
 });
 
 // Coach Interaction Endpoint with Structured Outputs and Tool Coordination
-app.post('/api/aim/coach/interact', async (req: Request, res: Response) => {
+app.post('/api/aim/coach/interact', requireCoachAccess, async (req: Request, res: Response) => {
   const {
     coachId = 'guidance',
     message,
@@ -934,47 +865,7 @@ Respond strictly as a JSON object:
   ]
 }`;
 
-    if (!ai) {
-      // Intelligent offline response based on message content and coach
-      const isScheduleQuestion = /what should i do|schedule|free hours|next|time/i.test(message);
-      const isCompleteAction = /finished|done|completed|checked off/i.test(message);
-
-      let displayText = `I hear you on "${message}". Looking at your active priorities, let's focus on: ${coachContext.priorityAssessment.immediateActionForNow}`;
-      let spokenText = `I hear you. Let's focus on your immediate next priority right now.`;
-      const fallbackActions: any[] = [];
-
-      if (coachId === 'guidance' && isScheduleQuestion) {
-        displayText = `Looking at your schedule and active priorities, your top focus right now is "${coachContext.priorityAssessment.immediateActionForNow}". Let's dedicate the next focused block to making tangible progress on this.`;
-        spokenText = `Looking at your schedule, your top focus right now is to work on your primary priority. Let's get that done.`;
-      } else if (coachId === 'motivation') {
-        displayText = `Getting started can be hard. Try two minutes on "${coachContext.priorityAssessment.immediateActionForNow}". Then see how you feel.`;
-        spokenText = `Let's take the smallest step forward right now: spend two minutes getting started, and take it one step at a time.`;
-      }
-
-      if (isCompleteAction) {
-        fallbackActions.push({
-          type: 'completeTask',
-          payload: { query: message.replace(/finished|done|completed|checked off/gi, '').trim() }
-        });
-      }
-
-      return res.json({
-        coachId,
-        displayText,
-        spokenText,
-        intent: 'conversation',
-        confidence: 0.9,
-        followUpQuestion: 'What is the single most important thing you want to accomplish next?',
-        actions: fallbackActions,
-        recommendedActions: [
-          {
-            label: 'Focus on Priority',
-            reason: 'Commit to your immediate task',
-            actionType: 'none',
-          },
-        ],
-      });
-    }
+    if (!ai) return res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
 
     const formattedContents = [
       ...conversationHistory.slice(-6).map((h: { role: string; content: string }) => ({
@@ -1009,21 +900,11 @@ Respond strictly as a JSON object:
     parsed.coachId = coachId;
 
     res.json(parsed);
-  } catch (error: any) {
-    console.warn('Coach interact resilient fallback:', error?.message);
-    res.json({
-      coachId: coachId || 'guidance',
-      displayText: `I'm here with you. Let's look at what's in front of you today and take the next practical step.`,
-      spokenText: `I'm here with you. Let's look at what's in front of you today and take the next step.`,
-      intent: 'conversation',
-      confidence: 0.8,
-      followUpQuestion: 'How can I best support your focus right now?',
-      recommendedActions: [],
-    });
+  } catch {
+    res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
   }
 });
 
-// Priority Intelligence Assessment Endpoint
 app.post('/api/aim/intelligence/priority-assessment', (req: Request, res: Response) => {
   try {
     const userLifeContext = req.body || {};
@@ -1096,7 +977,7 @@ Return JSON:
 }`;
 
     if (!ai) {
-      return res.json(defaultCreativeFallback);
+      return res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
     }
 
     const response = await generateWithFallback(ai, {
@@ -1111,7 +992,7 @@ Return JSON:
     res.json(parsed);
   } catch (error: any) {
     console.warn('Creative studio endpoint resilient fallback:', error?.message);
-    res.json(defaultCreativeFallback);
+    res.status(503).json({ error: 'AI is temporarily unavailable. Your saved work is unchanged. Please retry.' });
   }
 });
 
@@ -1195,12 +1076,14 @@ app.post('/api/aim/voice/speak', async (req: Request, res: Response) => {
 // Job Opportunity Scanner Endpoint
 app.post('/api/aim/jobs/scan', async (req: Request, res: Response) => {
   try {
-    const { location, radiusMiles, storedListings, isWeekdayScheduled, userConstraints, allowDemoData } = req.body;
+    const { location, description, radiusMiles, storedListings, isWeekdayScheduled, userConstraints, allowDemoData } = req.body;
     const ai = getGenAI();
     const aimOs = AIMOsService.getInstance();
 
     const result = await aimOs.scanOpportunities({
-      location: location || 'Fort Worth, Texas',
+      uid: (req as any).user.uid,
+      description: typeof description === 'string' ? description.slice(0, 1000) : undefined,
+      location: typeof location === 'string' ? location.slice(0, 200) : '',
       radiusMiles: radiusMiles || 35,
       storedListings: storedListings || [],
       isWeekdayScheduled: Boolean(isWeekdayScheduled),
@@ -1220,7 +1103,7 @@ app.post('/api/aim/jobs/scan', async (req: Request, res: Response) => {
 app.get('/api/aim/jobs/history', (req: Request, res: Response) => {
   try {
     const aimOs = AIMOsService.getInstance();
-    res.json(aimOs.getScanHistory());
+    res.json(aimOs.getScanHistory((req as any).user.uid));
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch scan history' });
   }
@@ -1423,32 +1306,5 @@ app.post('/api/aim/recommendations/daily', async (req: Request, res: Response) =
   }
 });
 
-// Vite middleware setup
-async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`AIM Life OS server running on http://0.0.0.0:${PORT}`);
-  });
-}
-
 export { app };
-
-if (process.env.NODE_ENV !== 'test' && !process.env.VITEST && !process.env.VERCEL) {
-  startServer();
-}
-
 export default app;

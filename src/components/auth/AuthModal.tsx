@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ShieldCheck, Mail, Lock, LogIn, UserPlus, X, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { requestPasswordReset } from '../../services/firebaseClient';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -16,16 +17,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, reauthent
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
 
   useEffect(() => {
     if (!isOpen) {
       setPassword('');
       setError(null);
+      setResetMessage('');
     }
     if (reauthenticationRequired) setMode('signin');
   }, [isOpen, reauthenticationRequired]);
 
   if (!isOpen) return null;
+
+  const resetPassword = async () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Enter your email address above, then request a password reset.');
+      return;
+    }
+    setLoading(true); setError(null); setResetMessage('');
+    const result = await requestPasswordReset(email);
+    setLoading(false);
+    if (result.error) setError(result.error);
+    else setResetMessage('If this email has an AIM account, a password reset link has been sent. Check your inbox and spam folder.');
+  };
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -151,6 +166,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, reauthent
             >
               {loading ? 'Signing out...' : 'Sign Out of Account'}
             </button>
+            <a href="/delete-account" className="block text-center text-sm text-rose-300 underline">Delete my AIM account</a>
           </div>
         ) : (
           <div className="space-y-6">
@@ -222,10 +238,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, reauthent
 
             <form onSubmit={handleEmailAuth} className="space-y-3.5">
               <div>
-                <label className="block text-xs text-slate-400 font-medium mb-1">Email Address</label>
+                <label htmlFor="aim-auth-email" className="block text-xs text-slate-400 font-medium mb-1">Email Address</label>
                 <div className="relative">
                   <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
                   <input
+                    id="aim-auth-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -237,10 +254,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, reauthent
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 font-medium mb-1">Password</label>
+                <label htmlFor="aim-auth-password" className="block text-xs text-slate-400 font-medium mb-1">Password</label>
                 <div className="relative">
                   <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
                   <input
+                    id="aim-auth-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -261,6 +279,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, reauthent
                 <span>{loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Create Isolated Account'}</span>
               </button>
             </form>
+            {mode === 'signin' && <button type="button" disabled={loading} onClick={() => { void resetPassword(); }} className="block py-2 text-sm text-indigo-300 underline">Forgot your password?</button>}
+            {resetMessage && <p role="status" className="text-sm text-emerald-300">{resetMessage}</p>}
 
             <div className="pt-2 border-t border-slate-800/80">
               <button

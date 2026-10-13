@@ -4,13 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.mjs",
-    "start": "node dist/server.mjs",
-    "clean": "rm -rf dist server.js",
+    "dev": "tsx localServer.ts",
+    "build": "vite build && esbuild localServer.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=build/server.cjs && esbuild server.ts --bundle --platform=node --format=cjs --outfile=api/server.cjs",
+    "start": "node build/server.cjs",
+    "clean": "rm -rf dist build api/server.cjs server.js",
     "lint": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "check": "npm run lint && npm run test && npm run build"
+    "check": "npm run lint && npm run test && npm run build && npm run test:api-package",
+    "test:api-package": "node scripts/check-api-package.mjs",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -22,6 +24,7 @@
     "express": "^4.21.2",
     "firebase": "^12.19.0",
     "firebase-admin": "^14.4.0",
+    "google-auth-library": "^10.9.1",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.1",
@@ -29,6 +32,7 @@
     "vite": "^6.2.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",

@@ -95,6 +95,9 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
           <p className="text-xs text-slate-400">
             Food, sleep, movement, and rest can help you feel better each day.
           </p>
+          <p className="mt-2 max-w-2xl text-xs leading-5 text-slate-400">
+            AIM offers general wellness ideas. It is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. For health concerns, talk with a qualified health professional.
+          </p>
         </div>
       </div>
 

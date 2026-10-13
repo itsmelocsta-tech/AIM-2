@@ -30,7 +30,11 @@ export async function authenticatedFetch(path: string, init: RequestInit = {}): 
   if (typeof init.body === 'string' && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  const response = await fetch(path, { ...init, headers, redirect: 'error' });
+  const response = await fetch(path, { ...init, headers, redirect: 'error', signal: init.signal || AbortSignal.timeout(90000) });
   if (response.status === 401) throw new AuthenticationError();
+  if (response.status === 402 || (response.status === 403 && (await response.clone().json().catch(() => ({}))).code === 'PREMIUM_REQUIRED')) {
+    window.dispatchEvent(new Event('aim:subscription-required'));
+    throw new Error('AIM Premium is required. Open Settings to view or restore your subscription.');
+  }
   return response;
 }

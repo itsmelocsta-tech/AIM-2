@@ -1,3 +1,4 @@
+import { applyStartingPlanContext } from '../../services/startingPlanContext';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Mic,
@@ -489,12 +490,12 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       completed: false,
     }));
 
-    const startingPlan: DailyPlan = {
+    const startingPlan: DailyPlan = applyStartingPlanContext({
       ...dailyPlan,
       theme: pathway.title,
       mindsetReminder: pathway.tagline,
       priorityTasks: newPriorityTasks,
-    };
+    }, crossReferenceData);
 
     // 4. Log Memory Item of this Foundational Alignment
     const foundationalMemory: MemoryItem = {

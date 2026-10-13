@@ -1,6 +1,7 @@
 import React from 'react';
 import { Crown, Check, X } from 'lucide-react';
 import { AimEntitlement } from '../../services/entitlementService';
+import { PlaySubscription } from '../modules/PlaySubscription';
 
 export function UpgradeModal({ open, onClose, entitlement }: { open: boolean; onClose: () => void; entitlement: AimEntitlement }) {
   if (!open) return null;
@@ -23,7 +24,8 @@ export function UpgradeModal({ open, onClose, entitlement }: { open: boolean; on
       </div>
       <div className="mt-5 grid gap-2 text-sm">{['Work on more than one goal','Update your plan whenever life changes','Coaches for different parts of your life','Let AIM look for opportunities','More help with health and daily habits','Find your saved photos, videos, and files','Alarms when tasks start and end'].map(x=><div key={x} className="flex gap-2"><Check aria-hidden="true" className="w-4 h-4 text-emerald-400 mt-0.5"/>{x}</div>)}</div>
       <div className="mt-6 rounded-2xl bg-slate-900 p-4"><div className="font-bold">$9.99/month <span className="text-slate-500 font-normal">or $79.99/year</span></div><div className="text-xs text-slate-400 mt-1">Try Premium for 7 days. Payments will be available when Google Play setup is complete.</div></div>
-      <button type="button" disabled className="mt-4 w-full rounded-xl bg-indigo-600/50 px-4 py-3 font-bold text-white/70 cursor-not-allowed">Start 7-day trial · Not available yet</button>
+      {!window.AIMPlay && <button type="button" disabled className="mt-4 w-full rounded-xl bg-indigo-600/50 px-4 py-3 font-bold text-white/70 cursor-not-allowed">Start 7-day trial · Not available yet</button>}
+      <PlaySubscription />
       <div className="text-[11px] text-slate-500 text-center mt-3">Current access: {entitlement.plan === 'premium' ? 'Premium' : 'Basic'}</div>
     </div>
   </div>;
