@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 const firebaseConfig = JSON.parse(readFileSync(new URL('../../firebase-applet-config.json', import.meta.url), 'utf8'));
-import { test, expect } from '@playwright/test';
+import { test, expect, request } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   const secret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
@@ -58,6 +58,8 @@ test('deployed API is healthy and rejects unauthenticated Premium operations', a
 
 test('fresh user can make a plan, keep it after reload, save a personal search, and reroute it', async ({ page }, testInfo) => {
   test.setTimeout(300000);
+  page.setDefaultTimeout(15000);
+  const cleanupRequest = await request.newContext({ timeout: 20000 });
   let idToken;
   let completedFlow = false;
   const tag = crypto.randomUUID();
@@ -140,6 +142,15 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
     await expect(page.locator('#daily-planner-module')).toContainText('1 Productive Hour');
     await expect(page.locator('#nav-tab-wellness')).toBeVisible();
 
+    testInfo.annotations.push({ type: 'verified', description: 'Real plan, guide, opportunity persistence and one-hour reroute PASS.' });
+
+    // Account must remain tappable inside a phone viewport without force-clicking.
+    const accountBounds = await page.locator('#aim-account-btn').boundingBox();
+    expect(accountBounds).not.toBeNull();
+    expect(accountBounds.x).toBeGreaterThanOrEqual(0);
+    expect(accountBounds.x + accountBounds.width).toBeLessThanOrEqual(390);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
     // Exercise actual sign-out/sign-in, not just reload hydration.
     await page.getByRole('button', { name: `Account: ${email}` }).click();
     await page.getByRole('button', { name: 'Sign Out of Account' }).click();
@@ -161,12 +172,15 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
     testInfo.setTimeout(testInfo.timeout + 60000);
     if (idToken) {
       try {
-        const renewed = await page.request.post(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`, {
+        const renewed = await cleanupRequest.post(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`, {
           data: { email, password, returnSecureToken: true }, timeout: 20000, maxRedirects: 0,
         });
         if (renewed.ok()) idToken = (await renewed.json()).idToken || idToken;
-        const deleted = await page.request.delete(new URL('/api/aim/account', testInfo.project.use.baseURL || process.env.AIM_PREVIEW_URL).href, {
-          headers: { Authorization: `Bearer ${idToken}` }, data: { confirmed: true }, timeout: 30000,
+        const deleted = await cleanupRequest.delete(new URL('/api/aim/account', testInfo.project.use.baseURL || process.env.AIM_PREVIEW_URL).href, {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET } : {}),
+          }, data: { confirmed: true }, timeout: 30000, maxRedirects: 0,
         });
         if (deleted.status() !== 200) throw new Error('Cleanup rejected.');
         testInfo.annotations.push({ type: 'cleanup', description: 'Disposable account and reported content deleted.' });
@@ -176,6 +190,7 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
         console.warn('Disposable QA account cleanup did not finish; preserve the primary test failure.');
       }
     }
+    await cleanupRequest.dispose();
   }
 });
 

@@ -57,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header id="aim-main-header" className="sticky top-0 z-40 bg-slate-950/85 backdrop-blur-md border-b border-slate-800/80 text-slate-100 px-3 sm:px-4 lg:px-8 py-2.5 transition-colors">
-      <div className="max-w-6xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+      <div className="max-w-6xl mx-auto flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-4">
         {/* Brand & Identity */}
         <div
           id="aim-brand-logo"
@@ -97,7 +97,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>}
 
         {/* Header Right Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex w-full sm:w-auto flex-wrap items-center justify-end gap-1.5 sm:gap-2 shrink-0 [&>button]:min-h-11 [&>button]:min-w-11">
           {!isOnboarding && <>
           {/* Active Mode Switcher: Home vs Spaces */}
           {activeTab !== 'home' ? (
