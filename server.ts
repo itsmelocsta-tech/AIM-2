@@ -1076,12 +1076,14 @@ app.post('/api/aim/voice/speak', async (req: Request, res: Response) => {
 // Job Opportunity Scanner Endpoint
 app.post('/api/aim/jobs/scan', async (req: Request, res: Response) => {
   try {
-    const { location, radiusMiles, storedListings, isWeekdayScheduled, userConstraints, allowDemoData } = req.body;
+    const { location, description, radiusMiles, storedListings, isWeekdayScheduled, userConstraints, allowDemoData } = req.body;
     const ai = getGenAI();
     const aimOs = AIMOsService.getInstance();
 
     const result = await aimOs.scanOpportunities({
-      location: location || 'Fort Worth, Texas',
+      uid: (req as any).user.uid,
+      description: typeof description === 'string' ? description.slice(0, 1000) : undefined,
+      location: typeof location === 'string' ? location.slice(0, 200) : '',
       radiusMiles: radiusMiles || 35,
       storedListings: storedListings || [],
       isWeekdayScheduled: Boolean(isWeekdayScheduled),
@@ -1101,7 +1103,7 @@ app.post('/api/aim/jobs/scan', async (req: Request, res: Response) => {
 app.get('/api/aim/jobs/history', (req: Request, res: Response) => {
   try {
     const aimOs = AIMOsService.getInstance();
-    res.json(aimOs.getScanHistory());
+    res.json(aimOs.getScanHistory((req as any).user.uid));
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch scan history' });
   }

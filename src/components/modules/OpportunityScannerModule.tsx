@@ -137,6 +137,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             location: config.location,
+            description: config.description,
             radiusMiles,
             storedListings: listings,
             isWeekdayScheduled: false,
@@ -158,6 +159,11 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
         setSearchSuggestions(scanResult.searchSuggestions);
       }
 
+      if (responseData) {
+        jobScannerService.saveListings(scanResult.allRankedListings || []);
+        if (scanResult.scanRun) jobScannerService.saveScanRuns([scanResult.scanRun, ...jobScannerService.getScanRuns().slice(0, 49)]);
+      }
+
       setListings(jobScannerService.getListings());
       setScanRuns(jobScannerService.getScanRuns());
       setLastScanResult({
@@ -168,8 +174,10 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
         liveProviderConnected: scanResult.liveProviderConnected,
       });
 
-      if (scanResult.noNewQualifyingListings) {
-        onToast('Scan complete: Live search feed checked. No unverified or synthetic jobs were generated.');
+      if (!scanResult.liveProviderConnected && !isDemoAllowed) {
+        onToast('Your search is ready to open. No live opportunity feed is connected.');
+      } else if (scanResult.noNewQualifyingListings) {
+        onToast('No new verified listings were found.');
       } else {
         onToast(
           `Scan completed with ${scanResult.newListings?.length || 0} listing(s) updated!`
@@ -643,7 +651,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
 
                   <div className="pt-3 mt-2 border-t border-slate-800/80 flex items-center justify-between">
                     <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
-                      {sug.category.replace(/_/g, ' ')}
+                      {(sug.category || sug.type || 'search').replace(/_/g, ' ')}
                     </span>
                     <a
                       href={sug.url}

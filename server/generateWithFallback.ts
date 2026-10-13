@@ -9,14 +9,14 @@ export async function generateWithFallback(ai: Pick<GoogleGenAI, 'models'>, para
 }): Promise<any> {
   const primary = params.preferredModel || process.env.GEMINI_MODEL || 'gemini-3.7-flash';
   const models = [...new Set([primary, 'gemini-2.5-flash', 'gemini-3.1-flash-lite'])];
-  const deadline = Date.now() + 55000;
+  const deadline = Date.now() + 75000;
   for (const model of models) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     try {
-      const timeout = Math.min(20000, remaining);
+      const timeout = Math.min(model === primary ? 45000 : 15000, remaining);
       const request = ai.models.generateContent({
         model, contents: params.contents,
         config: {
@@ -35,7 +35,8 @@ export async function generateWithFallback(ai: Pick<GoogleGenAI, 'models'>, para
     } catch (error) {
       if (error instanceof Error && error.message === 'AI_CONTENT_BLOCKED') throw error;
       // Do not log provider errors: they can contain prompts or credential-bearing requests.
-      console.info(`[GenAI] ${model} did not complete; checking the next configured model.`);
+      const status = typeof (error as any)?.status === 'number' ? (error as any).status : 'timeout-or-network';
+      console.info(`[GenAI] ${model} did not complete (status ${status}); checking the next configured model.`);
     } finally { clearTimeout(timer!); }
   }
   throw new Error('AI is temporarily unavailable. Please retry.');

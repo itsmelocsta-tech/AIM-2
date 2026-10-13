@@ -15,12 +15,12 @@ it('does not try another model to bypass a safety block', async () => {
   await expect(generateWithFallback({ models: { generateContent } } as any, { contents: 'Fictional input' })).rejects.toThrow('AI_CONTENT_BLOCKED');
   expect(generateContent).toHaveBeenCalledOnce();
 });
-it('returns within 55 seconds even when every provider request hangs', async () => {
+it('returns within 75 seconds even when every provider request hangs', async () => {
   vi.useFakeTimers();
   const generateContent = vi.fn().mockImplementation(() => new Promise(() => {}));
   const result = generateWithFallback({ models: { generateContent } } as any, { contents: 'Fictional input' });
   const assertion = expect(result).rejects.toThrow('temporarily unavailable');
-  await vi.advanceTimersByTimeAsync(55000);
+  await vi.advanceTimersByTimeAsync(75000);
   await assertion;
   expect(generateContent).toHaveBeenCalledTimes(3);
   expect(generateContent.mock.calls.every(([request]) => request.config.abortSignal.aborted)).toBe(true);

@@ -82,6 +82,7 @@ export default function App() {
   const [loadError, setLoadError] = useState(false);
   const [entitlement, setEntitlement] = useState(DEFAULT_ENTITLEMENT);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  const [isGuideSaving, setIsGuideSaving] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -341,6 +342,9 @@ export default function App() {
     setMemories(mems);
     storageService.saveMemories(mems);
     if (user?.uid) {
+      for (const removed of memories.filter(memory => !mems.some(next => next.id === memory.id))) {
+        firestoreRepository.deleteUserMemory(user.uid, removed.id).catch(() => showToast('A note could not be deleted from your account. Please retry.'));
+      }
       firestoreRepository.saveUserMemories(user.uid, mems).catch(console.warn);
     }
   };
@@ -354,6 +358,9 @@ export default function App() {
     setGoals(gls);
     storageService.saveGoals(gls);
     if (user?.uid) {
+      for (const removed of goals.filter(goal => !gls.some(next => next.id === goal.id))) {
+        firestoreRepository.deleteUserGoal(user.uid, removed.id).catch(() => showToast('A goal could not be deleted from your account. Please retry.'));
+      }
       firestoreRepository.saveUserGoals(user.uid, gls).catch(console.warn);
     }
   };
@@ -550,19 +557,18 @@ export default function App() {
   const currentTab = guideStep === 'planner' ? 'planner' : guideStep === 'check-in' ? 'check-in' : guideStep === 'intro' ? 'home' : activeTab;
 
   const advanceGuide = async () => {
-    if (!guideStep) return;
+    if (!guideStep || isGuideSaving || !user?.uid) return;
     const next = guideStep === 'intro' ? 'planner' : guideStep === 'planner' ? 'check-in' : 'done';
     const profile = { ...userProfile, firstRunGuideStep: next };
-    setUserProfile(profile);
-    storageService.saveProfile(profile);
-    if (user?.uid) {
-      try {
-        await firestoreRepository.saveUserProfile(user.uid, profile);
-      } catch (error) {
-        console.warn('Unable to save first-run guide progress.');
-      }
-    }
-    if (next === 'done') setActiveTab('home');
+    setIsGuideSaving(true);
+    try {
+      await firestoreRepository.saveUserProfile(user.uid, profile);
+      storageService.saveProfile(profile);
+      setUserProfile(profile);
+      if (next === 'done') setActiveTab('home');
+    } catch {
+      showToast('Your guide progress could not be saved. Please try again.');
+    } finally { setIsGuideSaving(false); }
   };
 
   useEffect(() => {
@@ -586,7 +592,7 @@ export default function App() {
       <AimAlarmClock userId={isReady ? user!.uid : null} />
       {/* Top Minimal Header with Live Weather & Time */}
       <Header
-        userProfile={userProfile}
+        userProfile={isReady ? userProfile : DEFAULT_PROFILE}
         driveState={driveState}
         onOpenDriveModal={() => setIsDriveModalOpen(true)}
         onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
@@ -597,7 +603,7 @@ export default function App() {
         userEmail={user?.email || (user?.isAnonymous ? 'Guest Account' : null)}
         activeTab={currentTab}
         setActiveTab={setActiveTab}
-        unlockedSpacesCount={totalLearnedItems}
+        unlockedSpacesCount={isReady ? totalLearnedItems : 0}
         isOnboarding={isOnboarding || Boolean(guideStep)}
       />
 
@@ -660,7 +666,7 @@ export default function App() {
             onToast={showToast}
           />
         ) : currentTab === 'home' && (guideStep === 'intro' ? (
-          <FirstRunGuide step="intro" profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
+          <FirstRunGuide step="intro" profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} saving={isGuideSaving} />
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-1.5 max-w-sm mx-auto mb-2">
@@ -730,7 +736,7 @@ export default function App() {
         ))}
 
         {(guideStep === 'planner' || guideStep === 'check-in') && (
-          <FirstRunGuide step={guideStep} profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
+          <FirstRunGuide step={guideStep} profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} saving={isGuideSaving} />
         )}
 
         {isReady && !guideStep && currentTab === 'scanner' && (

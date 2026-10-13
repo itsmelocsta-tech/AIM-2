@@ -10,10 +10,11 @@ interface FirstRunGuideProps {
   profile: UserProfile;
   dailyPlan: DailyPlan;
   onNext: () => void;
+  saving?: boolean;
 }
 
 /** One short instruction at a time, on the page where the person can use it. */
-export const FirstRunGuide: React.FC<FirstRunGuideProps> = ({ step, profile, dailyPlan, onNext }) => {
+export const FirstRunGuide: React.FC<FirstRunGuideProps> = ({ step, profile, dailyPlan, onNext, saving = false }) => {
   const firstTask = dailyPlan.priorityTasks.find((task) => !task.completed)?.task;
   const content = {
     intro: {
@@ -59,9 +60,10 @@ export const FirstRunGuide: React.FC<FirstRunGuideProps> = ({ step, profile, dai
         id={`aim-first-run-next-${step}`}
         type="button"
         onClick={onNext}
+        disabled={saving}
         className="mt-6 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300"
       >
-        {content.action} <ArrowRight className="w-4 h-4" />
+        {saving ? 'Saving…' : content.action} <ArrowRight className="w-4 h-4" />
       </button>
     </section>
   );

@@ -10,6 +10,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
   signInAnonymously,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -67,6 +68,16 @@ export async function signUpWithEmail(email: string, pass: string) {
     return { user: result.user, error: null };
   } catch (error: any) {
     return { user: null, error: error.message || 'Failed to create account' };
+  }
+}
+
+export async function requestPasswordReset(email: string): Promise<{ error: string | null }> {
+  try {
+    await sendPasswordResetEmail(auth, email.trim());
+    return { error: null };
+  } catch (error: any) {
+    if (error?.code === 'auth/user-not-found') return { error: null };
+    return { error: 'Could not request a password reset. Check the email address and connection, then retry.' };
   }
 }
 

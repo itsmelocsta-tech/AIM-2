@@ -1,13 +1,14 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ auth: { currentUser: null as any, authStateReady: vi.fn() }, token: vi.fn(), firestoreArgs: [] as unknown[] }));
+const mocks = vi.hoisted(() => ({ auth: { currentUser: null as any, authStateReady: vi.fn() }, reset: vi.fn(), token: vi.fn(), firestoreArgs: [] as unknown[] }));
 vi.mock('firebase/app', () => ({ initializeApp: () => ({}), getApps: () => [], getApp: () => ({}) }));
 vi.mock('firebase/firestore', () => ({ getFirestore: (...args: unknown[]) => { mocks.firestoreArgs = args; return {}; } }));
 vi.mock('firebase/auth', () => ({
   getAuth: () => mocks.auth, GoogleAuthProvider: class {}, signInWithPopup: vi.fn(),
   signInWithEmailAndPassword: vi.fn(), createUserWithEmailAndPassword: vi.fn(),
   signOut: vi.fn(), onAuthStateChanged: vi.fn(), signInAnonymously: vi.fn(),
+  sendPasswordResetEmail: mocks.reset,
 }));
-import { getIdToken } from '../src/services/firebaseClient';
+import { getIdToken, requestPasswordReset } from '../src/services/firebaseClient';
 import firebaseConfig from '../firebase-applet-config.json';
 beforeEach(() => { vi.resetAllMocks(); mocks.auth.currentUser = null; });
 it('selects the existing named AIM database', () => {
@@ -27,4 +28,13 @@ it('preserves token errors so network problems are not mistaken for sign-out', a
   mocks.auth.currentUser = { getIdToken: mocks.token };
   mocks.token.mockRejectedValue(new Error('network failed'));
   await expect(getIdToken()).rejects.toThrow('network failed');
+});
+it('requests a reset for the typed address without revealing account existence', async () => {
+  mocks.reset.mockResolvedValue(undefined);
+  expect(await requestPasswordReset(' sam@example.invalid ')).toEqual({ error: null });
+  expect(mocks.reset).toHaveBeenCalledWith(mocks.auth, 'sam@example.invalid');
+  mocks.reset.mockRejectedValue({ code: 'auth/user-not-found' });
+  expect(await requestPasswordReset('missing@example.invalid')).toEqual({ error: null });
+  mocks.reset.mockRejectedValue({ code: 'auth/network-request-failed' });
+  expect((await requestPasswordReset('sam@example.invalid')).error).toContain('retry');
 });

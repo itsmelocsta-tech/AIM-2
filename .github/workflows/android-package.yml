@@ -39,7 +39,7 @@ jobs:
           if-no-files-found: error
       - name: Check owner release inputs
         id: release-inputs
-        if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+        if: always() && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
         env:
           AIM_ANDROID_URL: ${{ vars.AIM_ANDROID_URL }}
           AIM_GOOGLE_WEB_CLIENT_ID: ${{ vars.AIM_GOOGLE_WEB_CLIENT_ID }}

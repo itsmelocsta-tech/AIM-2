@@ -24,3 +24,21 @@ test('Basic user opens saved wellness through real App navigation and saves afte
   await page.getByRole('button', { name: 'Your Coaches', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Unlock AIM Premium' })).toBeVisible();
 });
+
+test('delayed guide saves finish before navigation and do not send the user back home', async ({ page }) => {
+  await page.route('**/*', route => new URL(route.request().url()).hostname === '127.0.0.1' && !new URL(route.request().url()).pathname.startsWith('/api/') ? route.continue() : route.abort());
+  await page.goto('/qa/wellness-harness/?slow-guide');
+  await page.getByRole('button', { name: 'Agree and continue' }).click();
+  await page.getByRole('button', { name: 'Show me today’s plan' }).click();
+  await expect(page.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Show me how to update AIM' }).click();
+  await page.getByRole('button', { name: 'Finish and go to Today' }).click();
+  await expect(page.getByText(/Getting started · \d of 3/)).toHaveCount(0);
+  await page.locator('#nav-tab-wellness').click();
+  await expect(page.locator('#wellness-engine-module')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('fictional-profile'))?.firstRunGuideStep)).toBe('done');
+  await page.reload();
+  await expect(page.getByText(/Getting started · \d of 3/)).toHaveCount(0);
+  await page.locator('#nav-tab-wellness').click();
+  await expect(page.locator('#wellness-engine-module')).toBeVisible();
+});

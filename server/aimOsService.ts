@@ -4,6 +4,7 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
+import type { JobSearchSuggestion } from '../src/types';
 
 export interface ServerJobListing {
   id: string;
@@ -176,8 +177,12 @@ export interface ServerJobMaterialChange {
 }
 
 // In-memory cache of scan runs and verified listings
-const serverScanRuns: ServerJobScanRun[] = [];
-const serverMaterialChanges: ServerJobMaterialChange[] = [];
+const serverScanRuns = new Map<string, ServerJobScanRun[]>();
+
+function saveScanRun(uid: string, run: ServerJobScanRun) {
+  serverScanRuns.set(uid, [run, ...(serverScanRuns.get(uid) || []).slice(0, 49)]);
+  if (serverScanRuns.size > 1000) serverScanRuns.delete(serverScanRuns.keys().next().value!);
+}
 
 export const DEMO_SERVER_DFW_LISTINGS: ServerJobListing[] = [
   {
@@ -590,6 +595,8 @@ export class AIMOsService {
    * - In demo mode (allowDemoData === true): returns explicitly flagged is_mock: true listings for testing.
    */
   public async scanOpportunities(params: {
+    uid: string;
+    description?: string;
     location?: string;
     radiusMiles?: number;
     userConstraints?: any;
@@ -603,12 +610,22 @@ export class AIMOsService {
     materialChanges: ServerJobMaterialChange[];
     noNewQualifyingListings: boolean;
     allRankedListings: ServerJobListing[];
-    searchSuggestions: ServerJobSearchSuggestion[];
+    searchSuggestions: JobSearchSuggestion[];
     liveProviderConnected: boolean;
     isDemoData: boolean;
   }> {
     const startTime = new Date().toISOString();
+    if (!params.uid) throw new Error('An authenticated owner is required.');
     const stored = params.storedListings || [];
+    const description = params.description?.trim() || params.userConstraints?.opportunityFocus?.description?.trim() || 'Jobs';
+    const location = params.location?.trim() || '';
+    const searchQuery = [description, location].filter(Boolean).join(' ');
+    const url = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+    const searchSuggestions: JobSearchSuggestion[] = [{
+      id: 'personal-opportunity-search', title: description, organization: 'Your search', location,
+      notes: 'Search results are external leads. Check each source before applying.',
+      category: 'job_search_engine', type: 'job_search_engine', searchQuery, url, directSearchUrl: url,
+    }];
 
     // REAL DATA INTEGRITY:
     // If demo mode is not explicitly enabled, do NOT fabricate or simulate job listings.
@@ -622,13 +639,7 @@ export class AIMOsService {
         id: 'srv-scan-' + Date.now(),
         scanStartTime: startTime,
         scanCompletionTime: new Date().toISOString(),
-        sourcesSearched: [
-          'Google Jobs Texas Search Engine (External Provider)',
-          'Indeed DFW Feed (External Provider)',
-          'Trinity Metro Official Careers Portal',
-          'Enterprise Mobility Official Careers Portal',
-          'The Parking Spot Official Careers Portal',
-        ],
+        sourcesSearched: [],
         candidatesFound: verifiedStored.length,
         excludedCount: 0,
         newMatchesCount: 0,
@@ -637,7 +648,7 @@ export class AIMOsService {
         isWeekdayScheduled: Boolean(params.isWeekdayScheduled),
         summaryMessage:
           verifiedStored.length === 0
-            ? 'No verified current openings found. Real-world search suggestions provided below.'
+            ? 'No live feed is connected. Your personal search is ready to open.'
             : `Preserved ${verifiedStored.length} verified opening(s).`,
         searchRadiusMiles: params.radiusMiles || 25,
         searchCenter: params.location || 'Local Area',
@@ -645,8 +656,7 @@ export class AIMOsService {
         liveProviderConnected: false,
       };
 
-      serverScanRuns.unshift(scanRun);
-      if (serverScanRuns.length > 50) serverScanRuns.pop();
+      saveScanRun(params.uid, scanRun);
 
       return {
         scanRun,
@@ -654,7 +664,7 @@ export class AIMOsService {
         materialChanges: [],
         noNewQualifyingListings: verifiedStored.length === 0,
         allRankedListings: verifiedStored,
-        searchSuggestions: VERIFIED_DFW_SEARCH_SUGGESTIONS,
+        searchSuggestions,
         liveProviderConnected: false,
         isDemoData: false,
       };
@@ -712,8 +722,7 @@ export class AIMOsService {
       liveProviderConnected: false,
     };
 
-    serverScanRuns.unshift(scanRun);
-    if (serverScanRuns.length > 50) serverScanRuns.pop();
+    saveScanRun(params.uid, scanRun);
 
     const allRankedListings = Array.from(updatedListingsMap.values()).filter(
       (j) => j.fitRating !== 'excluded'
@@ -725,7 +734,7 @@ export class AIMOsService {
       materialChanges: [],
       noNewQualifyingListings: newlyDiscovered.length === 0,
       allRankedListings,
-      searchSuggestions: VERIFIED_DFW_SEARCH_SUGGESTIONS,
+      searchSuggestions,
       liveProviderConnected: false,
       isDemoData: true,
     };
@@ -734,10 +743,11 @@ export class AIMOsService {
   /**
    * Get server scan history
    */
-  public getScanHistory() {
+  public getScanHistory(uid: string) {
     return {
-      runs: serverScanRuns,
-      materialChanges: serverMaterialChanges,
+      runs: [...(serverScanRuns.get(uid) || [])],
+      materialChanges: [],
     };
   }
+  public clearScanHistory(uid: string) { serverScanRuns.delete(uid); }
 }

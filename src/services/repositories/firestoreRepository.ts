@@ -1,13 +1,15 @@
 import {
   doc,
   getDoc,
-  setDoc,
+  setDoc as firebaseSetDoc,
   collection,
   getDocs,
   deleteDoc,
-  writeBatch,
+  writeBatch as firebaseWriteBatch,
+  DocumentReference, DocumentData, SetOptions, Firestore,
 } from 'firebase/firestore';
 import { db } from '../firebaseClient';
+import { firestoreData } from '../../utils/firestoreData';
 import {
   UserProfile,
   ScheduleItem,
@@ -19,6 +21,17 @@ import {
   PersonalOperatingContext,
   DailyPlan,
 } from '../../types';
+
+function setDoc(ref: DocumentReference, data: DocumentData, options?: SetOptions) {
+  return options ? firebaseSetDoc(ref, firestoreData(data), options) : firebaseSetDoc(ref, firestoreData(data));
+}
+function writeBatch(database: Firestore) {
+  const batch = firebaseWriteBatch(database);
+  const set = batch.set.bind(batch);
+  batch.set = ((ref: DocumentReference, data: DocumentData, options?: SetOptions) =>
+    options ? set(ref, firestoreData(data), options) : set(ref, firestoreData(data))) as typeof batch.set;
+  return batch;
+}
 
 export const firestoreRepository = {
   // User Profile

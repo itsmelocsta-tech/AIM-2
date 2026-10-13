@@ -3,6 +3,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { AuthenticatedRequest, getFirebaseAdminApp } from './firebaseAdmin';
 import config from '../firebase-applet-config.json';
+import { AIMOsService } from './aimOsService';
 
 export async function deleteAccount(req: AuthenticatedRequest, res: Response) {
   const uid = req.user?.uid;
@@ -25,6 +26,7 @@ export async function deleteAccount(req: AuthenticatedRequest, res: Response) {
     const reports = await db.collection('aiContentReports').where('uid', '==', uid).get();
     for (const report of reports.docs) await report.ref.delete();
     await db.collection('aiReportAllowances').doc(uid).delete();
+    AIMOsService.getInstance().clearScanHistory(uid);
     // Keep the sign-in usable for retry if data cleanup fails. Remove Auth last.
     await getAuth(app).deleteUser(uid);
     return res.set('Cache-Control', 'no-store').json({ deleted: true });

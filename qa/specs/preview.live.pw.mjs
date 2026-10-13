@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+const firebaseConfig = JSON.parse(readFileSync(new URL('../../firebase-applet-config.json', import.meta.url), 'utf8'));
 import { test, expect } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
@@ -55,16 +57,17 @@ test('deployed API is healthy and rejects unauthenticated Premium operations', a
 });
 
 test('fresh user can make a plan, keep it after reload, save a personal search, and reroute it', async ({ page }, testInfo) => {
-  test.setTimeout(240000);
+  test.setTimeout(300000);
   let idToken;
+  let completedFlow = false;
+  const tag = crypto.randomUUID();
+  const email = `aim-qa-${tag}@example.com`;
+  const password = `AIM-QA-${tag}-7z!`;
   try {
     await requireAim(page);
     await page.getByRole('button', { name: 'Get started', exact: true }).click();
     const account = page.getByRole('heading', { name: 'AIM Account & Security' }).locator('xpath=../../..');
     await account.getByRole('button', { name: 'Create Account', exact: true }).click();
-    const tag = crypto.randomUUID();
-    const email = `aim-qa-${tag}@example.com`;
-    const password = `AIM-QA-${tag}-7z!`;
     await account.getByLabel('Email Address').fill(email);
     await account.getByLabel('Password').fill(password);
     const signupResponse = page.waitForResponse(response => response.url().includes('identitytoolkit.googleapis.com') && response.url().includes('accounts:signUp'));
@@ -74,6 +77,12 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
     idToken = signup.idToken;
 
     await page.getByRole('button', { name: 'Agree and continue' }).click({ timeout: 30000 });
+    await page.getByRole('button', { name: 'Report an AI response' }).click();
+    await page.getByLabel('Response to report').fill('Fictional QA response submitted for report-path verification.');
+    await page.getByRole('button', { name: 'Send report', exact: true }).click();
+    await expect(page.getByText('Report received. The AIM team can review it.')).toBeVisible();
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
+    testInfo.annotations.push({ type: 'verified', description: 'Email signup, consent, and real report persistence PASS.' });
     await expect(page.locator('#aim-current-state-textarea')).toBeVisible({ timeout: 30000 });
     await page.locator('#aim-current-state-textarea').fill('I am starting an illustration business and need steady work with illustration clients. I also want to sleep better.');
     await page.getByRole('button', { name: /Next: What you want to change/ }).click();
@@ -145,15 +154,26 @@ test('fresh user can make a plan, keep it after reload, save a personal search, 
     await expect(page.locator('#daily-planner-module')).toContainText('1 Productive Hour');
     await page.locator('#nav-tab-scanner').click();
     await expect(page.getByText('Looking for: Illustration clients')).toBeVisible();
+    completedFlow = true;
+    testInfo.annotations.push({ type: 'verified', description: 'Real plan, guide, opportunity persistence, reroute and email re-sign-in PASS.' });
   } finally {
-    // The test removes only the disposable account it just created. Keep the ID token in memory only.
+    // Give cleanup its own budget and renew only the disposable test account's session.
+    testInfo.setTimeout(testInfo.timeout + 60000);
     if (idToken) {
-      const deleted = await page.request.delete(new URL('/api/aim/account', testInfo.project.use.baseURL || process.env.AIM_PREVIEW_URL).href, {
-        headers: { Authorization: `Bearer ${idToken}` },
-        data: { confirmed: true },
-      });
-      if (deleted.status() !== 200 && testInfo.errors.length === 0) {
-        throw new Error(`Disposable QA account cleanup failed with HTTP ${deleted.status()}.`);
+      try {
+        const renewed = await page.request.post(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`, {
+          data: { email, password, returnSecureToken: true }, timeout: 20000, maxRedirects: 0,
+        });
+        if (renewed.ok()) idToken = (await renewed.json()).idToken || idToken;
+        const deleted = await page.request.delete(new URL('/api/aim/account', testInfo.project.use.baseURL || process.env.AIM_PREVIEW_URL).href, {
+          headers: { Authorization: `Bearer ${idToken}` }, data: { confirmed: true }, timeout: 30000,
+        });
+        if (deleted.status() !== 200) throw new Error('Cleanup rejected.');
+        testInfo.annotations.push({ type: 'cleanup', description: 'Disposable account and reported content deleted.' });
+      } catch {
+        testInfo.annotations.push({ type: 'cleanup', description: 'FAILED: disposable QA account cleanup needs attention.' });
+        if (completedFlow) throw new Error('Disposable QA account cleanup did not finish.');
+        console.warn('Disposable QA account cleanup did not finish; preserve the primary test failure.');
       }
     }
   }

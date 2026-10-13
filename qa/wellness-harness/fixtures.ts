@@ -5,7 +5,11 @@ export const useAuth = () => ({ user, loading: false, getIdToken: async () => nu
 export const fetchEntitlement = async () => ({ plan: 'basic', status: 'free' });
 const initialLogs = [{ id: 'fictional-log', date: '2026-10-01', sleepHours: 8, sleepQuality: 7, movementMinutes: 30, movementType: 'Walking', nutritionRating: 7, stressLevel: 2, focusHours: 3, timeInNatureMinutes: 20, notes: 'Fictional saved wellness note' }];
 export const firestoreRepository = {
-  getUserProfile: async () => ({ ...DEFAULT_PROFILE, ...user, id: user.uid, onboardingCompleted: true, firstRunGuideStep: 'done' }),
+  getUserProfile: async () => JSON.parse(localStorage.getItem('fictional-profile') || 'null') || ({ ...DEFAULT_PROFILE, ...user, id: user.uid, onboardingCompleted: true, firstRunGuideStep: location.search.includes('slow-guide') ? 'intro' : 'done' }),
+  saveUserProfile: async (_uid: string, profile: unknown) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    localStorage.setItem('fictional-profile', JSON.stringify(profile));
+  },
   getUserContext: async () => DEFAULT_PERSONAL_CONTEXT,
   getUserProjects: async () => [], getUserGoals: async () => [], getUserMemories: async () => [], getUserLifeUpdates: async () => [],
   getUserDailyPlan: async () => null,
