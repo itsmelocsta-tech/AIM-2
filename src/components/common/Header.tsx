@@ -81,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Center: Live Local Weather & Live Local Time */}
-        {!isOnboarding && <div className="flex items-center gap-2 sm:gap-3">
+        {!isOnboarding && <div className="hidden sm:flex items-center gap-2 sm:gap-3">
           {/* Live Clock Pill */}
           <div
             id="aim-header-live-time"
