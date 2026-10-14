@@ -296,6 +296,7 @@ export interface LifeUpdate {
   categories: string[];
   entities?: string[];
   affectedGoalIds: string[];
+  affectedProjectIds?: string[];
   affectedTaskIds: string[];
   affectedTimeBlockIds?: string[];
   affectedPlanIds: string[];
@@ -312,6 +313,7 @@ export interface LifeUpdate {
   whatWasRemovedOrPaused?: string[];
   newTopPriority?: string;
   nextSpecificAction?: string;
+  dependencyImpact?: import('./fractal').FractalDependencyImpact;
 }
 
 export interface LifeUpdateAnalysisResult {
@@ -321,11 +323,13 @@ export interface LifeUpdateAnalysisResult {
   entities: string[];
   urgency: 'low' | 'medium' | 'high' | 'critical';
   affectedGoalIds: string[];
+  affectedProjectIds?: string[];
   affectedTaskIds: string[];
   affectedTimeBlockIds?: string[];
   affectedPlanIds: string[];
   conflictsOrUncertainty: string | null;
   planImpact: 'none' | 'minor' | 'major';
+  dependencyImpact?: import('./fractal').FractalDependencyImpact;
   proposedReroute: {
     explanation: string;
     whatChanged: string[];
@@ -347,3 +351,4 @@ export interface LifeUpdateAnalysisResult {
 }
 
 export * from './aimContext';
+export * from './fractal';
