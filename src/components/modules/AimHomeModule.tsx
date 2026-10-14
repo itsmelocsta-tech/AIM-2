@@ -25,6 +25,7 @@ import {
   UserProfile,
 } from '../../types';
 import { aimContextService } from '../../services/aimContextService';
+import { FractalAtmosphere } from '../common/FractalAtmosphere';
 
 interface AimHomeModuleProps {
   userProfile: UserProfile;
@@ -90,6 +91,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
 
   return (
     <div id="aim-home-screen" className="space-y-6 animate-fadeIn pb-12">
+      <FractalAtmosphere />
       {/* Top Banner: Location, Vehicle Policy & Core Context */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3.5 mb-3.5">
