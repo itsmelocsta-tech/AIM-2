@@ -101,6 +101,7 @@ describe('Android packaging, protected billing records, and Google Play subscrip
             expiryTime: futureIso,
             autoRenewingPlan: { autoRenewEnabled: true },
             offerDetails: { basePlanId: 'monthly', offerId: 'three_day_trial' },
+            offerPhase: { freeTrial: {} },
           },
         ],
       }),
@@ -168,6 +169,7 @@ describe('Android packaging, protected billing records, and Google Play subscrip
             expiryTime: futureIso,
             autoRenewingPlan: { autoRenewEnabled: false },
             offerDetails: { basePlanId: 'monthly', offerId: 'three_day_trial' },
+            offerPhase: { freeTrial: {} },
           },
         ],
       },
@@ -188,6 +190,7 @@ describe('Android packaging, protected billing records, and Google Play subscrip
             expiryTime: pastIso,
             autoRenewingPlan: { autoRenewEnabled: false },
             offerDetails: { basePlanId: 'monthly', offerId: 'three_day_trial' },
+            offerPhase: { freeTrial: {} },
           },
         ],
       },
@@ -307,6 +310,28 @@ describe('billing release regressions', () => {
     store.clear(); vi.unstubAllEnvs(); setPlayDeveloperApiClientForTesting(null);
     oidc.mockResolvedValue({ getPayload: () => ({ email: 'push@example.test', email_verified: true, iss: 'https://accounts.google.com' }) });
   });
+  it.each(['SUBSCRIPTION_STATE_ACTIVE', 'SUBSCRIPTION_STATE_CANCELED'] as const)(
+    'uses current phase instead of original offer ID for %s subscriptions', (subscriptionState) => {
+      const expiryTime = new Date(Date.now() + 30 * 86400_000).toISOString();
+      for (const [offerPhase, expectedStatus] of [
+        [{ freeTrial: {} }, 'trial'],
+        [{ basePrice: {} }, 'active'],
+        [{ introductoryPrice: {} }, 'active'],
+        [undefined, 'active'],
+      ] as const) {
+        const result = deriveEntitlementFromPlayPurchase(verifiedPurchase({
+          subscriptionState,
+          lineItems: [{ productId: 'aim_premium', expiryTime,
+            offerDetails: { basePlanId: 'monthly', offerId: 'three_day_trial' }, offerPhase }],
+        }), 'owner');
+        expect(result.entitlement.status).toBe(expectedStatus);
+        expect(isPremium(result.entitlement)).toBe(true);
+        expect(result.entitlement.cancelAtPeriodEnd).toBe(subscriptionState === 'SUBSCRIPTION_STATE_CANCELED');
+        if (expectedStatus === 'trial') expect(result.entitlement.trialEndsAt).toBe(expiryTime);
+        else expect(result.entitlement).not.toHaveProperty('trialEndsAt');
+      }
+    }
+  );
   it('rejects a purchase missing its account binding or base plan', async () => {
     expect(() => deriveEntitlementFromPlayPurchase(verifiedPurchase({ externalAccountIdentifiers: {} }), 'owner')).toThrow(PlayBillingError);
     expect(() => deriveEntitlementFromPlayPurchase(verifiedPurchase({ lineItems: [{ productId: 'aim_premium' }] }), 'owner')).toThrow(PlayBillingError);

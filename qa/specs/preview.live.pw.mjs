@@ -1,5 +1,26 @@
 import { test, expect } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  const secret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  if (!secret) return;
+  const preview = new URL(process.env.AIM_PREVIEW_URL);
+  if (preview.protocol !== 'https:' || !/^aim-2-[a-z0-9]+-itsmelocsta-5904\.vercel\.app$/.test(preview.hostname)) {
+    throw new Error('BLOCKED: refuse automation access for an unverified preview origin.');
+  }
+  // Exchange the existing Actions secret for a host-scoped cookie. Never attach
+  // a secret to browser-wide headers or follow a credential-bearing redirect.
+  try {
+    const response = await page.request.get(new URL('/', preview.origin).href, {
+      headers: { 'x-vercel-protection-bypass': secret, 'x-vercel-set-bypass-cookie': 'true' },
+      maxRedirects: 0,
+    });
+    if (response.status() >= 400) throw new Error('access rejected');
+  } catch {
+    // Playwright request errors may contain secret headers; publish only this.
+    throw new Error('BLOCKED: authorized preview access could not be established.');
+  }
+});
+
 async function requireAim(page) {
   const response = await page.goto('/');
   const protectedPage = /vercel\.com\/(?:login|sso)/.test(page.url()) || [401,403].includes(response?.status());
@@ -21,8 +42,9 @@ test('exact-head deployed AIM renders its public phone entry and account control
   await page.screenshot({ path: testInfo.outputPath('public-phone-entry.png') });
 });
 
-test('deployed API is healthy and rejects unauthenticated Premium operations', async ({ page, request }) => {
+test('deployed API is healthy and rejects unauthenticated Premium operations', async ({ page }) => {
   await requireAim(page);
+  const request = page.request;
   const health = await request.get('/api/health');
   expect(health.status(), 'Deployed /api/health status').toBe(200);
   expect((await health.json()).status).toBe('ok');

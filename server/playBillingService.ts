@@ -31,6 +31,12 @@ export type PlayAcknowledgementState =
 export interface PlaySubscriptionLineItem {
   productId: string;
   expiryTime?: string;
+  offerPhase?: {
+    freeTrial?: Record<string, never>;
+    introductoryPrice?: Record<string, never>;
+    basePrice?: Record<string, never>;
+    prorationPeriod?: { originalOfferPhaseType?: string };
+  };
   autoRenewingPlan?: {
     autoRenewEnabled?: boolean;
   };
@@ -155,7 +161,10 @@ export function deriveEntitlementFromPlayPurchase(
     purchase.subscriptionState !== 'SUBSCRIPTION_STATE_EXPIRED' &&
     lineItem.autoRenewingPlan?.autoRenewEnabled !== false;
 
-  const isIntroTrialOffer = offerId === playLaunchOffer.introductoryOfferId;
+  // offerId identifies the original offer even after a paid renewal. Only the
+  // current phase from Google's verified response establishes a free trial.
+  // Missing phase metadata keeps verified access without claiming a free trial.
+  const isFreeTrial = lineItem.offerPhase?.freeTrial != null;
   const state = purchase.subscriptionState;
 
   if (state === 'SUBSCRIPTION_STATE_ACTIVE') {
@@ -176,7 +185,7 @@ export function deriveEntitlementFromPlayPurchase(
       };
     }
 
-    if (isIntroTrialOffer) {
+    if (isFreeTrial) {
       return {
         entitlement: {
           plan: 'premium',
@@ -235,8 +244,8 @@ export function deriveEntitlementFromPlayPurchase(
       return {
         entitlement: {
           plan: 'premium',
-          status: isIntroTrialOffer ? 'trial' : 'active',
-          ...(isIntroTrialOffer ? { trialEndsAt: expiryTime } : {}),
+          status: isFreeTrial ? 'trial' : 'active',
+          ...(isFreeTrial ? { trialEndsAt: expiryTime } : {}),
           renewsAt: expiryTime,
           productId: lineItem.productId,
           basePlanId,
