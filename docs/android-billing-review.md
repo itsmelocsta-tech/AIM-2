@@ -16,6 +16,8 @@ This branch adds Android packaging and server purchase verification to the exist
 
 Payments remain disabled. This branch does not redesign application screens or enable a complete consumer purchase flow. Existing UI is retained for a separate design review and billing integration change.
 
+The existing Premium screen still displays the previous $9.99/7-day/annual copy; the staged backend/native launch offer is $7.99/3 days/monthly only. Align the screen, store configuration, and eligibility disclosures in the UI integration change before enabling purchases or releasing this candidate.
+
 The native Google credential/return flow, microphone runtime permission handling, file upload/download, back navigation, device lifecycle/offline behavior, signed bundle, and actual Play license testing remain release gates. Supply the upload signing key through secret settings; do not commit it. Verify the configured package ID and Play App Signing certificate before distributing a release.
 
 Configure `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, Firebase Admin credentials, `PLAY_RTDN_AUDIENCE`, and `PLAY_RTDN_SERVICE_ACCOUNT_EMAIL` through server secret settings. Existing static webhook tokens are not accepted. A Pub/Sub push subscription must use the configured audience and expected service-account identity.
@@ -27,5 +29,7 @@ An offer ID alone does not establish the current free-trial billing phase after 
 The backend/native runtime changes do not modify screen layouts, navigation, onboarding, or visible controls. Design evidence for this branch is `not-applicable: backend, native transport, build configuration, and persistence only; existing screen components are unchanged`.
 
 Local validation: TypeScript PASS; 107 Vitest tests across 22 files PASS; production web/backend build PASS. A credential-pattern scan found no credential literals after removing example placeholder values. Native compilation and deployed browser checks await GitHub Actions.
+
+The first GitHub run passed Quality Gate and Premium/voice component browser checks. The live phone check reached the exact-head preview but was blocked by Vercel deployment protection; the runner needs authorized preview access. The first Android job exposed `sdkmanager: command not found`; the workflow now explicitly installs Android command-line tools and API 36 before compilation. Final commit-bound outcomes belong in the PR.
 
 Record the exact commit and GitHub Actions results in the PR. Local fixture tests do not verify Google Play, Firebase rules deployment, live authentication, or physical Android behavior. Keep incomplete verification marked BLOCKED.
