@@ -30,7 +30,7 @@ jobs:
         if: always()
         run: |
           echo "QA runner: Playwright; tested head: ${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Dashboard plus Adaptive Atmosphere: local preferences, geometry, reduced motion, explicit sound, research links, errors and account-isolation fixture; real optics API, export and private-route boundary; phone and desktop. No account data, AI calls or purchases. Deployed verification is separate." >> "$GITHUB_STEP_SUMMARY"
+          echo "Dashboard plus Adaptive Atmosphere: local preferences, organic geometry, saturation, reduced motion, three opt-in sounds, offline signal metrics, nine research links, errors and account-isolation fixture; real optics API, export and private-route boundary; phone and desktop. No account data, AI calls or purchases. Deployed verification is separate." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

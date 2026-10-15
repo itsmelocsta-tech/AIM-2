@@ -28,3 +28,26 @@ Within-person usability testing can compare two labeled settings for the same ta
 ## Design review
 
 [Figma interaction review](https://www.figma.com/design/bkpDV0yonvzZeuaK4Q4v5G/AIM?node-id=46-2): calm dark navy, original orbital-arrow brand, scene beside controls on desktop, one column on phones, reversible adjustments, optional sound, preference isolation, and clearly bounded research claims. Deployment comparison and commit-bound QA belong in the pull request evidence.
+
+## Research refinement: source-to-control mapping
+
+The following studies refine the design hypotheses; no numeric setting is described as a scientifically optimized dose. The new defaults apply when no saved choice exists. Previous version-1 settings and learned preferences retain their chosen values; missing saturation and audio-tone fields receive bounded defaults.
+
+| Primary source | Finding relevant to this revision | Implementation and boundary |
+| --- | --- | --- |
+| [Robles et al. (2021)](https://doi.org/10.3389/fpsyg.2021.699962) | Engagement and relaxation ratings can diverge as fractal complexity increases; subgroups differ. | Moderate rather than maximum detail, distinct intentions and retained personal feedback. No claimed universal optimum or assigned fractal dimension. |
+| [O’Hare & Hibbard (2011)](https://doi.org/10.1016/j.visres.2011.06.002) | Concentrating contrast in a narrow spatial-frequency band increased discomfort ratings compared with broad-spectrum visual noise. | Soft multiscale organic contours, adjustable artwork intensity and independent saturation. SVG contours do not reproduce the study’s noise images or measured 1/f image spectrum; display size/viewing distance are uncalibrated. |
+| [Alvarsson et al. (2010)](https://doi.org/10.3390/ijerph7031036) | Following induced stress, skin-conductance recovery differed between pleasant nature recordings and environmental noises. | Optional synthesized water-like audio, explicitly identified as synthesis. It is not a recording from the experiment. No inference about the listener’s sympathetic or parasympathetic state. |
+| [Mallik & Russo (2022)](https://doi.org/10.1371/journal.pone.0259312) | Effects in an open-label online trial differed by treatment and trait-anxiety subgroup. | Pink noise and an original ambient chord are listening alternatives, not reproductions of the intervention. No binaural-beat/entrainment feature. Pink noise served as a control in the trial, not evidence for an attention benefit. |
+
+### Visual engineering choices
+
+Organic contours use a bounded deterministic sum of angular scales. Detail controls the number of scales and paths, not measured fractal dimension. Palette, saturation and artwork opacity are separate controls. Slow translation and slight scaling replace continuous rotation; there is no opacity pulse. These motion parameters are conservative product choices, not an experimentally established biological rate. User pause and `prefers-reduced-motion` stop drift, including changes between render and effect subscription. Only the artwork is filtered; text contrast is preserved.
+
+### Audio engineering choices
+
+All sounds are original synthesis. Pink noise is constructed using conjugate random-phase Fourier bins with amplitude proportional to 1/√f over a tapered audible band, giving approximately 1/f power there. The buffer is periodic by construction, mean-free and normalized to nominal RMS 0.16 with a 0.8 digital peak ceiling. Stereo channels use fixed independent seeds. The water texture adds slow amplitude variation; the pad uses a conventional C-major harmony and quiet second harmonics. The noise and pad have comparable nominal input energy before filtering; this is not perceptual loudness normalization.
+
+The first sound request constructs/caches only two bounded procedural arrays; no network request or third-party sample is involved. A low-pass tone control, nonlinear volume taper, output dynamics compressor, 450 ms entrance and 120 ms manual exit reduce abrupt transitions. Changes to level and tone are smoothed. View/page hiding and unmount close immediately, including pending fade-outs. Switching sound type stops playback and requires another explicit start. Device sound pressure is uncalibrated; digital levels cannot establish a hearing-safe exposure. These fade/tone choices improve controllability and signal behavior, not a demonstrated medical outcome.
+
+Audio power spectra and visual amplitude spectra are different measurements. Their shared 1/f notation does not establish a shared biological mechanism or validate a cross-modal therapeutic effect.

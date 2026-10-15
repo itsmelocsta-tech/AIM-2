@@ -1,20 +1,21 @@
 export const intents = ['settle', 'focus', 'restore', 'energize'] as const;
 export type Intent = typeof intents[number];
-export type Settings = { palette: 'amethyst' | 'lagoon' | 'forest' | 'ember'; shape: 'branches' | 'rings' | 'petals'; intensity: number; density: number; motion: number; volume: number; sound: 'rain' | 'drone' };
+export type Settings = { palette: 'amethyst' | 'lagoon' | 'forest' | 'ember'; shape: 'branches' | 'rings' | 'petals' | 'contours'; saturation: number; tone: number; intensity: number; density: number; motion: number; volume: number; sound: 'rain' | 'drone' | 'pink' };
 export type Preferences = { version: 1; intent: Intent; current: Settings; learned: Partial<Record<Intent, Settings>> };
 export const presets: Record<Intent, Settings> = {
-  settle: { palette: 'lagoon', shape: 'rings', intensity: 25, density: 2, motion: 0, volume: 15, sound: 'rain' },
-  focus: { palette: 'amethyst', shape: 'branches', intensity: 40, density: 3, motion: 15, volume: 15, sound: 'rain' },
-  restore: { palette: 'forest', shape: 'petals', intensity: 30, density: 2, motion: 10, volume: 15, sound: 'rain' },
-  energize: { palette: 'ember', shape: 'petals', intensity: 55, density: 4, motion: 30, volume: 20, sound: 'drone' },
+  settle: { palette: 'lagoon', shape: 'contours', saturation: 45, tone: 30, intensity: 30, density: 2, motion: 0, volume: 15, sound: 'rain' },
+  focus: { palette: 'amethyst', shape: 'contours', saturation: 50, tone: 40, intensity: 38, density: 3, motion: 10, volume: 15, sound: 'pink' },
+  restore: { palette: 'forest', shape: 'contours', saturation: 40, tone: 25, intensity: 30, density: 2, motion: 8, volume: 15, sound: 'rain' },
+  energize: { palette: 'ember', shape: 'petals', saturation: 65, tone: 50, intensity: 45, density: 3, motion: 20, volume: 20, sound: 'drone' },
 };
 const bounded = (value: unknown, fallback: number, min: number, max: number) => typeof value === 'number' && Number.isFinite(value) ? Math.round(Math.min(max, Math.max(min, value))) : fallback;
 export function sanitizeSettings(value: unknown): Settings {
   const v = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const d = presets.focus;
   return { palette: ['amethyst', 'lagoon', 'forest', 'ember'].includes(v.palette as string) ? v.palette as Settings['palette'] : d.palette,
-    shape: ['branches', 'rings', 'petals'].includes(v.shape as string) ? v.shape as Settings['shape'] : d.shape,
-    intensity: bounded(v.intensity, d.intensity, 5, 75), density: bounded(v.density, d.density, 1, 5), motion: bounded(v.motion, d.motion, 0, 50), volume: bounded(v.volume, d.volume, 0, 50), sound: v.sound === 'drone' ? 'drone' : 'rain' };
+    shape: ['branches', 'rings', 'petals', 'contours'].includes(v.shape as string) ? v.shape as Settings['shape'] : d.shape,
+    saturation: bounded(v.saturation, d.saturation, 0, 100), tone: bounded(v.tone, d.tone, 0, 100),
+    intensity: bounded(v.intensity, d.intensity, 5, 75), density: bounded(v.density, d.density, 1, 5), motion: bounded(v.motion, d.motion, 0, 50), volume: bounded(v.volume, d.volume, 0, 50), sound: ['rain', 'drone', 'pink'].includes(v.sound as string) ? v.sound as Settings['sound'] : d.sound };
 }
 export function preferenceKey(ownerId: string) { return `aim.atmosphere.v1:${encodeURIComponent(ownerId)}`; }
 export function decodePreferences(raw: string | null): Preferences {
@@ -36,7 +37,7 @@ export function suggestIntent(description: string): Intent {
   return 'focus';
 }
 export function soften(settings: Settings): Settings {
-  return sanitizeSettings({ ...settings, intensity: settings.intensity - 10, density: settings.density - 1, motion: Math.max(0, settings.motion - 10), volume: Math.max(0, settings.volume - 5) });
+  return sanitizeSettings({ ...settings, intensity: settings.intensity - 10, saturation: settings.saturation - 10, tone: settings.tone - 10, density: settings.density - 1, motion: Math.max(0, settings.motion - 10), volume: Math.max(0, settings.volume - 5) });
 }
 export function branchPaths(depth: number): string[] {
   const paths: string[] = [];
