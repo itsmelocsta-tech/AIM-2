@@ -30,7 +30,7 @@ jobs:
         if: always()
         run: |
           echo "QA runner: Playwright; tested head: ${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Dashboard logo, real local Express optics API, controls, curves, export, error recovery and private-route boundary; phone and desktop. No account data, AI calls or purchases. Deployed verification is separate." >> "$GITHUB_STEP_SUMMARY"
+          echo "Dashboard plus Adaptive Atmosphere: local preferences, geometry, reduced motion, explicit sound, research links, errors and account-isolation fixture; real optics API, export and private-route boundary; phone and desktop. No account data, AI calls or purchases. Deployed verification is separate." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -94,7 +94,7 @@ jobs:
       - name: Record dashboard scope
         if: always()
         run: |
-          echo "Public dashboard lab and API tested on phone and desktop. No account data or purchases." >> "$GITHUB_STEP_SUMMARY"
+          echo "Public dashboard, atmosphere preferences, accessibility, audio state, primary study links and optics API tested on phone and desktop. No account data or purchases." >> "$GITHUB_STEP_SUMMARY"
           echo "Paths: onboarding answers/navigation; real plan generation; reload persistence; sign-out/sign-in persistence; signed-in Basic/Premium gates; rerouting; user-defined opportunities; Google workspace loading." >> "$GITHUB_STEP_SUMMARY"
           echo "Deployed My day account state remains unverified; the local fixture is separate. Protection preserved; no secrets or authentication state uploaded." >> "$GITHUB_STEP_SUMMARY"
       - name: Upload public-only live evidence

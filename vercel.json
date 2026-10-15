@@ -5,6 +5,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/atmosphere-preview",
+      "destination": "/index.html"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api"
     }
