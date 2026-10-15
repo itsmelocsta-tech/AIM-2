@@ -99,6 +99,8 @@ test('unavailable storage and audio show honest recovery while visuals remain us
   await page.getByLabel('Palette', { exact: true }).selectOption('lagoon');
   await expect(page.getByTestId('atmosphere-scene')).toHaveAttribute('data-palette', 'lagoon');
   await expect(page.getByRole('alert')).toContainText('could not save');
+  await page.getByRole('button', { name: 'This works for me' }).click();
+  await expect(page.getByRole('status')).toContainText('Saving is unavailable.');
   await page.getByRole('button', { name: 'Start sound', exact: true }).click();
   await expect(page.getByText('Sound could not start in this browser.', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start sound', exact: true })).toBeVisible();
