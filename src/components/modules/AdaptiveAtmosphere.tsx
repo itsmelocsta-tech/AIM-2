@@ -22,7 +22,10 @@ export function AdaptiveAtmosphere({ ownerId, visible }: { ownerId: string; visi
   const paths = useMemo(() => branchPaths(settings.density), [settings.density]);
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)'); const change = () => setReduced(media.matches);
-    media.addEventListener('change', change); return () => media.removeEventListener('change', change);
+    media.addEventListener('change', change);
+    // Catch preference changes between initial render and effect subscription.
+    change();
+    return () => media.removeEventListener('change', change);
   }, []);
   const persist = (next: typeof preferences) => {
     setPreferences(next);

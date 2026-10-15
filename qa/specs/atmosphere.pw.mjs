@@ -62,7 +62,7 @@ test('motion respects accessibility and sound requires an explicit click', async
 });
 
 test('primary research includes measured outcomes and limits for all five topics', async ({ page }) => {
-  await page.getByText('The research behind the questions', { exact: true }).click();
+  await page.locator('.atmosphere-research summary').click();
   const studies = page.locator('.atmosphere-studies article');
   await expect(studies).toHaveCount(5);
   for (let i = 0; i < 5; i++) {
@@ -100,7 +100,7 @@ test('unavailable storage and audio show honest recovery while visuals remain us
   await expect(page.getByTestId('atmosphere-scene')).toHaveAttribute('data-palette', 'lagoon');
   await expect(page.getByRole('alert')).toContainText('could not save');
   await page.getByRole('button', { name: 'This works for me' }).click();
-  await expect(page.getByRole('status')).toContainText('Saving is unavailable.');
+  await expect(page.locator('.atmosphere-status')).toContainText('Saving is unavailable.');
   await page.getByRole('button', { name: 'Start sound', exact: true }).click();
   await expect(page.getByText('Sound could not start in this browser.', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start sound', exact: true })).toBeVisible();
