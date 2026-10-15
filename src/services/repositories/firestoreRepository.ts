@@ -19,6 +19,7 @@ import {
   PersonalOperatingContext,
   DailyPlan,
 } from '../../types';
+import { AimEntitlement } from '../entitlementService';
 
 export const firestoreRepository = {
   // User Profile
@@ -36,6 +37,20 @@ export const firestoreRepository = {
     if (!userId) return;
     const ref = doc(db, 'users', userId);
     await setDoc(ref, { ...profile, updatedAt: new Date().toISOString() }, { merge: true });
+  },
+
+  /**
+   * Read-only access to the user's server-verified entitlement document.
+   * Writing to /users/{userId}/billing/** is blocked by firestore.rules and never attempted from the client.
+   */
+  async getUserEntitlement(userId: string): Promise<AimEntitlement | null> {
+    if (!userId) return null;
+    const ref = doc(db, 'users', userId, 'billing', 'entitlement');
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      return snap.data() as AimEntitlement;
+    }
+    return null;
   },
 
   // Personal Operating Context
@@ -324,10 +339,10 @@ export const firestoreRepository = {
     };
   },
 
-  // Account Deletion (GDPR / Privacy Compliance)
+  // Account Deletion / Reset (Preserves protected server-only billing records)
   async deleteAllUserData(userId: string): Promise<void> {
     if (!userId) return;
-    const collectionsToClear = ['projects', 'schedules', 'goals', 'memories', 'wellness', 'life_updates'];
+    const collectionsToClear = ['projects', 'schedules', 'goals', 'memories', 'wellness', 'life_updates', 'daily_plans'];
     for (const colName of collectionsToClear) {
       const snap = await getDocs(collection(db, 'users', userId, colName));
       const batch = writeBatch(db);

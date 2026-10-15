@@ -1,14 +1,18 @@
 {
+  "packageName": "app.aim.lifeos",
   "market": "US",
   "currency": "USD",
   "installPriceCents": 0,
   "subscriptionProductId": "aim_premium",
   "basePlanId": "monthly",
-  "monthlyPriceCents": 999,
-  "annualBasePlanId": "annual",
-  "annualPriceCents": 7999,
-  "introductoryOfferId": "seven_day_trial",
-  "freeTrialDays": 7,
-  "annualPlanAtLaunch": true,
-  "paymentsEnabled": false
+  "monthlyPriceCents": 799,
+  "annualBasePlanId": null,
+  "annualPriceCents": null,
+  "introductoryOfferId": "three_day_trial",
+  "freeTrialDays": 3,
+  "offerEligibility": "new_subscribers",
+  "annualPlanAtLaunch": false,
+  "paymentsEnabled": false,
+  "disclosureCopy": "Try AIM free for 3 days. Then $7.99 per month, automatically renewed until you cancel. Cancel any time in Google Play subscriptions.",
+  "manageSubscriptionsUrl": "https://play.google.com/store/account/subscriptions?sku=aim_premium&package=app.aim.lifeos"
 }
