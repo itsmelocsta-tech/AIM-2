@@ -91,6 +91,17 @@ export function generateDefaultDaySchedule(userId: string, dateStr: string, time
   }));
 }
 
+function formatLocalDateYmd(date: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const part = (type: 'year' | 'month' | 'day') => parts.find((item) => item.type === type)?.value || '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
 export class ScheduleRepository {
   private syncedDayKey(userId: string, date: string): string {
     return `aim_schedule_synced_${userId}_${date}`;
@@ -137,9 +148,7 @@ export class ScheduleRepository {
     if (validateOnly) return;
     const kept = existing.filter(item => {
       if (item.userId !== userId) return true;
-      const localDate = new Intl.DateTimeFormat('en-CA', {
-        timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-      }).format(new Date(item.startAt));
+      const localDate = formatLocalDateYmd(new Date(item.startAt), tz);
       return localDate !== plan.date;
     });
     this.saveStoredItems([...kept, ...items]);
@@ -183,12 +192,7 @@ export class ScheduleRepository {
     // Filter items that fall on the specified local date
     const dayItems = allItems.filter((item) => {
       if (item.userId && item.userId !== params.userId) return false;
-      const itemLocalDate = new Intl.DateTimeFormat('en-CA', {
-        timeZone: tz,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(new Date(item.startAt));
+      const itemLocalDate = formatLocalDateYmd(new Date(item.startAt), tz);
       return itemLocalDate === dateStr;
     });
 

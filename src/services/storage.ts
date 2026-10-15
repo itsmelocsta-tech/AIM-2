@@ -31,6 +31,9 @@ export const STORAGE_KEYS = {
   DRIVE_LAST_SYNC: 'aim_last_drive_sync',
   DRIVE_TOKEN: 'aim_google_drive_access_token',
   DRIVE_USER: 'aim_google_drive_user_email',
+  DRIVE_TOKEN_ACTIVE: 'aim_google_drive_token',
+  DRIVE_USER_ACTIVE: 'aim_google_drive_user',
+  OPPORTUNITY_FOCUS: 'aim_opportunity_focus_v1',
   VOICE_PREFS: 'aim_voice_preferences',
   CENTRAL_VOICE: 'aim_central_voice_config',
   GREETING_SESSION: 'aim_greeting_session_state',
@@ -280,10 +283,12 @@ export const storageService = {
         });
 
         // Also clean any date-keyed daily plans
-        for (let i = localStorage.length - 1; i >= 0; i--) {
-          const k = localStorage.key(i);
-          if (k && (k.startsWith('aim_') || k.startsWith('coach_'))) {
-            safeStorage.removeItem(k);
+        if (typeof localStorage.length === 'number' && typeof localStorage.key === 'function') {
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && (k.startsWith('aim_') || k.startsWith('coach_'))) {
+              safeStorage.removeItem(k);
+            }
           }
         }
 

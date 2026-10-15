@@ -6,13 +6,36 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Strict User Isolation:
-    // A user can ONLY read and write documents inside their own user document and subcollections.
+    // Server-only Play purchase token ownership index & RTDN audit log.
+    // Only the backend Firebase Admin SDK may read or write these collections.
+    match /billing_tokens/{tokenHash} {
+      allow read, write: if false;
+    }
+
+    match /billing_events/{eventId} {
+      allow read, write: if false;
+    }
+
+    // Strict User Isolation with Protected Billing Records:
+    // A user can read and write their own user document and user-owned subcollections,
+    // but can NEVER write to billing or entitlement records from the client.
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
 
-      match /{subcollection=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Owner may read their verified entitlement state; only backend Admin SDK may write it.
+      match /billing/entitlement {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
+
+      // Raw Play subscription verification records and token metadata are strictly server-only.
+      match /billing/{billingDoc=**} {
+        allow read, write: if false;
+      }
+
+      // User-owned subcollections exclude the protected billing namespace.
+      match /{subcollection}/{docId=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId && subcollection != 'billing';
       }
     }
   }
