@@ -18,7 +18,7 @@ test.beforeEach(async ({ page }) => {
 test('actual logo and API-backed graph render within the viewport', async ({ page }, testInfo) => {
   const logo = page.getByRole('img', { name: 'AIM orbital arrow logo' });
   await expect(logo).toBeVisible();
-  expect(await logo.evaluate(img => img.complete && img.naturalWidth === 1254)).toBe(true);
+  await expect.poll(() => logo.evaluate(img => img.complete && img.naturalWidth === 1254), { timeout: 15000 }).toBe(true);
   await expect(page.getByTestId('energy-check')).toBeVisible();
   await expect(page.getByRole('img', { name: /Reflection versus wavelength/ })).toBeVisible();
   await expect(page.getByText('Interactive dashboard preview · no account data')).toBeVisible();
