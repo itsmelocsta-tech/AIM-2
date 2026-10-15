@@ -19,11 +19,31 @@ matrices overflow; this implementation does not provide a stable scattering solv
 
 `compute_photonic_dos` preserves the requested API name, but returns a reflection
 phase-slope proxy, not physical density of states, group delay, or a band structure.
-Reflection zeros make phase unreliable. Defect insertion is a helper; a cavity
-sweep, wavelength graphs, and an interactive Compare Layer Order dashboard are
-not implemented by this module. These are calculations, not experimental results.
+Reflection zeros make phase unreliable. These are calculations, not experimental results.
 
-Design evidence: not-applicable: standalone Python calculation code; no AIM
-screen, interaction, web route, or deployed service is changed.
-Browser verification for the Python experiment is BLOCKED: the experiment has
-no browser integration or affected-path Playwright suite.
+## AIM dashboard integration
+The React home dashboard uses the selected original purple-and-silver orbital
+arrow logo. Its Crystal Lab calls `POST /api/optics/compare`, a bounded public
+numerical endpoint with no account data, credentials, AI calls, or payments.
+The Node adapter implements the lossless propagating-wave subset of this model:
+real indices 1–3.5, angles 0–75 degrees, up to 40 layers and 201 wavelengths.
+The Python implementation remains the reference for oblique-angle/cavity fixtures.
+
+Crystal Lab supports separate material indices/thicknesses, layer count, angle,
+s/p polarization, matched-count or periodic controls, central air-cavity insertion,
+R/T graphs, exact wavelength inspection, reset, error recovery, and CSV export.
+The matched-count comparison keeps material amounts/thickness constant; periodic
+AB can change composition and is labeled accordingly. Cavity thickness is an
+individual setting, not an automated sweep. No band solver or DOS is advertised.
+
+`/dashboard-preview` renders the production dashboard lab without displaying any
+account information. Signed-in users reach it from Home → Today's plan → Crystal
+Lab. My day counts use the supplied saved plan/projects; it adds no demo tasks or
+new persistence layer. Existing onboarding, entitlement and private API gates
+remain in place. `qa/dashboard.config.mjs` tests the real local Express API and
+the production UI; `qa/dashboard-live.config.mjs` tests the matching deployment.
+
+The source logo is `AIM Orbital Arrow Logo.png` (1254 × 1254), used unchanged
+at `public/brand/aim-orbital-arrow.png`. Figma's existing activity review was
+available; fresh dashboard design review/comparison was blocked by the free
+MCP quota. No Figma approval or authenticated deployed My day PASS is claimed.
