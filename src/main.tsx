@@ -7,7 +7,7 @@ import { DashboardPreview } from './components/modules/AimDashboardModule';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {window.location.pathname === '/dashboard-preview' ? <DashboardPreview /> : <AuthProvider>
+    {['/dashboard-preview', '/atmosphere-preview'].includes(window.location.pathname) ? <DashboardPreview atmosphere={window.location.pathname === '/atmosphere-preview'} /> : <AuthProvider>
       <App />
     </AuthProvider>}
   </StrictMode>,

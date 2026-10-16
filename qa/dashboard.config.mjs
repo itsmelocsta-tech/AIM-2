@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
-  testDir: './specs', testMatch: '**/dashboard.pw.mjs', workers: 1, retries: 0, timeout: 45000,
+  testDir: './specs', testMatch: ['**/dashboard.pw.mjs', '**/atmosphere.pw.mjs'], workers: 1, retries: 0, timeout: 45000,
   reporter: [['line'], ['html', { outputFolder: 'playwright-report/dashboard', open: 'never' }]],
   use: { baseURL: 'http://127.0.0.1:3000', trace: 'off', video: 'off', screenshot: 'only-on-failure' },
   projects: [

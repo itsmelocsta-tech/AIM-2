@@ -612,6 +612,7 @@ export default function App() {
 
             {homeViewMode === 'daily_os' ? (
               <AimDashboardModule
+                atmosphereOwnerId={user.uid}
                 userProfile={userProfile}
                 dailyPlan={dailyPlan}
                 startingPoint={calibration?.currentState}
