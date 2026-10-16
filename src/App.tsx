@@ -42,7 +42,7 @@ import { aimContextService, DEFAULT_PERSONAL_CONTEXT } from './services/aimConte
 import { jobScannerService } from './services/jobScannerService';
 import { Header } from './components/common/Header';
 import { CoachShell } from './components/coach/CoachShell';
-import { AimHomeModule } from './components/modules/AimHomeModule';
+import { AimDashboardModule } from './components/modules/AimDashboardModule';
 import { OpportunityScannerModule } from './components/modules/OpportunityScannerModule';
 import { MyProjectsModule } from './components/modules/MyProjectsModule';
 import { CheckInModule } from './components/modules/CheckInModule';
@@ -524,7 +524,7 @@ export default function App() {
       />
 
       {/* Modules appear only after AIM understands why the user needs them. */}
-      {!isOnboarding && !guideStep && <nav id="aim-primary-nav" className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 px-3 sm:px-4 lg:px-8 py-2 sticky top-[57px] z-30 shadow-sm animate-fadeIn">
+      {!isOnboarding && !guideStep && <nav id="aim-primary-nav" className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 px-3 sm:px-4 lg:px-8 py-2 sticky top-[69px] z-30 shadow-sm animate-fadeIn">
         <div className="max-w-6xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-thin">
           {visibleNavigationTabs.map((tab, index) => {
             const Icon = tab.icon;
@@ -611,7 +611,7 @@ export default function App() {
             </div>
 
             {homeViewMode === 'daily_os' ? (
-              <AimHomeModule
+              <AimDashboardModule
                 userProfile={userProfile}
                 dailyPlan={dailyPlan}
                 startingPoint={calibration?.currentState}

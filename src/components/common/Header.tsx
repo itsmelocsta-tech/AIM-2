@@ -13,6 +13,7 @@ import {
 import { UserProfile, DriveSyncState } from '../../types';
 import { WeatherPill } from './WeatherPill';
 import { formatLocalTime, getEffectiveTimeZone } from '../../utils/dateTimeUtils';
+import { AimBrand } from './AimBrand';
 
 interface HeaderProps {
   userProfile: UserProfile;
@@ -59,29 +60,25 @@ export const Header: React.FC<HeaderProps> = ({
     <header id="aim-main-header" className="sticky top-0 z-40 bg-slate-950/85 backdrop-blur-md border-b border-slate-800/80 text-slate-100 px-3 sm:px-4 lg:px-8 py-2.5 transition-colors">
       <div className="max-w-6xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand & Identity */}
-        <div
+        <button type="button"
           id="aim-brand-logo"
           onClick={() => setActiveTab('home')}
           className="flex items-center gap-2.5 cursor-pointer group shrink-0"
           title="Return to AIM Home"
         >
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-emerald-400 p-[1.5px] shadow-md shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-all">
-            <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-emerald-300 group-hover:rotate-12 transition-transform" />
-            </div>
-          </div>
+          <AimBrand />
           <div>
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="font-semibold tracking-tight text-sm sm:text-base text-white">AIM</span>
-              <span className="text-[10px] tracking-wider uppercase px-2 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 font-medium border border-indigo-800/50">
+              <span className="hidden sm:inline text-[10px] tracking-wider uppercase px-2 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 font-medium border border-indigo-800/50">
                 Your daily guide
               </span>
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Center: Live Local Weather & Live Local Time */}
-        {!isOnboarding && <div className="flex items-center gap-2 sm:gap-3">
+        {!isOnboarding && <div className="hidden md:flex items-center gap-2 sm:gap-3">
           {/* Live Clock Pill */}
           <div
             id="aim-header-live-time"

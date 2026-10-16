@@ -1,0 +1,109 @@
+name: Crystal Dashboard QA
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  AIM_TESTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+concurrency:
+  group: crystal-dashboard-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+      - run: bun install --frozen-lockfile
+      - run: npm ci --prefix qa
+      - run: npx playwright install --with-deps chromium
+        working-directory: qa
+      - run: npx playwright test --config dashboard.config.mjs
+        working-directory: qa
+      - name: Record scope
+        if: always()
+        run: |
+          echo "QA runner: Playwright; tested head: ${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Dashboard logo, real local Express optics API, controls, curves, export, error recovery and private-route boundary; phone and desktop. No account data, AI calls or purchases. Deployed verification is separate." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: crystal-dashboard-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            qa/playwright-report/dashboard/
+            qa/test-results/
+          retention-days: 14
+
+  deployed-preview:
+    name: Deployed Crystal Dashboard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      deployments: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.AIM_TESTED_SHA }}
+          persist-credentials: false
+      - name: Resolve exact-head READY Vercel preview
+        id: preview
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        with:
+          script: |
+            const sha = process.env.AIM_TESTED_SHA;
+            const { owner, repo } = context.repo;
+            for (let attempt = 0; attempt < 20; attempt++) {
+              const { data: deployments } = await github.rest.repos.listDeployments({ owner, repo, sha, per_page: 20 });
+              for (const deployment of deployments) {
+                if (deployment.sha !== sha || deployment.creator?.login !== 'vercel[bot]' || deployment.environment !== 'Preview') continue;
+                const { data: statuses } = await github.rest.repos.listDeploymentStatuses({ owner, repo, deployment_id: deployment.id, per_page: 1 });
+                const status = statuses[0];
+                if (status?.state !== 'success' || !status.environment_url) continue;
+                const url = new URL(status.environment_url);
+                if (url.protocol !== 'https:' || !url.hostname.startsWith('aim-2-') || !url.hostname.endsWith('-itsmelocsta-5904.vercel.app') || url.hostname.includes('-git-')) continue;
+                if (context.payload.pull_request) {
+                  const { data: current } = await github.rest.pulls.get({ owner, repo, pull_number: context.payload.pull_request.number });
+                  if (current.state !== 'open' || current.head.sha !== sha) throw new Error('BLOCKED: PR head changed or closed; refuse stale preview testing.');
+                }
+                core.setOutput('url', url.origin);
+                await core.summary.addRaw(`QA runner: Playwright\nTested head: ${sha}\nREADY Vercel preview: ${url.origin}\nGitHub deployment: ${deployment.id}\n`).write();
+                return;
+              }
+              if (attempt < 19) await new Promise(resolve => setTimeout(resolve, 15000));
+            }
+            throw new Error('BLOCKED: no immutable READY Vercel Preview deployment matching the PR head within five minutes.');
+      - name: Install pinned Playwright dependencies
+        run: npm ci --prefix qa
+      - name: Install Chromium
+        working-directory: qa
+        run: npx playwright install --with-deps chromium
+      - name: Verify deployed dashboard and numerical API
+        working-directory: qa
+        run: npx playwright test --config dashboard-live.config.mjs
+        env:
+          AIM_PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - name: Record dashboard scope
+        if: always()
+        run: |
+          echo "Public dashboard lab and API tested on phone and desktop. No account data or purchases." >> "$GITHUB_STEP_SUMMARY"
+          echo "Paths: onboarding answers/navigation; real plan generation; reload persistence; sign-out/sign-in persistence; signed-in Basic/Premium gates; rerouting; user-defined opportunities; Google workspace loading." >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployed My day account state remains unverified; the local fixture is separate. Protection preserved; no secrets or authentication state uploaded." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload public-only live evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: crystal-dashboard-live-${{ env.AIM_TESTED_SHA }}
+          path: |
+            qa/playwright-report/dashboard-live/
+            qa/test-results/
+          if-no-files-found: warn
+          retention-days: 14

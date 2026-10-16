@@ -11,14 +11,23 @@ import { PLAIN_LANGUAGE_INSTRUCTION } from './server/plainLanguage';
 import { AIMOsService } from './server/aimOsService';
 import { requireAuth } from './server/firebaseAdmin';
 import { readEntitlement, requirePremium } from './server/entitlementService';
+import { compareCrystalLayers } from './server/crystalOptics';
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
 
+app.use('/api/optics', express.json({ limit: '2kb' }));
 app.use(express.json({ limit: '10mb' }));
 app.use('/api/aim', requireAuth);
+
+// Public numerical utility: bounded inputs, no account data, AI or paid calls.
+app.post('/api/optics/compare', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  try { res.json(compareCrystalLayers(req.body)); }
+  catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid optics settings.' }); }
+});
 
 // Lazy Google GenAI Client
 let genAIClient: GoogleGenAI | null = null;
