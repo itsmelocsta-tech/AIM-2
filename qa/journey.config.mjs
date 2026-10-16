@@ -8,6 +8,7 @@ if (!/^aim-2-[a-z0-9]+-itsmelocsta-5904\.vercel\.app$/.test(origin.hostname) ||
 }
 
 export default defineConfig({
+  outputDir: './journey-results',
   testDir: './specs', testMatch: '**/*.journey.pw.mjs',
   workers: 1, retries: 0, timeout: 420000,
   reporter: [['line'], ['html', { outputFolder: 'playwright-report/journey', open: 'never' }]],

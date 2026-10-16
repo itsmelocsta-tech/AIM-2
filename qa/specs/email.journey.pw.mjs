@@ -1,17 +1,24 @@
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { test, expect, request } from '@playwright/test';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, signInWithEmailAndPassword, deleteUser } from 'firebase/auth';
+import { getFirestore, collection, doc, getDoc, getDocs, deleteDoc } from 'firebase/firestore';
 
 const config = JSON.parse(readFileSync(new URL('../../firebase-applet-config.json', import.meta.url), 'utf8'));
 
 // Keep credentials and Firebase responses in memory. No storage-state files,
-// traces, video, authenticated screenshots, or response bodies are attached.
-test('real email account completes onboarding, persistence, opportunities and rerouting', async ({ page }, testInfo) => {
+// traces, video, account screens, or response bodies are attached. The only
+// screenshots crop the fictional opportunity card, excluding account controls.
+test('real Basic email account completes onboarding, persistence, opportunities and sign-in', async ({ page }, testInfo) => {
   const cleanup = await request.newContext({ timeout: 20000 });
   const suffix = randomUUID();
   const email = `aim-qa-${suffix}@example.com`;
   const password = `AIM-${randomUUID()}-7z!`;
-  let token, uid;
+  let token, uid, primaryError;
+  const sdkApp = initializeApp(config, `email-journey-${suffix}`);
+  const sdkAuth = getAuth(sdkApp);
+  const db = getFirestore(sdkApp, config.firestoreDatabaseId);
   const verified = [];
   const note = name => { verified.push(name); testInfo.annotations.push({ type: 'verified', description: `${name}: PASS` }); };
   async function enterCredentials() {
@@ -38,37 +45,30 @@ test('real email account completes onboarding, persistence, opportunities and re
     if (!response.ok()) throw new Error(`Disposable-account ${operation} rejected (${response.status()}).`);
     return response.json();
   }
-  const database = config.firestoreDatabaseId || '(default)';
-  const documents = `https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/${database}/documents`;
   async function readDocument(path) {
-    const response = await safeRequest('get', `${documents}/users/${uid}/${path}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (response.status() !== 200) throw new Error(`Saved test record unavailable (${response.status()}).`);
-    return response.json();
+    try {
+      const snapshot = await getDoc(doc(db, 'users', uid, ...path.split('/')));
+      return snapshot.exists() ? snapshot.data() : null;
+    } catch { throw new Error('Saved disposable-account record could not be read.'); }
   }
   async function clearTestAccount() {
-    // Sign in only with this run's generated credentials; never accept another UID.
-    const session = await authCall('signInWithPassword', { email, password, returnSecureToken: true });
-    if (session.localId !== uid) throw new Error('Refusing cleanup: disposable-account identity mismatch.');
-    token = session.idToken;
-    for (const collection of ['projects', 'schedules', 'goals', 'memories', 'wellness', 'life_updates', 'daily_plans', 'settings']) {
-      const response = await safeRequest('get', `${documents}/users/${uid}/${collection}?pageSize=100`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!response.ok()) throw new Error(`Disposable data cleanup could not list records (${response.status()}).`);
-      const data = await response.json();
-      if (data.nextPageToken) throw new Error('Unexpected disposable-account record count; cleanup halted.');
-      for (const document of data.documents || []) {
-        if (!document.name.startsWith(`projects/${config.projectId}/databases/${database}/documents/users/${uid}/`)) throw new Error('Refusing cleanup outside the disposable account.');
-        const deletion = await safeRequest('delete', `https://firestore.googleapis.com/v1/${document.name}`, { headers: { Authorization: `Bearer ${token}` } });
-        if (!deletion.ok()) throw new Error('Disposable record cleanup rejected.');
+    // The client SDK uses the same named-database rules as AIM. Only this run's
+    // authenticated UID can be read or deleted; no Admin credentials are needed.
+    try {
+      const session = await signInWithEmailAndPassword(sdkAuth, email, password);
+      if (session.user.uid !== uid) throw new Error('Identity mismatch');
+      for (const name of ['projects', 'schedules', 'goals', 'memories', 'wellness', 'life_updates', 'daily_plans', 'settings']) {
+        const ref = collection(db, 'users', uid, name);
+        const records = await getDocs(ref);
+        for (const record of records.docs) await deleteDoc(record.ref);
+        if (!(await getDocs(ref)).empty) throw new Error('Records remain');
       }
-      const checked = await safeRequest('get', `${documents}/users/${uid}/${collection}?pageSize=1`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!checked.ok() || (await checked.json()).documents?.length) throw new Error('Disposable record cleanup not verified.');
-    }
-    const profile = await safeRequest('delete', `${documents}/users/${uid}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!profile.ok()) throw new Error('Disposable profile cleanup rejected.');
-    await authCall('delete', { idToken: token });
-    const rejected = await safeRequest('post', `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${config.apiKey}`, { data: { email, password, returnSecureToken: true } });
-    if (rejected.status() !== 400 || (await rejected.json()).idToken) throw new Error('Disposable identity deletion not verified.');
-    note('Disposable data and identity cleanup');
+      await deleteDoc(doc(db, 'users', uid));
+      await deleteUser(session.user);
+      try { await signInWithEmailAndPassword(sdkAuth, email, password); }
+      catch { note('Disposable data and identity cleanup'); return; }
+      throw new Error('Identity remains');
+    } catch { throw new Error('Disposable QA account cleanup failed; owner review required.'); }
   }
   try {
     const secret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
@@ -93,6 +93,8 @@ test('real email account completes onboarding, persistence, opportunities and re
       const signup = await (await signupResponse).json();
       if (!signup.idToken || !signup.localId) throw new Error('BLOCKED: Firebase did not create the disposable test session.');
       token = signup.idToken; uid = signup.localId;
+      try { await signInWithEmailAndPassword(sdkAuth, email, password); }
+      catch { throw new Error('Disposable SDK session could not be established.'); }
       // Remove credentials retained in the hidden auth form before any failure snapshot.
       await page.locator('input[type="password"]').evaluateAll(nodes => nodes.forEach(n => { n.value = ''; }));
       await expect(page.locator('#aim-current-state-textarea')).toBeVisible({ timeout: 45000 });
@@ -110,11 +112,21 @@ test('real email account completes onboarding, persistence, opportunities and re
       await expect(page.locator('#aim-changes-wanted-textarea')).toHaveValue(changes);
       await page.getByRole('button', { name: /Next: Who you want to be/ }).click();
       await expect(page.locator('#aim-desired-state-textarea')).toHaveValue('I want to earn a steady living as an illustrator.');
-      const generated = page.waitForResponse(r => r.url().endsWith('/api/aim/cross-reference'), { timeout: 120000 });
-      await page.getByRole('button', { name: 'Build my starting plan', exact: true }).click();
-      const response = await generated;
-      expect(response.status(), 'Real AI pathway endpoint').toBe(200);
-      const result = await response.json();
+      let result;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const generated = page.waitForResponse(r => r.url().endsWith('/api/aim/cross-reference'), { timeout: 120000 });
+        await page.getByRole('button', { name: 'Build my starting plan', exact: true }).click();
+        const response = await generated;
+        if (response.status() === 503 && attempt === 0) {
+          await expect(page.getByText('AIM couldn’t build your plan right now. Your answers are saved. Please try again.')).toBeVisible();
+          await expect(page.locator('#aim-desired-state-textarea')).toHaveValue('I want to earn a steady living as an illustrator.');
+          note('AI outage preserves answers and presents recovery');
+          continue;
+        }
+        expect(response.status(), 'Real AI pathway endpoint after at most one UI recovery').toBe(200);
+        result = await response.json();
+        break;
+      }
       expect(result.source, 'A fallback is not real AI generation').not.toBe('fallback');
       expect(result.pathways?.length, 'AI returns usable pathways').toBeGreaterThan(0);
       await expect(page.locator('#aim-pathway-selection-module')).toBeVisible({ timeout: 90000 });
@@ -134,10 +146,9 @@ test('real email account completes onboarding, persistence, opportunities and re
       await expect(page.locator('#aim-primary-nav')).toBeVisible();
       await page.locator('#nav-tab-planner').click();
       await expect(page.locator('#daily-planner-module')).toBeVisible();
-      const planList = await safeRequest('get', `${documents}/users/${uid}/daily_plans?pageSize=10`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!planList.ok()) throw new Error('Saved daily plan could not be read.');
-      savedPlan = (await planList.json()).documents?.[0];
-      expect(savedPlan?.fields?.priorityTasks?.arrayValue?.values?.length).toBeGreaterThan(0);
+      const plans = await getDocs(collection(db, 'users', uid, 'daily_plans'));
+      savedPlan = plans.docs[0]?.data();
+      expect(savedPlan?.priorityTasks?.length).toBeGreaterThan(0);
       note('Firebase plan reload and first-run guide persistence');
     });
 
@@ -149,7 +160,7 @@ test('real email account completes onboarding, persistence, opportunities and re
       await setup.locator('input').fill('Austin');
       await setup.locator('#save-opportunity-focus-btn').click();
       await expect(page.locator('#opportunity-scanner-screen')).toContainText('Illustration clients');
-      await expect.poll(async () => JSON.stringify((await readDocument('settings/context')).fields), { timeout: 20000 }).toContain('Illustration clients');
+      await expect.poll(async () => JSON.stringify(await readDocument('settings/context')), { timeout: 20000 }).toContain('Illustration clients');
       await page.evaluate(() => localStorage.clear());
       await page.reload();
       await expect(page.locator('#aim-primary-nav')).toBeVisible({ timeout: 45000 });
@@ -160,21 +171,22 @@ test('real email account completes onboarding, persistence, opportunities and re
       note('User-defined opportunities persist in Firebase');
     });
 
-    await test.step('Reroute through the real API and persist the confirmed change', async () => {
+    await test.step('Verify signed-in Basic access and Premium enforcement', async () => {
       await page.locator('#nav-tab-home').click();
-      await page.getByRole('button', { name: 'Update my plan', exact: true }).click();
-      await page.locator('#life-update-textarea').fill('I only have one hour available today, not two. Shorten my plan to fit one hour.');
-      const analyzed = page.waitForResponse(r => r.url().endsWith('/api/aim/life-update-analyze'), { timeout: 90000 });
-      await page.locator('#life-update-submit-btn').click();
-      expect((await analyzed).status(), 'Real reroute API').toBe(200);
-      await expect(page.locator('#btn-confirm-reroute')).toBeVisible({ timeout: 60000 });
-      await page.locator('#btn-confirm-reroute').click();
-      await expect(page.locator('#aim-rerouted-success-card')).toBeVisible({ timeout: 45000 });
-      const updated = await readDocument(`daily_plans/${savedPlan.name.split('/').at(-1)}`);
-      expect(JSON.stringify(updated.fields), 'Confirmed reroute changes the saved plan').not.toBe(JSON.stringify(savedPlan.fields));
-      await page.locator('#nav-tab-planner').click();
-      await expect(page.locator('#daily-planner-module')).toContainText(/1 Productive Hour/);
-      note('Real life-update analysis and saved one-hour reroute');
+      await page.getByRole('button', { name: 'Your Coaches', exact: true }).click();
+      await expect(page.getByRole('dialog', { name: 'Unlock AIM Premium' })).toBeVisible();
+      await page.getByRole('button', { name: 'Close AIM Premium details', exact: true }).click();
+      const freshToken = await sdkAuth.currentUser.getIdToken();
+      for (const route of ['life-update-analyze', 'monetize', 'creative']) {
+        let response;
+        try {
+          response = await page.request.post(`/api/aim/${route}`, { headers: { Authorization: `Bearer ${freshToken}` }, data: {}, maxRedirects: 0 });
+        } catch { throw new Error('Authenticated Premium-boundary request failed; credential details withheld.'); }
+        expect(response.status(), `Basic must not invoke ${route}`).toBe(403);
+        expect((await response.json()).code).toBe('PREMIUM_REQUIRED');
+      }
+      note('Signed-in Basic Premium dialog and server enforcement');
+      testInfo.annotations.push({ type: 'blocked', description: 'Actual reroute execution requires an authorized Premium test account; no entitlement was fabricated.' });
     });
 
     await test.step('Sign out and back in, then verify the saved account state', async () => {
@@ -190,20 +202,30 @@ test('real email account completes onboarding, persistence, opportunities and re
       await form.locator('button[type="submit"]').click();
       await expect(page.locator('#aim-primary-nav')).toBeVisible({ timeout: 45000 });
       await page.locator('#nav-tab-planner').click();
-      await expect(page.locator('#daily-planner-module')).toContainText(/1 Productive Hour/);
+      await expect(page.locator('#daily-planner-module')).toContainText(savedPlan.priorityTasks[0].task);
+      expect(await readDocument(`daily_plans/${savedPlan.date}`)).toEqual(savedPlan);
       await page.locator('#nav-tab-scanner').click();
       await expect(page.locator('#opportunity-scanner-screen')).toContainText('Illustration clients');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await testInfo.attach('fictional-opportunity-phone', { body: await page.locator('#opportunity-scanner-screen').screenshot(), contentType: 'image/png' });
       await page.setViewportSize({ width: 1280, height: 900 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await testInfo.attach('fictional-opportunity-desktop', { body: await page.locator('#opportunity-scanner-screen').screenshot(), contentType: 'image/png' });
       note('Email sign-out/sign-in persistence and phone/desktop bounds');
     });
+  } catch (error) {
+    primaryError = error;
+    throw error;
   } finally {
     testInfo.setTimeout(testInfo.timeout + 90000);
     try { if (uid && token) await clearTestAccount(); }
-    finally {
+    catch (error) {
+      testInfo.annotations.push({ type: 'cleanup', description: 'FAILED: disposable QA account cleanup needs owner review.' });
+      if (!primaryError) throw error;
+    } finally {
       await cleanup.dispose();
-      await testInfo.attach('journey-results', { body: JSON.stringify({ commit: process.env.AIM_TESTED_SHA, verified, googleOAuth: 'BLOCKED: interactive Google test profile required', purchases: 'NOT TESTED' }, null, 2), contentType: 'application/json' });
+      await deleteApp(sdkApp);
+      await testInfo.attach('journey-results', { body: JSON.stringify({ commit: process.env.AIM_TESTED_SHA, verified, googleOAuth: 'BLOCKED: interactive Google test profile required', premiumReroute: 'BLOCKED: no authorized Premium account; Basic access enforcement tested', purchases: 'NOT TESTED' }, null, 2), contentType: 'application/json' });
     }
   }
 });

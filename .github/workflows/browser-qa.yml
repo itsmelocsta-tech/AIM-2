@@ -105,6 +105,8 @@ jobs:
         env:
           AIM_PREVIEW_URL: ${{ steps.preview.outputs.url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - name: Install application dependencies for Firebase verification
+        run: npm ci --ignore-scripts
       - name: Run full disposable-email journey
         working-directory: qa
         run: npm run test:journey
@@ -118,7 +120,7 @@ jobs:
         run: |
           echo "Email journey: see the full disposable-email step and attached per-step results. No pre-existing account or owner password is needed." >> "$GITHUB_STEP_SUMMARY"
           echo "Google OAuth: BLOCKED — requires an interactive authorized Google test profile. Real purchases and native device behavior remain untested." >> "$GITHUB_STEP_SUMMARY"
-          echo "No purchases or production changes. Protection preserved; no secrets, authenticated screenshots, traces, video, or authentication state uploaded." >> "$GITHUB_STEP_SUMMARY"
+          echo "No purchases or production changes. Protection preserved; no secrets, account-screen screenshots, traces, video, or authentication state uploaded." >> "$GITHUB_STEP_SUMMARY"
       - name: Upload public-only live evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
