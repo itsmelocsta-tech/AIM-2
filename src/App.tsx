@@ -215,6 +215,13 @@ export default function App() {
     setDailyRecommendation(aimContextService.generateDailyRecommendation(updated, aimProjects, topJobMatch));
   };
 
+  const handleSaveOpportunityContext = async (updated: PersonalOperatingContext) => {
+    if (!user?.uid) throw new Error('Sign in to save your opportunity focus.');
+    await firestoreRepository.saveUserContext(user.uid, updated);
+    setAimContext(updated);
+    aimContextService.saveContext(updated);
+  };
+
   const handleUpdateAimProjects = (updated: AIMProject[]) => {
     setAimProjects(updated);
     aimContextService.saveProjects(updated);
@@ -658,6 +665,7 @@ export default function App() {
         {isReady && !guideStep && currentTab === 'scanner' && (
           <OpportunityScannerModule
             context={aimContext}
+            onSaveContext={handleSaveOpportunityContext}
             onJobApplied={handleJobApplied}
             onToast={showToast}
           />

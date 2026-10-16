@@ -12,6 +12,7 @@ import { AIMOsService } from './server/aimOsService';
 import { requireAuth } from './server/firebaseAdmin';
 import { readEntitlement, requirePremium } from './server/entitlementService';
 import { compareCrystalLayers } from './server/crystalOptics';
+import { generateWithFallback } from './server/generateWithFallback';
 
 dotenv.config();
 
@@ -31,9 +32,6 @@ app.post('/api/optics/compare', (req, res) => {
 
 // Lazy Google GenAI Client
 let genAIClient: GoogleGenAI | null = null;
-const AIM_MODEL = 'gemini-3.7-flash';
-const FALLBACK_MODELS = ['gemini-3.7-flash', 'gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
-
 function getGenAI(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -51,74 +49,6 @@ function getGenAI(): GoogleGenAI | null {
     });
   }
   return genAIClient;
-}
-
-// Resilient helper to execute GenAI requests with immediate failover on high-demand 503s
-async function generateWithFallback(
-  ai: GoogleGenAI,
-  params: {
-    contents: any;
-    config?: any;
-    preferredModel?: string;
-  }
-): Promise<any> {
-  const modelsToTry = [
-    params.preferredModel || AIM_MODEL,
-    ...FALLBACK_MODELS.filter((m) => m !== (params.preferredModel || AIM_MODEL)),
-  ];
-
-  let lastError: any = null;
-
-  for (let mIdx = 0; mIdx < modelsToTry.length; mIdx++) {
-    const model = modelsToTry[mIdx];
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: params.contents,
-        config: { ...params.config, systemInstruction: [params.config?.systemInstruction, PLAIN_LANGUAGE_INSTRUCTION].filter(Boolean).join('\n\n') },
-      });
-      if (response && (response.text || response.candidates?.length)) {
-        return response;
-      }
-    } catch (err: any) {
-      lastError = err;
-      const errMsg = err?.message || String(err);
-      const isHighDemand =
-        errMsg.includes('503') ||
-        errMsg.includes('UNAVAILABLE') ||
-        errMsg.includes('high demand') ||
-        errMsg.includes('429') ||
-        errMsg.includes('RESOURCE_EXHAUSTED') ||
-        errMsg.includes('overloaded');
-
-      const isNetworkTimeout = errMsg.includes('timeout') || errMsg.includes('ECONNRESET');
-
-      // If high demand, instantly switch to next available model in the fallback chain without stalled delays
-      if (isHighDemand && mIdx < modelsToTry.length - 1) {
-        console.info(`[GenAI] Model ${model} under high demand; seamlessly switching to ${modelsToTry[mIdx + 1]}...`);
-        continue;
-      }
-
-      // If network timeout on first attempt, brief backoff retry
-      if (isNetworkTimeout) {
-        try {
-          await new Promise((r) => setTimeout(r, 750));
-          const retryResponse = await ai.models.generateContent({
-            model,
-            contents: params.contents,
-            config: { ...params.config, systemInstruction: [params.config?.systemInstruction, PLAIN_LANGUAGE_INSTRUCTION].filter(Boolean).join('\n\n') },
-          });
-          if (retryResponse && (retryResponse.text || retryResponse.candidates?.length)) {
-            return retryResponse;
-          }
-        } catch (retryErr: any) {
-          lastError = retryErr;
-        }
-      }
-    }
-  }
-
-  throw lastError || new Error('All GenAI models failed to respond');
 }
 
 const AIM_SYSTEM_INSTRUCTION = `You are AIM (Artificial Intelligence for Manifestation), an AI-powered personal Life Operating System and thinking partner.

@@ -1,25 +1,7 @@
 import { authenticatedFetch, AuthenticationError } from '../../services/authenticatedFetch';
 import React, { useState } from 'react';
 
-const OPPORTUNITY_FOCUS_KEY = 'aim_opportunity_focus_v1';
-
-type OpportunityFocus = {
-  category: 'jobs' | 'business' | 'clients' | 'funding' | 'education' | 'housing' | 'creative' | 'other';
-  description: string;
-  location: string;
-};
-
-const readOpportunityFocus = (): OpportunityFocus | null => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(OPPORTUNITY_FOCUS_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed?.description?.trim() ? parsed : null;
-  } catch {
-    return null;
-  }
-};
+type OpportunityFocus = NonNullable<PersonalOperatingContext['opportunityFocus']>;
 import {
   Compass,
   Search,
@@ -56,12 +38,14 @@ import { jobScannerService, JobScannerConfig } from '../../services/jobScannerSe
 
 interface OpportunityScannerModuleProps {
   context: PersonalOperatingContext;
+  onSaveContext: (context: PersonalOperatingContext) => Promise<void>;
   onJobApplied?: (job: JobListing) => void;
   onToast: (msg: string) => void;
 }
 
 export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> = ({
   context,
+  onSaveContext,
   onJobApplied,
   onToast,
 }) => {
@@ -91,12 +75,14 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
   const [newSinceLastScan, setNewSinceLastScan] = useState(config?.filterNewSinceLastScan ?? false);
   const [radiusMiles, setRadiusMiles] = useState(config?.radiusMiles ?? 35);
   const [expandedDetailsId, setExpandedDetailsId] = useState<string | null>(null);
-  const [opportunityFocus, setOpportunityFocus] = useState<OpportunityFocus | null>(() => readOpportunityFocus());
-  const [focusCategory, setFocusCategory] = useState<OpportunityFocus['category']>('jobs');
+  const [opportunityFocus, setOpportunityFocus] = useState<OpportunityFocus | null>(() => context.opportunityFocus || null);
+  const [focusCategory, setFocusCategory] = useState<OpportunityFocus['category']>(() => context.opportunityFocus?.category || 'jobs');
+  const [isSavingFocus, setIsSavingFocus] = useState(false);
   const [focusDescription, setFocusDescription] = useState('');
   const [focusLocation, setFocusLocation] = useState('');
 
-  const saveOpportunityFocus = () => {
+  const saveOpportunityFocus = async () => {
+    if (isSavingFocus) return;
     const description = focusDescription.trim();
     if (!description) {
       onToast('Tell AIM what kind of opportunities you want it to look for first.');
@@ -107,10 +93,14 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
       description,
       location: focusLocation.trim(),
     };
+    setIsSavingFocus(true);
     try {
-      window.localStorage.setItem(OPPORTUNITY_FOCUS_KEY, JSON.stringify(next));
+      await onSaveContext({ ...context, opportunityFocus: next });
     } catch {
-      // The in-memory state still keeps the experience usable when storage is unavailable.
+      onToast('AIM could not save your opportunity focus. Your text is still here. Please try again.');
+      return;
+    } finally {
+      setIsSavingFocus(false);
     }
     setOpportunityFocus(next);
     if (next.category === 'jobs' && next.location) {
@@ -272,7 +262,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
               <Compass className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white">Your Opportunity Scanner</h1>
+              <h1 className="text-lg font-bold text-white">Your Opportunities</h1>
               <p className="text-sm text-slate-300 mt-1 max-w-2xl">
                 You decide what counts as an opportunity. AIM will not assume you are looking for a certain job, business, city, or life path.
               </p>
@@ -322,6 +312,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
 
             <button
               id="save-opportunity-focus-btn"
+              disabled={isSavingFocus}
               onClick={saveOpportunityFocus}
               className="w-full sm:w-auto px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold transition-colors"
             >

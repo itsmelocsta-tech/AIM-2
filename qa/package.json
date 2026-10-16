@@ -2,6 +2,6 @@
   "name": "aim-browser-qa",
   "private": true,
   "type": "module",
-  "scripts": { "test": "playwright test", "test:live": "playwright test --config=live.config.mjs" },
+  "scripts": { "test": "playwright test", "test:live": "playwright test --config=live.config.mjs", "test:journey": "playwright test --config=journey.config.mjs" },
   "devDependencies": { "@playwright/test": "1.63.0" }
 }
