@@ -8,3 +8,6 @@ coverage/
 !.env.example
 qa/playwright-report/
 qa/test-results/
+__pycache__/
+*.py[cod]
+.pytest_cache/
