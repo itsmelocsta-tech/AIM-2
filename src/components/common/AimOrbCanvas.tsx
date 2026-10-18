@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useOptionalAuth } from '../../context/AuthContext';
 import { Atmosphere, loadProfile } from '../../services/atmospherePreferenceService';
 
 interface AimOrbCanvasProps {
@@ -20,7 +20,7 @@ export const AimOrbCanvas: React.FC<AimOrbCanvasProps> = ({
   onClick,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { user } = useAuth();
+  const user = useOptionalAuth()?.user ?? null;
   const [atmosphere,setAtmosphere] = useState<Atmosphere | null>(null);
   useEffect(()=>{
     const refresh=()=>setAtmosphere(user?loadProfile(user.uid).applied:null);
