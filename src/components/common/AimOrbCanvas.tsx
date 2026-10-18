@@ -1,4 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { Atmosphere, loadProfile } from '../../services/atmospherePreferenceService';
 
 interface AimOrbCanvasProps {
   size?: number;
@@ -18,6 +20,13 @@ export const AimOrbCanvas: React.FC<AimOrbCanvasProps> = ({
   onClick,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { user } = useAuth();
+  const [atmosphere,setAtmosphere] = useState<Atmosphere | null>(null);
+  useEffect(()=>{
+    const refresh=()=>setAtmosphere(user?loadProfile(user.uid).applied:null);
+    refresh();window.addEventListener('aim:atmosphere-changed',refresh);
+    return ()=>window.removeEventListener('aim:atmosphere-changed',refresh);
+  },[user?.uid]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -27,9 +36,12 @@ export const AimOrbCanvas: React.FC<AimOrbCanvasProps> = ({
 
     let animationFrameId: number;
     let time = 0;
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || atmosphere?.speed===0;
+    const customColor:Record<string,[string,string,string]>={ocean:['#67e8f9','#0891b2','#164e63'],sunset:['#fdba74','#f97316','#9d174d'],forest:['#86efac','#10b981','#065f46'],violet:['#ddd6fe','#8b5cf6','#5b21b6'],mono:['#f1f5f9','#94a3b8','#334155']};
+    const palette=atmosphere?customColor[atmosphere.palette]:null;
 
     const render = () => {
-      time += isThinking ? 0.06 : isSpeaking ? 0.05 : isListening ? 0.04 : 0.02;
+      if(!reducedMotion)time += (isThinking ? 0.06 : isSpeaking ? 0.05 : isListening ? 0.04 : 0.02)*(atmosphere?Math.max(0.1,atmosphere.speed/3):1);
       const width = canvas.width;
       const height = canvas.height;
       const centerX = width / 2;
@@ -78,7 +90,7 @@ export const AimOrbCanvas: React.FC<AimOrbCanvasProps> = ({
       // Fluid morphed neural core
       ctx.save();
       ctx.beginPath();
-      const points = 36;
+      const points = atmosphere ? 20 + atmosphere.complexity * 4 : 36;
       for (let i = 0; i < points; i++) {
         const angle = (i / points) * Math.PI * 2;
         const wave1 = Math.sin(angle * 3 + time) * 7;
@@ -119,9 +131,9 @@ export const AimOrbCanvas: React.FC<AimOrbCanvasProps> = ({
         coreGrad.addColorStop(0.5, '#f59e0b');
         coreGrad.addColorStop(1, '#d97706');
       } else {
-        coreGrad.addColorStop(0, '#818cf8');
-        coreGrad.addColorStop(0.5, '#6366f1');
-        coreGrad.addColorStop(1, '#4338ca');
+        coreGrad.addColorStop(0, palette?.[0] || '#818cf8');
+        coreGrad.addColorStop(0.5, palette?.[1] || '#6366f1');
+        coreGrad.addColorStop(1, palette?.[2] || '#4338ca');
       }
 
       ctx.fillStyle = coreGrad;
@@ -177,7 +189,7 @@ export const AimOrbCanvas: React.FC<AimOrbCanvasProps> = ({
       ctx.stroke();
       ctx.restore();
 
-      animationFrameId = requestAnimationFrame(render);
+      if(!reducedMotion)animationFrameId = requestAnimationFrame(render);
     };
 
     render();
@@ -185,7 +197,7 @@ export const AimOrbCanvas: React.FC<AimOrbCanvasProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [isListening, isSpeaking, isThinking]);
+  }, [isListening, isSpeaking, isThinking, atmosphere]);
 
   return (
     <div
