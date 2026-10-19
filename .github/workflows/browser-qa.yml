@@ -55,8 +55,9 @@ jobs:
 
   deployed-preview:
     name: Exact-head deployed phone smoke
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       contents: read
       deployments: read
@@ -118,6 +119,13 @@ jobs:
           echo "Signed-in atmosphere scope: real email sessions with disposable fictional completed profiles; Settings navigation, calibration, local persistence, reset/delete and account isolation." >> "$GITHUB_STEP_SUMMARY"
           echo "Separate unverified paths: real onboarding/AI plan generation, Premium execution, rerouting, opportunities and Google OAuth. Seeded profiles are test setup, not generated plans." >> "$GITHUB_STEP_SUMMARY"
           echo "Protection preserved. No credentials, account screenshots, traces, video or authentication state uploaded; only cropped atmosphere panels." >> "$GITHUB_STEP_SUMMARY"
+      - name: Run full disposable-email journey
+        working-directory: qa
+        run: npm run test:journey
+        env:
+          AIM_PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          AIM_ALLOW_DISPOSABLE_ACCOUNT: 'true'
       - name: Upload public-only live evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -126,6 +134,7 @@ jobs:
           path: |
             qa/playwright-report/live/
             qa/playwright-report/atmosphere-live/
+            qa/playwright-report/journey/
             qa/test-results/
           if-no-files-found: warn
           retention-days: 14
