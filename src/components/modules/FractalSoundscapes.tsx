@@ -5,21 +5,24 @@ export function FractalSoundscapes() {
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState('');
   const engine = useRef<SoundscapeEngine | null>(null);
+  const requestId = useRef(0);
   useEffect(() => { saveSoundscape(prefs); }, [prefs]);
-  useEffect(() => () => { engine.current?.stop(); }, []);
+  useEffect(() => () => { requestId.current++; engine.current?.stop(); }, []);
   const update = (next: SoundscapePreferences) => {
     if (playing && (next.mode !== prefs.mode || next.minutes !== prefs.minutes)) {
-      engine.current?.stop(); setPlaying(false);
+      requestId.current++; engine.current?.stop(); setPlaying(false);
     } else if (playing && next.volume !== prefs.volume) engine.current?.setVolume(next.volume);
     setPrefs(next);
   };
   const toggle = async () => {
-    if (playing) { engine.current?.stop(); setPlaying(false); return; }
+    if (playing) { requestId.current++; engine.current?.stop(); setPlaying(false); return; }
     if (prefs.mode === 'silence') return;
     setError('');
-    const audio = new SoundscapeEngine(); engine.current = audio;
-    try { await audio.start(prefs, () => setPlaying(false)); setPlaying(true); }
-    catch { setError('Audio could not start. Check your browser audio permissions.'); setPlaying(false); }
+    const token = ++requestId.current;
+    const audio = new SoundscapeEngine(); engine.current?.stop(); engine.current = audio;
+    try { await audio.start(prefs, () => { if (token === requestId.current) setPlaying(false); });
+      if (token === requestId.current) setPlaying(true); else audio.stop(); }
+    catch { if (token === requestId.current) { setError('Audio could not start. Check your browser audio permissions.'); setPlaying(false); } }
   };
   return <section aria-label="Fractal Soundscapes" className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3 text-white">
     <h2 className="font-bold text-sm">Fractal Soundscapes</h2>
