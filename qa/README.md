@@ -6,6 +6,8 @@ Runner: Playwright in the Browser QA GitHub Actions workflow. No external browse
 
 The live job resolves a successful Vercel Preview deployment belonging to the exact PR head SHA through GitHub deployment metadata. It rejects mutable branch aliases, records the SHA/URL, and probes the deployed public phone entry, health endpoint, and unauthenticated API enforcement. Vercel authentication, absent deployment permission, or preview readiness is BLOCKED, never a skipped PASS. Deployment protection is retained; no bypass or credential is embedded.
 
-Authenticated onboarding, real Gemini plan generation, saved-plan reload and sign-out/sign-in, Premium account enforcement, rerouting, user-defined opportunities, and Google workspace loading require a separately authorized disposable test profile and runner access. The workflow explicitly records these paths as BLOCKED until that prerequisite exists; these smoke checks cannot establish full new-user success.
+The live job also runs `test:journey` with a fresh disposable email account. It checks all three answers, real AI plan generation, cloud reload, user-defined opportunities, Basic/Premium enforcement, sign-out/sign-in, responsive bounds, and verified account/data cleanup. The separate signed-in atmosphere suite remains enabled. Credentials stay in memory; reports contain only per-step outcomes and cropped fictional content.
 
-No purchases, credential changes, production promotions, real user data, traces, video, or saved browser authentication are permitted. Artifacts contain component fixtures and public pre-authentication screenshots only.
+Google OAuth, actual Premium rerouting, purchases and native-device behavior remain separate. The Basic journey never fabricates paid access. Creating disposable users requires `AIM_ALLOW_DISPOSABLE_ACCOUNT=true` and an immutable preview associated with the exact tested commit.
+
+No purchases, credential changes, real user data, traces, video, or saved browser authentication are permitted. Test-account credentials are never retained in artifacts.
