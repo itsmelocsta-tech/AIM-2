@@ -85,7 +85,10 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
     for (const [name, viewport] of [['phone', { width: 390, height: 844 }], ['desktop', { width: 1280, height: 900 }]]) {
       await page.setViewportSize(viewport);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await testInfo.attach(`atmosphere-${name}`, { body: await panel.screenshot(), contentType: 'image/png' });
+      await testInfo.attach(`atmosphere-${name}`, {
+        body: await panel.screenshot({ style: '#aim-main-header, #aim-primary-nav { visibility: hidden !important; }' }),
+        contentType: 'image/png',
+      });
     }
     // Use the desktop account control for session switching; layout screenshots
     // above cover both widths without including any account information.
