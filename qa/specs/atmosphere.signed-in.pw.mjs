@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, deleteUser } from 'firebase/auth';
-import { getFirestore, doc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, collection, getDoc, getDocs, deleteDoc } from 'firebase/firestore';
 
 const config = JSON.parse(readFileSync(new URL('../../firebase-applet-config.json', import.meta.url), 'utf8'));
 
@@ -29,6 +29,23 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
         primaryObstacle: '', topSkills: [], coreValues: [], ninetyDayTrajectory: '',
         onboardingCompleted: true, firstRunGuideStep: 'done', createdAt: new Date().toISOString(),
       });
+      // A harmless probe never writes a paid entitlement. If live rules still
+      // allow any billing write, remove this probe and fail the verification.
+      let denied = false;
+      const probe = doc(db, 'users', user.uid, 'billing', 'qa-probe');
+      try { await setDoc(probe, { qaProbe: true }); account.probeCreated = true; }
+      catch (error) {
+        if (error?.code !== 'permission-denied') throw error;
+        denied = true;
+      }
+      if (!denied) {
+        testInfo.annotations.push({ type: 'failed', description: 'Live billing-path probe was writable; verification fails and cleanup is required.' });
+        await deleteDoc(probe);
+        if ((await getDoc(probe)).exists()) throw new Error('Probe remains.');
+        account.probeCreated = false;
+        throw new Error('Live billing rules permit a client write.');
+      }
+      note('Live named-database rules reject owner billing writes: PASS');
     } catch { throw new Error('Disposable Firebase account/profile setup failed; credential details withheld.'); }
     return account;
   }
@@ -119,6 +136,13 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
       try {
         const { user } = await signInWithEmailAndPassword(auth, account.email, account.password);
         if (user.uid !== account.uid) throw new Error();
+        // Never delete the identity or claim cleanup if a created probe remains.
+        if (account.probeCreated) {
+          const probe = doc(db, 'users', user.uid, 'billing', 'qa-probe');
+          await deleteDoc(probe);
+          if ((await getDoc(probe)).exists()) throw new Error('Probe remains.');
+          account.probeCreated = false;
+        }
         for (const name of ['projects', 'schedules', 'goals', 'memories', 'wellness', 'life_updates', 'daily_plans', 'settings']) {
           const ref = collection(db, 'users', user.uid, name);
           for (const record of (await getDocs(ref)).docs) await deleteDoc(record.ref);
