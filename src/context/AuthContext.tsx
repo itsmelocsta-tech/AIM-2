@@ -59,3 +59,8 @@ export function useAuth() {
   }
   return context;
 }
+
+/** Optional context for visual-only components rendered outside an AuthProvider (e.g. SSR/tests). */
+export function useOptionalAuth() {
+  return useContext(AuthContext);
+}

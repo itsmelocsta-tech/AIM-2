@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { AtmosphereCalibration } from './AtmosphereCalibration';
 import {
   Sliders,
   MapPin,
@@ -41,6 +43,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
     scanTime: context?.scanTime || '07:30 AM',
   }));
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const { user } = useAuth();
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,6 +110,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
         </p>
       </div>
 
+      {user && <AtmosphereCalibration userId={user.uid} />}
       <form onSubmit={handleSave} className="space-y-5">
         {/* Section 1: Location & Search Parameters */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">

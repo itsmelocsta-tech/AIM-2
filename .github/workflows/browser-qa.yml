@@ -93,6 +93,8 @@ jobs:
               if (attempt < 19) await new Promise(resolve => setTimeout(resolve, 15000));
             }
             throw new Error('BLOCKED: no immutable READY Vercel Preview deployment matching the PR head within five minutes.');
+      - name: Install application SDK for disposable-account checks
+        run: npm ci --ignore-scripts
       - name: Install pinned Playwright dependencies
         run: npm ci --prefix qa
       - name: Install Chromium
@@ -104,12 +106,18 @@ jobs:
         env:
           AIM_PREVIEW_URL: ${{ steps.preview.outputs.url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-      - name: Record authenticated path prerequisites
+      - name: Verify signed-in atmosphere settings with disposable Firebase accounts
+        working-directory: qa
+        run: npx playwright test --config=atmosphere-live.config.mjs
+        env:
+          AIM_PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - name: Record authenticated scope
         if: always()
         run: |
-          echo "Authenticated paths: BLOCKED — no authorized disposable email/Google test profile or protected-preview runner session configured." >> "$GITHUB_STEP_SUMMARY"
-          echo "Paths: onboarding answers/navigation; real plan generation; reload persistence; sign-out/sign-in persistence; signed-in Basic/Premium gates; rerouting; user-defined opportunities; Google workspace loading." >> "$GITHUB_STEP_SUMMARY"
-          echo "A live smoke PASS is not a full-path PASS. No purchases or production changes. Protection preserved; no secrets, traces, video, or authentication state uploaded." >> "$GITHUB_STEP_SUMMARY"
+          echo "Signed-in atmosphere scope: real email sessions with disposable fictional completed profiles; Settings navigation, calibration, local persistence, reset/delete and account isolation." >> "$GITHUB_STEP_SUMMARY"
+          echo "Separate unverified paths: real onboarding/AI plan generation, Premium execution, rerouting, opportunities and Google OAuth. Seeded profiles are test setup, not generated plans." >> "$GITHUB_STEP_SUMMARY"
+          echo "Protection preserved. No credentials, account screenshots, traces, video or authentication state uploaded; only cropped atmosphere panels." >> "$GITHUB_STEP_SUMMARY"
       - name: Upload public-only live evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -117,6 +125,7 @@ jobs:
           name: playwright-live-public-${{ env.AIM_TESTED_SHA }}
           path: |
             qa/playwright-report/live/
+            qa/playwright-report/atmosphere-live/
             qa/test-results/
           if-no-files-found: warn
           retention-days: 14
