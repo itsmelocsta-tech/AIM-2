@@ -171,6 +171,34 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       note('User-defined opportunities persist in Firebase');
     });
 
+    await test.step('Save and recover a Basic wellness record through normal navigation', async () => {
+      await page.locator('#nav-tab-wellness').click();
+      const wellness = page.locator('#wellness-engine-module');
+      await expect(wellness).toBeVisible();
+      await expect(page.getByRole('dialog', { name: 'Unlock AIM Premium' })).toBeHidden();
+      await wellness.locator('textarea').fill('Fictional QA note: a short walk helped me take a break.');
+      await wellness.getByRole('button', { name: 'Update Vitality Log', exact: true }).click();
+      await expect.poll(async () => {
+        const records = await getDocs(collection(db, 'users', uid, 'wellness'));
+        return records.docs.some(record => record.data().notes === 'Fictional QA note: a short walk helped me take a break.');
+      }, { timeout: 20000 }).toBe(true);
+      await page.evaluate(() => localStorage.clear());
+      await page.reload();
+      await expect(page.locator('#nav-tab-wellness')).toBeVisible({ timeout: 45000 });
+      await page.locator('#nav-tab-wellness').click();
+      await expect(wellness.locator('textarea')).toHaveValue('Fictional QA note: a short walk helped me take a break.');
+      for (const [name, viewport] of [['phone', { width: 390, height: 844 }], ['desktop', { width: 1280, height: 900 }]]) {
+        await page.setViewportSize(viewport);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await testInfo.attach(`fictional-wellness-${name}`, {
+          body: await wellness.locator('form').screenshot({ style: '#aim-main-header, #aim-primary-nav, #aim-primary-nav * { visibility: hidden !important; }' }),
+          contentType: 'image/png',
+        });
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      note('Basic wellness navigation, cloud save and cache-free reload');
+    });
+
     await test.step('Verify signed-in Basic access and Premium enforcement', async () => {
       await page.locator('#nav-tab-home').click();
       await page.getByRole('button', { name: 'Your Coaches', exact: true }).click();
