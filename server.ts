@@ -13,6 +13,13 @@ import { requireAuth } from './server/firebaseAdmin';
 import { readEntitlement, requirePremium } from './server/entitlementService';
 import { compareCrystalLayers } from './server/crystalOptics';
 import { generateWithFallback } from './server/generateWithFallback';
+import {
+  PlayBillingError,
+  getPlayLaunchOffer,
+  handlePlayRtdnNotification,
+  restorePlaySubscriptionForUser,
+  verifyAndRecordPlayPurchase,
+} from './server/playBillingService';
 
 dotenv.config();
 
@@ -164,6 +171,77 @@ function buildUserSavedInformationPrompt(params: {
 // API Routes
 app.get('/api/aim/entitlement', async (req: any, res: Response) => {
   res.json(await readEntitlement(req.user.uid));
+});
+
+app.get('/api/aim/billing/offer', (_req: Request, res: Response) => {
+  res.json(getPlayLaunchOffer());
+});
+
+app.post('/api/aim/billing/verify', async (req: any, res: Response) => {
+  if (req.body?.plan || req.body?.status || req.body?.trialEndsAt || req.body?.renewsAt) {
+    return res.status(400).json({
+      code: 'SELF_REPORTED_ENTITLEMENT_REJECTED',
+      error: 'Paid access cannot be granted from client clock or self-reported entitlement fields.',
+    });
+  }
+  try {
+    const result = await verifyAndRecordPlayPurchase({
+      uid: req.user.uid,
+      purchaseToken: req.body?.purchaseToken,
+      productId: req.body?.productId,
+      packageName: req.body?.packageName,
+    });
+    return res.json({
+      verified: true,
+      acknowledged: result.acknowledged,
+      entitlement: result.entitlement,
+    });
+  } catch (error: any) {
+    if (error instanceof PlayBillingError) {
+      return res.status(error.statusCode).json({ code: error.code, error: error.message });
+    }
+    return res.status(503).json({
+      code: 'BILLING_VERIFICATION_UNAVAILABLE',
+      error: 'Subscription verification is temporarily unavailable.',
+    });
+  }
+});
+
+app.post('/api/aim/billing/restore', async (req: any, res: Response) => {
+  try {
+    const result = await restorePlaySubscriptionForUser({
+      uid: req.user.uid,
+      purchaseToken: req.body?.purchaseToken,
+      packageName: req.body?.packageName,
+    });
+    return res.json(result);
+  } catch (error: any) {
+    if (error instanceof PlayBillingError) {
+      return res.status(error.statusCode).json({ code: error.code, error: error.message });
+    }
+    return res.status(503).json({
+      code: 'BILLING_RESTORE_UNAVAILABLE',
+      error: 'Subscription restoration is temporarily unavailable.',
+    });
+  }
+});
+
+app.post('/api/billing/rtdn', async (req: Request, res: Response) => {
+  try {
+    const result = await handlePlayRtdnNotification({
+      authorizationHeader: req.headers.authorization,
+      body: req.body,
+    });
+    return res.json(result);
+  } catch (error: any) {
+    if (error instanceof PlayBillingError) {
+      return res.status(error.statusCode).json({ code: error.code, error: error.message });
+    }
+    return res.status(503).json({
+      code: 'RTDN_PROCESSING_FAILED',
+      error: 'Unable to process Google Play developer notification.',
+    });
+  }
 });
 
 app.get('/api/health', (req: Request, res: Response) => {
@@ -1139,7 +1217,7 @@ app.post('/api/aim/jobs/scan', async (req: Request, res: Response) => {
     const aimOs = AIMOsService.getInstance();
 
     const result = await aimOs.scanOpportunities({
-      location: location || 'Fort Worth, Texas',
+      location: location || 'Local Area',
       radiusMiles: radiusMiles || 35,
       storedListings: storedListings || [],
       isWeekdayScheduled: Boolean(isWeekdayScheduled),

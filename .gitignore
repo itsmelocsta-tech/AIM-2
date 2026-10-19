@@ -12,3 +12,8 @@ qa/journey-results/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+android/.gradle/
+android/**/build/
+android/local.properties
+*.jks
+*.keystore

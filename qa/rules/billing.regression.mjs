@@ -16,6 +16,21 @@ after(async () => { await env?.cleanup(); });
 beforeEach(async () => { await env.clearFirestore(); });
 const premium = { plan: 'premium', status: 'active' };
 
+test('global purchase token and event records are server-only', async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    await setDoc(doc(ctx.firestore(), 'billing_tokens/fictional-token'), { uid: 'alice' });
+    await setDoc(doc(ctx.firestore(), 'billing_events/fictional-event'), { uid: 'alice' });
+  });
+  for (const context of [env.authenticatedContext('alice'), env.authenticatedContext('bob'), env.unauthenticatedContext()]) {
+    for (const path of ['billing_tokens/fictional-token', 'billing_events/fictional-event']) {
+      const target = doc(context.firestore(), path);
+      await assertFails(getDoc(target));
+      await assertFails(setDoc(target, { uid: 'alice' }));
+      await assertFails(deleteDoc(target));
+    }
+  }
+});
+
 test('original rules reproduce the self-written entitlement boundary failure', { skip: !baseline }, async () => {
   const db = env.authenticatedContext('alice').firestore();
   const target = doc(db, 'users/alice/billing/entitlement');
