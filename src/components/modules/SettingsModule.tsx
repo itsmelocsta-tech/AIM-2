@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { AtmosphereCalibration } from './AtmosphereCalibration';
+import { FractalSoundscapes } from './FractalSoundscapes';
 import {
   Sliders,
   MapPin,
@@ -111,6 +112,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
       </div>
 
       {user && <AtmosphereCalibration userId={user.uid} />}
+      <FractalSoundscapes />
       <form onSubmit={handleSave} className="space-y-5">
         {/* Section 1: Location & Search Parameters */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">

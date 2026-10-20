@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
+import { observeAudio, audioState } from '../helpers/sound-observer.mjs';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, deleteUser } from 'firebase/auth';
 import { getFirestore, doc, setDoc, collection, getDoc, getDocs, deleteDoc } from 'firebase/firestore';
@@ -70,6 +71,7 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
     await expect(page.getByRole('button', { name: 'Get started', exact: true })).toBeVisible();
   }
   try {
+    await observeAudio(page);
     const secret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
     if (secret) {
       try {
@@ -83,6 +85,21 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
     const first = await provision();
     const second = await provision();
     await signIn(first);
+    const sound = page.getByRole('region', { name: 'Fractal Soundscapes' });
+    await expect(sound.getByLabel('Sound mode')).toHaveValue('fractal');
+    await expect(sound.getByLabel('Soundscape volume')).toHaveValue('25');
+    await expect(sound.getByLabel('Session length')).toHaveValue('25');
+    expect(await audioState(page)).toEqual([]);
+    await sound.getByRole('button', { name: 'Play soundscape', exact: true }).click();
+    await expect.poll(async () => (await audioState(page)).at(-1)?.rms).toBeGreaterThan(0.00001);
+    await testInfo.attach('soundscape-settings-phone', {
+      body: await sound.screenshot({ style: 'header, nav { opacity: 0 !important; }' }), contentType: 'image/png',
+    });
+    await page.locator('#nav-tab-home').click();
+    await expect.poll(async () => (await audioState(page)).every(s => s.state === 'closed')).toBe(true);
+    await page.locator('#nav-tab-settings').click();
+    await expect(sound.getByRole('status')).toHaveText('Soundscape is off.');
+    note('Deployed Settings: no autoplay, real sound samples after Play, navigation closes audio without restart: PASS');
     note('Real email sign-in, Firebase profile hydration and Settings navigation: PASS');
     const panel = page.getByRole('region', { name: 'Personalize My Atmosphere' });
     await expect(panel).toContainText('0 comparisons saved.');
