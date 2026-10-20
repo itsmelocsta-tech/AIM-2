@@ -7,10 +7,14 @@ test('Basic upgrade shows honest pricing, preserves access, and disables unverif
   await page.getByRole('button', { name: 'Review Premium' }).click();
   const dialog = page.getByRole('dialog', { name: 'Unlock AIM Premium' });
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('$9.99/month');
-  await expect(dialog).toContainText('$79.99/year');
+  await expect(dialog).toContainText('$7.99/month');
+  await expect(dialog).toContainText('Try AIM free for 3 days. Then $7.99 per month, automatically renewed until you cancel.');
+  await expect(dialog).toContainText('Cancel any time in Google Play subscriptions.');
+  await expect(dialog).toContainText('Free trial for eligible new subscribers only.');
+  await expect(dialog).not.toContainText('$9.99');
+  await expect(dialog).not.toContainText('/year');
   await expect(dialog).toContainText('Your saved work stays on Basic');
-  await expect(dialog.getByRole('button', { name: /Start 7-day trial/ })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: '3-day trial · Not available yet' })).toBeDisabled();
   const close = dialog.getByRole('button', { name: 'Close AIM Premium details' });
   const bounds = await close.boundingBox();
   expect(bounds.width).toBeGreaterThanOrEqual(44);

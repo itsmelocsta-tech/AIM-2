@@ -126,6 +126,44 @@
         "impact": { "type": "string" }
       },
       "required": ["id", "timestamp", "summary"]
+    },
+    "BillingEntitlement": {
+      "title": "BillingEntitlement",
+      "description": "Protected server-verified subscription entitlement record (owner read-only, server Admin SDK write-only)",
+      "type": "object",
+      "properties": {
+        "plan": { "type": "string", "enum": ["basic", "premium"] },
+        "status": { "type": "string", "enum": ["free", "trial", "active", "grace", "expired"] },
+        "trialEndsAt": { "type": "string" },
+        "renewsAt": { "type": "string" },
+        "productId": { "type": "string" },
+        "basePlanId": { "type": "string" },
+        "offerId": { "type": "string" },
+        "cancelAtPeriodEnd": { "type": "boolean" },
+        "source": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["plan", "status"]
+    },
+    "ProtectedPlaySubscriptionRecord": {
+      "title": "ProtectedPlaySubscriptionRecord",
+      "description": "Server-only Google Play purchase verification record (no client read or write access)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "tokenHash": { "type": "string" },
+        "packageName": { "type": "string" },
+        "productId": { "type": "string" },
+        "basePlanId": { "type": "string" },
+        "offerId": { "type": "string" },
+        "subscriptionState": { "type": "string" },
+        "acknowledgementState": { "type": "string" },
+        "expiryTime": { "type": "string" },
+        "autoRenewEnabled": { "type": "boolean" },
+        "verifiedAt": { "type": "string" },
+        "lastNotificationType": { "type": "number" }
+      },
+      "required": ["uid", "tokenHash", "productId", "subscriptionState", "verifiedAt"]
     }
   },
   "firestore": {
@@ -160,6 +198,18 @@
     "/users/{userId}/life_updates/{updateId}": {
       "schema": "LifeUpdate",
       "description": "User life update checkpoints"
+    },
+    "/users/{userId}/billing/entitlement": {
+      "schema": "BillingEntitlement",
+      "description": "Owner-readable, server-write-only verified subscription entitlement"
+    },
+    "/users/{userId}/billing/play_subscription": {
+      "schema": "ProtectedPlaySubscriptionRecord",
+      "description": "Strictly server-only Google Play subscription verification state"
+    },
+    "/billing_tokens/{tokenHash}": {
+      "schema": "ProtectedPlaySubscriptionRecord",
+      "description": "Strictly server-only purchase token hash to UID ownership ledger"
     }
   }
 }

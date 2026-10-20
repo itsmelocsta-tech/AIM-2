@@ -9,7 +9,7 @@ const config = JSON.parse(readFileSync(new URL('../../firebase-applet-config.jso
 
 // Keep credentials and Firebase responses in memory. No storage-state files,
 // traces, video, account screens, or response bodies are attached. The only
-// screenshots crop the fictional opportunity card, excluding account controls.
+// screenshots crop fictional content or the Premium dialog, excluding account controls.
 test('real Basic email account completes onboarding, persistence, opportunities and sign-in', async ({ page }, testInfo) => {
   const cleanup = await request.newContext({ timeout: 20000 });
   const suffix = randomUUID();
@@ -203,6 +203,18 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       await page.locator('#nav-tab-home').click();
       await page.getByRole('button', { name: 'Your Coaches', exact: true }).click();
       await expect(page.getByRole('dialog', { name: 'Unlock AIM Premium' })).toBeVisible();
+      const premium = page.getByRole('dialog', { name: 'Unlock AIM Premium' });
+      await expect(premium).toContainText('$7.99/month');
+      await expect(premium).toContainText('eligible new subscribers');
+      await expect(premium.getByRole('button', { name: '3-day trial · Not available yet', exact: true })).toBeDisabled();
+      for (const [name, viewport] of [['phone', { width: 390, height: 844 }], ['desktop', { width: 1280, height: 900 }]]) {
+        await page.setViewportSize(viewport);
+        const bounds = await premium.boundingBox();
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+        await testInfo.attach(`premium-${name}`, { body: await premium.screenshot(), contentType: 'image/png' });
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
       await page.getByRole('button', { name: 'Close AIM Premium details', exact: true }).click();
       const freshToken = await sdkAuth.currentUser.getIdToken();
       for (const route of ['life-update-analyze', 'monetize', 'creative']) {
@@ -214,6 +226,15 @@ test('real Basic email account completes onboarding, persistence, opportunities 
         expect((await response.json()).code).toBe('PREMIUM_REQUIRED');
       }
       note('Signed-in Basic Premium dialog and server enforcement');
+      for (const data of [{ plan: 'premium', status: 'active' }, {}]) {
+        let response;
+        try {
+          response = await page.request.post('/api/aim/billing/verify', { headers: { Authorization: `Bearer ${freshToken}` }, data, maxRedirects: 0 });
+        } catch { throw new Error('Billing boundary request failed; credential details withheld.'); }
+        expect(response.status()).toBe(400);
+        expect((await response.json()).code).toBe(data.plan ? 'SELF_REPORTED_ENTITLEMENT_REJECTED' : 'MISSING_PURCHASE_TOKEN');
+      }
+      note('Billing rejects self-reported paid access and missing tokens without a Play purchase call');
       testInfo.annotations.push({ type: 'blocked', description: 'Actual reroute execution requires an authorized Premium test account; no entitlement was fabricated.' });
     });
 
