@@ -186,14 +186,14 @@ export type AIMAccentStyle =
   | 'new_york'
   | 'southern'
   | 'midwestern'
-  | 'texan'
+  | 'general_american'
   | 'african';
 
 export type USAccentStyle = AIMAccentStyle | string;
 
 export interface CentralVoiceConfig {
-  id: string; // e.g. 'masculine_texan', 'feminine_new_york'
-  label: string; // 'Texan', 'New York', 'Southern', 'Midwestern', 'African'
+  id: string; // e.g. 'feminine_general_american', 'feminine_new_york'
+  label: string; // 'Calm & welcoming', 'New York', 'Southern', 'Midwestern', 'African'
   accentKey: AIMAccentStyle;
   gender: GenderPresentation;
   provider: 'gemini-tts' | 'google';
@@ -207,7 +207,7 @@ export interface CentralVoiceConfig {
 }
 
 export interface VoiceProfile {
-  id: string; // e.g. 'masculine_texan', 'feminine_new_york'
+  id: string; // e.g. 'feminine_general_american', 'feminine_new_york'
   displayName: string;
   accentStyle: AIMAccentStyle;
   accentTitle: string;

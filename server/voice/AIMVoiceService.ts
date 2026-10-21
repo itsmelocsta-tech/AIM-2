@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { createHash } from 'node:crypto';
-import { getVoiceProfile, getProfileIdForSelection, normalizeAccentKey } from '../../src/services/voiceProfiles';
+import { DEFAULT_VOICE_PROFILE_ID, getVoiceProfile, getProfileIdForSelection, normalizeAccentKey } from '../../src/services/voiceProfiles';
 
 export interface SpokenFormatOptions {
   emotion?: 'casual' | 'motivational' | 'planning' | 'reflective' | 'excited' | 'serious';
@@ -187,8 +187,8 @@ export class AIMVoiceService {
    * Map Voice Profile & Regional Accent to Gemini TTS Prebuilt Voice and Style Instructions
    */
   public getGeminiVoiceMapping(
-    gender: 'masculine' | 'feminine' = 'masculine',
-    accentStyle: string = 'texan',
+    gender: 'masculine' | 'feminine' = getVoiceProfile(DEFAULT_VOICE_PROFILE_ID).genderPresentation,
+    accentStyle: string = 'general_american',
     emotion: string = 'casual'
   ): { voiceName: string; stylePrompt: string; locale: string } {
     let emotionalInstruction = '';
@@ -217,7 +217,11 @@ export class AIMVoiceService {
     // Use the same identity as the settings preview, rather than a separate server mapping.
     const profile = getVoiceProfile(getProfileIdForSelection(gender, normalizeAccentKey(accentStyle)));
     const voiceName = profile.geminiVoiceName;
-    const stylePrompt = `Speak conversationally to one person, like a relaxed, supportive teammate. Use a comfortable everyday pace, varied intonation, and short pauses at sentence boundaries. Keep the regional accent subtle: ${profile.accentTitle}. ${emotionalInstruction} Avoid an announcer voice, exaggerated accents, sing-song delivery, and mechanical emphasis. Read only the transcript below; do not speak these directions.`;
+    const calm = profile.accentStyle === 'general_american';
+    const delivery = calm
+      ? `${profile.styleInstructions} Keep this gentle delivery even when offering encouragement or celebrating progress; express those moments with a warm smile in the voice and steady volume.`
+      : `Keep the regional accent subtle: ${profile.accentTitle}. ${emotionalInstruction}`;
+    const stylePrompt = `Speak conversationally to one person, like a relaxed, supportive teammate. Use a comfortable everyday pace, varied intonation, and short pauses at sentence boundaries. ${delivery} Avoid an announcer voice, exaggerated accents, sing-song delivery, and mechanical emphasis. Read only the transcript below; do not speak these directions.`;
 
     return { voiceName, stylePrompt, locale: profile.locale };
   }
@@ -276,14 +280,15 @@ export class AIMVoiceService {
       : rawText;
 
     const emotion = req.emotion || this.detectEmotion(spokenText);
-    const gender = req.gender || (req.voiceProfileId?.startsWith('feminine') ? 'feminine' : 'masculine');
-    const accentStyle = req.accentStyle || req.voiceProfileId?.replace(/^(masculine|feminine)_/, '') || 'general_american';
-    const speakingRate = Number.isFinite(req.speakingRate) ? Math.min(1.3, Math.max(0.7, req.speakingRate!)) : 1;
-    const pitch = Number.isFinite(req.pitch) ? Math.min(1.3, Math.max(0.7, req.pitch!)) : 1;
+    const selectedProfile = getVoiceProfile(req.voiceProfileId || DEFAULT_VOICE_PROFILE_ID);
+    const gender = req.gender || selectedProfile.genderPresentation;
+    const accentStyle = normalizeAccentKey(req.accentStyle || selectedProfile.accentStyle);
+    const speakingRate = Number.isFinite(req.speakingRate) ? Math.min(1.3, Math.max(0.7, req.speakingRate!)) : selectedProfile.speakingRate;
+    const pitch = Number.isFinite(req.pitch) ? Math.min(1.3, Math.max(0.7, req.pitch!)) : selectedProfile.pitch;
     const { voiceName, stylePrompt } = this.getGeminiVoiceMapping(gender, accentStyle, emotion);
 
     // 2. Check in-memory audio cache for instantaneous replay/preview
-    const cacheKey = createHash('sha256').update(JSON.stringify({ spokenText, voiceName, accentStyle, emotion, speakingRate, pitch, models: TTS_MODELS })).digest('hex');
+    const cacheKey = createHash('sha256').update(JSON.stringify({ spokenText, voiceName, stylePrompt, accentStyle, emotion, speakingRate, pitch, models: TTS_MODELS })).digest('hex');
     const cached = audioCache.get(cacheKey);
     if (cached) {
       return {
@@ -294,7 +299,7 @@ export class AIMVoiceService {
 
     // 3. Resolve Voice & Style Prompt
     // 4. Construct conversational speech prompt for Gemini TTS
-    const pace = speakingRate < 0.9 ? 'slightly slower' : speakingRate > 1.1 ? 'slightly quicker' : 'comfortable, conversational';
+    const pace = speakingRate < 0.98 ? 'gently unhurried, without stretching words' : speakingRate > 1.1 ? 'slightly quicker' : 'comfortable, conversational';
     const tone = pitch < 0.9 ? 'slightly lower' : pitch > 1.1 ? 'slightly lighter' : 'your natural';
     const promptWithDirection = `${stylePrompt} Use ${pace} pacing and ${tone} vocal register.\n\nTranscript:\n${spokenText}`;
 

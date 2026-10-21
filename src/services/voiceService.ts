@@ -78,12 +78,12 @@ export class VoiceEngine {
 
   // Central User Voice Preference (persisted across sessions and refreshed)
   private userPrefs: VoicePreference = {
-    gender: 'masculine',
-    accentStyle: 'texan',
+    gender: VOICE_PROFILES[DEFAULT_VOICE_PROFILE_ID].genderPresentation,
+    accentStyle: VOICE_PROFILES[DEFAULT_VOICE_PROFILE_ID].accentStyle,
     voiceProfileId: DEFAULT_VOICE_PROFILE_ID,
-    voiceName: 'Charon',
-    rate: 0.95,
-    pitch: 1.0,
+    voiceName: VOICE_PROFILES[DEFAULT_VOICE_PROFILE_ID].geminiVoiceName,
+    rate: VOICE_PROFILES[DEFAULT_VOICE_PROFILE_ID].speakingRate,
+    pitch: VOICE_PROFILES[DEFAULT_VOICE_PROFILE_ID].pitch,
     isMuted: false,
   };
 

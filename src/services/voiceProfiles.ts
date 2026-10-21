@@ -1,6 +1,8 @@
 import { VoiceProfile, AIMAccentStyle, GenderPresentation, CentralVoiceConfig, USAccentStyle } from '../types';
 
-export const PREVIEW_SENTENCE = "Good day. Let’s see where we are today, and choose the next move together.";
+export const PREVIEW_SENTENCE = "Welcome. I'm here with you. Let's take a moment and find your next step together.";
+
+const CALM_STYLE = 'Speak in neutral American English with a calm, relaxing, welcoming tone. Use gentle warmth, clear everyday pronunciation, an unhurried conversational pace, and short natural pauses. Sound attentive and reassuring, with a natural speaking voice rather than a whisper or a performed character accent.';
 
 export interface AccentMetadata {
   key: AIMAccentStyle;
@@ -11,11 +13,12 @@ export interface AccentMetadata {
 }
 
 /**
- * Exactly Five Natural Accent Options as Specified by AIM Requirements:
+ * Five voice styles, with two voice presentations each. Legacy Texas selections
+ * resolve to the calm neutral style without losing other playback preferences.
  * 1. New York
  * 2. Southern
  * 3. Midwestern
- * 4. Texan
+ * 4. Calm & welcoming
  * 5. African
  */
 export const AIM_ACCENTS_METADATA: AccentMetadata[] = [
@@ -41,10 +44,10 @@ export const AIM_ACCENTS_METADATA: AccentMetadata[] = [
     iconName: 'Shield',
   },
   {
-    key: 'texan',
-    title: 'Texan',
-    description: 'Unhurried, grounded Southwestern cadence with rich acoustic warmth and deliberate pacing.',
-    cadence: 'Deliberate Southwestern warmth with deep chest resonance and calm pacing.',
+    key: 'general_american',
+    title: 'Calm & welcoming',
+    description: 'Gentle, relaxed speech with a neutral American accent.',
+    cadence: 'Warm, unhurried conversation with clear words and short natural pauses.',
     iconName: 'Sun',
   },
   {
@@ -169,39 +172,39 @@ export const VOICE_PROFILES: Record<string, VoiceProfile> = {
   },
 
   // ==========================================
-  // 4. TEXAN
+  // 4. CALM & WELCOMING
   // ==========================================
-  'masculine_texan': {
-    id: 'masculine_texan',
-    displayName: 'Texan (Masculine)',
-    accentStyle: 'texan',
-    accentTitle: 'Texan',
-    accentDescription: 'Unhurried, grounded Southwestern cadence with rich acoustic warmth and deliberate pacing.',
+  'masculine_general_american': {
+    id: 'masculine_general_american',
+    displayName: 'Calm & welcoming (Masculine)',
+    accentStyle: 'general_american',
+    accentTitle: 'Calm & welcoming',
+    accentDescription: 'Gentle, relaxed speech with a neutral American accent.',
     genderPresentation: 'masculine',
     provider: 'gemini-tts',
-    providerVoiceId: 'Charon',
-    geminiVoiceName: 'Charon',
+    providerVoiceId: 'Algieba',
+    geminiVoiceName: 'Algieba',
     locale: 'en-US',
-    speakingRate: 0.95,
+    speakingRate: 0.94,
     pitch: 1.00,
-    cadenceDescription: 'Deliberate Southwestern warmth with deep chest resonance and calm pacing.',
-    styleInstructions: 'Deliver in an unhurried, grounded Texas Southwestern cadence with rich chest resonance, calm pacing, and reassuring warmth.',
+    cadenceDescription: 'Smooth, reassuring speech with relaxed pacing and natural pauses.',
+    styleInstructions: CALM_STYLE,
   },
-  'feminine_texan': {
-    id: 'feminine_texan',
-    displayName: 'Texan (Feminine)',
-    accentStyle: 'texan',
-    accentTitle: 'Texan',
-    accentDescription: 'Unhurried, grounded Southwestern cadence with rich acoustic warmth and deliberate pacing.',
+  'feminine_general_american': {
+    id: 'feminine_general_american',
+    displayName: 'Calm & welcoming (Feminine)',
+    accentStyle: 'general_american',
+    accentTitle: 'Calm & welcoming',
+    accentDescription: 'Gentle, relaxed speech with a neutral American accent.',
     genderPresentation: 'feminine',
     provider: 'gemini-tts',
-    providerVoiceId: 'Kore',
-    geminiVoiceName: 'Kore',
+    providerVoiceId: 'Achernar',
+    geminiVoiceName: 'Achernar',
     locale: 'en-US',
-    speakingRate: 0.95,
+    speakingRate: 0.94,
     pitch: 1.00,
-    cadenceDescription: 'Warm, relaxed Southwestern delivery with deliberate, calm pacing.',
-    styleInstructions: 'Deliver with warm, relaxed Texas Southwestern phrasing, deliberate pacing, and natural friendly composure.',
+    cadenceDescription: 'Soft, welcoming speech with relaxed pacing and natural pauses.',
+    styleInstructions: CALM_STYLE,
   },
 
   // ==========================================
@@ -241,20 +244,20 @@ export const VOICE_PROFILES: Record<string, VoiceProfile> = {
   },
 };
 
-export const DEFAULT_VOICE_PROFILE_ID = 'masculine_texan';
+export const DEFAULT_VOICE_PROFILE_ID = 'feminine_general_american';
 
 /**
- * Normalizes any legacy or arbitrary accent key into one of the 5 canonical AIM accent options
+ * Normalizes current styles and retires the former Texas default.
  */
 export function normalizeAccentKey(key?: string): AIMAccentStyle {
-  if (!key) return 'texan';
+  if (!key) return 'general_american';
   const lower = key.toLowerCase().trim();
   if (lower === 'new_york' || lower === 'new_york_city' || lower.includes('york')) return 'new_york';
   if (lower === 'southern' || lower.includes('south') || lower === 'louisiana_gulf_south' || lower === 'appalachian') return 'southern';
-  if (lower === 'midwestern' || lower === 'general_american' || lower.includes('west_coast') || lower.includes('new_england') || lower.includes('atlantic')) return 'midwestern';
-  if (lower === 'texan' || lower === 'texas' || lower.includes('tex')) return 'texan';
+  if (lower === 'midwestern' || lower.includes('west_coast') || lower.includes('new_england') || lower.includes('atlantic')) return 'midwestern';
+  if (lower === 'general_american' || lower === 'neutral' || lower === 'calm' || lower.includes('tex')) return 'general_american';
   if (lower === 'african' || lower.includes('africa')) return 'african';
-  return 'texan';
+  return 'general_american';
 }
 
 export function getVoiceProfile(profileId: string): VoiceProfile {
@@ -262,8 +265,8 @@ export function getVoiceProfile(profileId: string): VoiceProfile {
     return VOICE_PROFILES[profileId];
   }
   // Try legacy mapping
-  if (profileId.includes('texas')) {
-    return profileId.startsWith('feminine') ? VOICE_PROFILES['feminine_texan'] : VOICE_PROFILES['masculine_texan'];
+  if (profileId.includes('texan') || profileId.includes('texas') || profileId.includes('general_american')) {
+    return profileId.startsWith('feminine') ? VOICE_PROFILES['feminine_general_american'] : VOICE_PROFILES['masculine_general_american'];
   }
   if (profileId.includes('new_york')) {
     return profileId.startsWith('feminine') ? VOICE_PROFILES['feminine_new_york'] : VOICE_PROFILES['masculine_new_york'];
@@ -274,7 +277,7 @@ export function getVoiceProfile(profileId: string): VoiceProfile {
   if (profileId.includes('african')) {
     return profileId.startsWith('feminine') ? VOICE_PROFILES['feminine_african'] : VOICE_PROFILES['masculine_african'];
   }
-  if (profileId.includes('midwestern') || profileId.includes('general_american')) {
+  if (profileId.includes('midwestern')) {
     return profileId.startsWith('feminine') ? VOICE_PROFILES['feminine_midwestern'] : VOICE_PROFILES['masculine_midwestern'];
   }
 
