@@ -46,3 +46,16 @@ it('plays natural audio and keeps replay URLs valid', async () => {
   expect(revoke).not.toHaveBeenCalled();
   revoke.mockRestore();
 });
+it('starts with the calm neutral voice even when stored preferences are corrupt', () => {
+  expect(new VoiceEngine().getPreferences()).toMatchObject({ voiceProfileId: 'feminine_general_american', voiceName: 'Achernar', accentStyle: 'general_american', rate: 0.94 });
+  vi.stubGlobal('localStorage', { getItem: () => '{invalid', setItem: vi.fn() });
+  expect(new VoiceEngine().getPreferences().voiceProfileId).toBe('feminine_general_american');
+});
+it.each(['masculine', 'feminine'] as const)('moves a saved %s Texas voice to neutral without losing fine tuning or mute', (gender) => {
+  vi.stubGlobal('localStorage', { getItem: () => JSON.stringify({ gender, accentStyle: 'texan', voiceProfileId: `${gender}_texan`, voiceName: 'Old voice', rate: 0.86, pitch: 1.05, isMuted: true }), setItem: vi.fn() });
+  const engine = new VoiceEngine();
+  expect(engine.getPreferences()).toMatchObject({ gender, accentStyle: 'general_american', voiceProfileId: `${gender}_general_american`, rate: 0.86, pitch: 1.05, isMuted: true });
+  expect(engine.getCentralConfig().label).toBe('Calm & welcoming');
+  engine.setSelection(gender, 'texas');
+  expect(engine.getActiveProfile().accentStyle).toBe('general_american');
+});

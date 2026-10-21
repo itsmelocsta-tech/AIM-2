@@ -67,7 +67,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
 
   const currentProfileId = getProfileIdForSelection(selectedGender, selectedAccent);
   const currentProfile = getVoiceProfile(currentProfileId);
-  const currentAccentMeta = AIM_ACCENTS_METADATA.find((a) => a.key === selectedAccent) || AIM_ACCENTS_METADATA[3]; // Texan default
+  const currentAccentMeta = AIM_ACCENTS_METADATA.find((a) => a.key === selectedAccent) || AIM_ACCENTS_METADATA.find((a) => a.key === 'general_american')!;
 
   const handleGenderChange = (gender: GenderPresentation) => {
     setSelectedGender(gender);
@@ -172,10 +172,10 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
             </div>
             <div className="min-w-0">
               <h2 id="voice-settings-title" className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
-                AIM Voice & Accent Configuration
+                AIM Voice
               </h2>
               <p className="text-xs text-slate-400 truncate">
-                Google Gemini Natural TTS · 5 Human Accents
+                Choose a voice that feels comfortable.
               </p>
             </div>
           </div>
@@ -231,7 +231,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Accent Style</span>
+              <span>Voice Style</span>
             </label>
             <span className="text-[11px] text-slate-400">
               5 Natural Options

@@ -11,8 +11,24 @@ describe('natural speech generation', () => {
     for (const profile of Object.values(VOICE_PROFILES)) {
       const mapping = service.getGeminiVoiceMapping(profile.genderPresentation, profile.accentStyle);
       expect(mapping.voiceName).toBe(profile.geminiVoiceName);
-      expect(mapping.stylePrompt).toContain('Keep the regional accent subtle');
+      expect(mapping.stylePrompt).toContain(profile.accentStyle === 'general_american'
+        ? 'neutral American English' : 'Keep the regional accent subtle');
     }
+  });
+  it('uses a gentle neutral voice for omitted and legacy Texas requests, including excited content', async () => {
+    const generate = vi.fn().mockResolvedValue(audio);
+    const ai = client(generate);
+    const fresh = await service.synthesizeSpeech(ai, { text: 'Welcome to your calm voice test.' });
+    const legacy = await service.synthesizeSpeech(ai, { text: 'A gentle celebration test.', voiceProfileId: 'masculine_texan', emotion: 'excited' });
+    expect(fresh.voiceNameUsed).toBe('Achernar');
+    expect(legacy.voiceNameUsed).toBe('Algieba');
+    for (const [request] of generate.mock.calls) {
+      const prompt = request.contents[0].parts[0].text;
+      expect(prompt).toContain('calm, relaxing, welcoming');
+      expect(prompt).toContain('neutral American English');
+      expect(prompt).not.toMatch(/Texan|Texas|Southwestern|cheerful momentum|lively inflection/);
+    }
+    expect(generate.mock.calls[0][0].contents[0].parts[0].text).toContain('gently unhurried');
   });
   it('tries the second neural model after unavailable audio and wraps PCM at its real sample rate', async () => {
     const generate = vi.fn().mockRejectedValueOnce({ status: 503 }).mockResolvedValueOnce(audio);
