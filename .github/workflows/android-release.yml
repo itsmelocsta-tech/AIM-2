@@ -1,0 +1,135 @@
+name: Android Signed Release Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      web_origin:
+        description: Verified public AIM HTTPS origin, without a path
+        required: true
+        type: string
+        default: https://aim-2-sepia.vercel.app
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-signed-release
+  cancel-in-progress: false
+
+jobs:
+  signed-bundle:
+    # Signing is manual and restricted to the reviewed main branch.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      AIM_ANDROID_WEB_ORIGIN: ${{ inputs.web_origin }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Check release configuration without exposing credentials
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing repository secret: $name"
+              missing=1
+            fi
+          done
+          if [[ "$missing" == 1 ]]; then exit 1; fi
+          python - <<'PY'
+          import json, os
+          from urllib.parse import urlsplit
+          origin = os.environ['AIM_ANDROID_WEB_ORIGIN']
+          url = urlsplit(origin)
+          if (not origin or any(c.isspace() for c in origin)
+              or url.scheme != 'https' or not url.hostname
+              or url.username is not None or url.password is not None
+              or url.path not in ('', '/') or url.query or url.fragment):
+              raise SystemExit('Release requires an HTTPS origin without a path, query, credentials, or whitespace.')
+          offer = json.load(open('play-launch-offer.json'))
+          if offer.get('paymentsEnabled') is not False:
+              raise SystemExit('This preparation workflow requires paymentsEnabled=false.')
+          if offer.get('packageName') != 'app.aim.lifeos':
+              raise SystemExit('Unexpected Android package name; review release configuration.')
+          PY
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android SDK command-line tools and API 36
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
+        with:
+          cmdline-tools-version: '12266719'
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: 'false'
+
+      - name: Build signed release bundle and check native release code
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/aim-release-upload.jks"
+          trap 'rm -f -- "$ANDROID_KEYSTORE_PATH"' EXIT
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          unset ANDROID_KEYSTORE_BASE64
+          cd android
+          ./gradlew :app:bundleRelease :app:testReleaseUnitTest :app:lintRelease --no-daemon --no-build-cache --no-configuration-cache
+
+      - name: Verify bundle signature and record artifact checksums
+        run: |
+          set -euo pipefail
+          bundle=android/app/build/outputs/bundle/release/app-release.aab
+          test -s "$bundle"
+          python - <<'PY'
+          import zipfile
+          with zipfile.ZipFile('android/app/build/outputs/bundle/release/app-release.aab') as bundle:
+              names = [n.upper() for n in bundle.namelist()]
+              if not any(n.startswith('META-INF/') and n.endswith('.SF') for n in names):
+                  raise SystemExit('Bundle has no JAR signature manifest.')
+              if not any(n.startswith('META-INF/') and n.endswith(('.RSA', '.DSA', '.EC')) for n in names):
+                  raise SystemExit('Bundle has no JAR signature block.')
+          PY
+          # Self-signed upload certificates are expected; verify integrity without strict trust-chain checks.
+          jarsigner -verify "$bundle"
+          sha256sum "$bundle" > android/app/build/outputs/bundle/release/SHA256SUMS.txt
+          {
+            echo '# Signed Android bundle prepared'
+            echo "Commit: $GITHUB_SHA"
+            echo 'Package: app.aim.lifeos'
+            echo 'Artifact contains the release AAB and SHA-256 checksum.'
+            echo 'Payments remain disabled. Nothing was uploaded to Google Play.'
+            echo 'Not established: Play acceptance, device installation, native Google login, purchase/restore/refund behavior.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload signed bundle only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: aim-signed-aab-${{ github.sha }}
+          path: |
+            android/app/build/outputs/bundle/release/app-release.aab
+            android/app/build/outputs/bundle/release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove temporary signing material
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/aim-release-upload.jks"
