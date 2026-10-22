@@ -26,6 +26,7 @@ import {
 } from '../../types';
 import { aimContextService } from '../../services/aimContextService';
 import { FractalAtmosphere } from '../common/FractalAtmosphere';
+import type { AimModuleId } from '../../services/moduleAccessService';
 
 interface AimHomeModuleProps {
   userProfile: UserProfile;
@@ -39,6 +40,7 @@ interface AimHomeModuleProps {
   onNavigateToTab: (tab: string) => void;
   onSelectProject?: (projectId: string) => void;
   onToast: (msg: string) => void;
+  availableModules?: ReadonlySet<AimModuleId>;
 }
 
 export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
@@ -53,6 +55,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
   onNavigateToTab,
   onSelectProject,
   onToast,
+  availableModules,
 }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -73,7 +76,9 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
   const rec = dailyRecommendation || aimContextService.generateDailyRecommendation(context, projects, topJobMatch);
   const primaryFocus = activeProjects[0]?.goal || userProfile.coreMission || userProfile.desiredIdentity || 'Choose your first goal';
   const verifiedJob = topJobMatch?.status === 'active' && topJobMatch.provenance === 'verified' && !topJobMatch.isMock && !topJobMatch.is_mock ? topJobMatch : null;
-  const moneyMoveDestination = verifiedJob ? 'scanner' : projects.length > 0 ? 'projects' : 'planner';
+  const showProjects = !availableModules || availableModules.has('projects');
+  const showScanner = !availableModules || availableModules.has('scanner');
+  const moneyMoveDestination = verifiedJob && showScanner ? 'scanner' : projects.length > 0 && showProjects ? 'projects' : 'planner';
   const firstTask = dailyPlan.priorityTasks.find((task) => !task.completed);
   const usingStartingPlan = !verifiedJob && projects.length === 0;
   const mainMove = usingStartingPlan ? {
@@ -183,12 +188,12 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
           </div>
           <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
             <span>Audit Trail: <strong className="text-white">{context.auditLog.length} events logged</strong></span>
-            <button
+            {(!availableModules || availableModules.has('history')) && <button
               onClick={() => onNavigateToTab('history')}
               className="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
             >
               View History <ChevronRight className="w-3 h-3" />
-            </button>
+            </button>}
           </div>
         </div>
       </div>
@@ -268,7 +273,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
             onClick={() => onNavigateToTab(moneyMoveDestination)}
             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 transition-all group"
           >
-            <span>{verifiedJob ? 'View opportunity' : projects.length > 0 ? 'Open project' : 'Open planner'}</span>
+            <span>{moneyMoveDestination === 'scanner' ? 'View opportunity' : moneyMoveDestination === 'projects' ? 'Open project' : 'Open planner'}</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
 
@@ -333,12 +338,12 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
 
           <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between">
             <span className="text-[11px] text-slate-400">{activeProjects[1] ? `Target Project: ${activeProjects[1].name}` : 'No supporting project chosen yet'}</span>
-            <button
+            {showProjects && <button
               onClick={() => onNavigateToTab('projects')}
               className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1"
             >
               Open Project Details <ArrowRight className="w-3 h-3" />
-            </button>
+            </button>}
           </div>
         </div>
 
@@ -371,18 +376,18 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
 
           <div className="mt-3 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
             <span>Eliminates decision fatigue</span>
-            <button
+            {showProjects && <button
               onClick={() => onNavigateToTab('projects')}
               className="text-xs text-slate-300 hover:text-white font-medium"
             >
               Manage projects
-            </button>
+            </button>}
           </div>
         </div>
       </div>
 
       {/* 10 Active Projects Status Quick Grid */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5">
+      {showProjects && <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3 mb-3.5">
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-indigo-400" />
@@ -445,7 +450,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
             );
           })}
         </div>
-      </div>
+      </div>}
     </div>
   );
 };

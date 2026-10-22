@@ -24,6 +24,8 @@ interface CoachShellProps {
   onNavigateToTab: (tab: string) => void;
   onOpenLifeUpdate: (initialText?: string) => void;
   onToast: (msg: string) => void;
+  availableCoaches?: CoachId[];
+  initialCoachId?: CoachId;
 }
 
 export const CoachShell: React.FC<CoachShellProps> = ({
@@ -41,13 +43,18 @@ export const CoachShell: React.FC<CoachShellProps> = ({
   onNavigateToTab,
   onOpenLifeUpdate,
   onToast,
+  availableCoaches = ['guidance'],
+  initialCoachId = 'guidance',
 }) => {
-  const [activeCoachId, setActiveCoachId] = useState<CoachId>('guidance');
+  const [activeCoachId, setActiveCoachId] = useState<CoachId>(availableCoaches.includes(initialCoachId) ? initialCoachId : 'guidance');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
   const [compactContext, setCompactContext] = useState<CompactOrbContext | null>(null);
   const [isLoadingContext, setIsLoadingContext] = useState(false);
   const [showIntelligenceBar, setShowIntelligenceBar] = useState(false);
+  useEffect(() => {
+    if (!availableCoaches.includes(activeCoachId)) setActiveCoachId('guidance');
+  }, [activeCoachId, availableCoaches]);
 
   // Retrieve compact context for the active orb via Wisdom & Priority engines
   const loadOrbContext = async (cId: CoachId, force = false) => {
@@ -83,6 +90,7 @@ export const CoachShell: React.FC<CoachShellProps> = ({
       <CoachTabBar
         activeCoachId={activeCoachId}
         onSelectCoach={(cId) => setActiveCoachId(cId)}
+        availableCoaches={availableCoaches}
       />
 
       {/* 3. Compact Context Strip (Wisdom & Priority Intelligence Scaffolding) */}

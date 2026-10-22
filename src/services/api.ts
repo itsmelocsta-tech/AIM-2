@@ -1,6 +1,7 @@
 import { authenticatedFetch, AuthenticationError } from './authenticatedFetch';
 import { UserProfile, DailyPlan, MonetizationOffer, CoachId, CoachResponse, ScheduleItem, Goal, MemoryItem, WellnessLog, LifeUpdate } from '../types';
 import { intelligenceService, CompactOrbContext, LifePriorityAssessmentResult, WisdomSynthesisResultClient } from './intelligenceService';
+import { publishUserMention } from './contextualNavigationService';
 export const api = {
   async interactWithCoach(params: {
     coachId: CoachId;
@@ -19,6 +20,7 @@ export const api = {
     stressLevel?: number;
     compactContext?: CompactOrbContext;
   }): Promise<CoachResponse> {
+    publishUserMention(params.userProfile?.id, params.message);
     try {
       const response = await authenticatedFetch('/api/aim/coach/interact', {
         method: 'POST',
@@ -85,6 +87,7 @@ export const api = {
     currentSchedule?: ScheduleItem[];
     contextCategory?: string;
   }): Promise<{ reply: string; extractedCategory?: string }> {
+    publishUserMention(params.userProfile.id, params.message);
     try {
       const response = await authenticatedFetch('/api/aim/chat', {
         method: 'POST',

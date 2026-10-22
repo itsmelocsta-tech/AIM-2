@@ -6,6 +6,7 @@ import { COACH_CONFIGS } from '../../services/coachRegistry';
 interface CoachTabBarProps {
   activeCoachId: CoachId;
   onSelectCoach: (coachId: CoachId) => void;
+  availableCoaches?: CoachId[];
 }
 
 const TAB_ICONS: Record<CoachId, React.ElementType> = {
@@ -19,10 +20,11 @@ const TAB_ICONS: Record<CoachId, React.ElementType> = {
 export const CoachTabBar: React.FC<CoachTabBarProps> = ({
   activeCoachId,
   onSelectCoach,
+  availableCoaches = ['guidance'],
 }) => {
   const tabsListRef = useRef<HTMLDivElement | null>(null);
 
-  const coaches: CoachId[] = ['guidance', 'motivation', 'spiritual', 'health', 'relationships'];
+  const coaches: CoachId[] = ['guidance', 'motivation', 'spiritual', 'health', 'relationships'].filter(id => availableCoaches.includes(id as CoachId)) as CoachId[];
 
   const handleKeyDown = (e: React.KeyboardEvent, currentIndex: number) => {
     let nextIndex = currentIndex;
@@ -49,6 +51,7 @@ export const CoachTabBar: React.FC<CoachTabBarProps> = ({
     }
   };
 
+  if (coaches.length <= 1) return null;
   return (
     <nav
       id="aim-coach-nav"

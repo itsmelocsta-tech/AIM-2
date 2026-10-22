@@ -1,8 +1,9 @@
-import { AIMProject, DailyPlan, Goal, MemoryItem, PersonalOperatingContext, UserProfile, WellnessLog } from '../types';
+import { AIMProject, ChatMessage, CoachId, DailyPlan, Goal, LifeUpdate, MemoryItem, PersonalOperatingContext, UserProfile, WellnessLog } from '../types';
+import { normalizeSpaces, spacesMentionedIn, userDisclosureText } from './contextualNavigationService';
 
-export type AimModuleId = 'home' | 'scanner' | 'projects' | 'check-in' | 'history' | 'settings' | 'planner' | 'goals' | 'memory' | 'wellness' | 'chat';
+export type AimModuleId = 'home' | 'scanner' | 'projects' | 'check-in' | 'history' | 'settings' | 'planner' | 'goals' | 'memory' | 'wellness' | 'chat' | 'relationships' | 'life-update';
 
-interface ModuleAccessInput {
+export interface ModuleAccessInput {
   profile: UserProfile;
   calibrationText?: string;
   context: PersonalOperatingContext;
@@ -11,24 +12,32 @@ interface ModuleAccessInput {
   memories: MemoryItem[];
   dailyPlan: DailyPlan;
   wellnessLogs: WellnessLog[];
+  chatMessages?: ChatMessage[];
+  lifeUpdates?: LifeUpdate[];
 }
 
-const includesAny = (text: string, terms: string[]) => terms.some((term) => text.includes(term));
+export function getRevealedSpaces(input: ModuleAccessInput) {
+  return normalizeSpaces([...normalizeSpaces(input.profile.contextualSpaces), ...spacesMentionedIn(userDisclosureText({ ...input, userId: input.profile.id }))]);
+}
 
 /** Build navigation from the user's answers and saved state, never demo data. */
 export function getUnlockedModules(input: ModuleAccessInput): Set<AimModuleId> {
   if (!input.profile.onboardingCompleted) return new Set<AimModuleId>(['home']);
 
-  const savedDisclosure = input.memories.filter(memory => memory.tags?.includes('alignment')).map(memory => memory.content);
-  const text = [input.calibrationText || '', ...savedDisclosure, input.profile.desiredIdentity, input.profile.coreMission, input.profile.primaryObstacle, input.profile.ninetyDayTrajectory, ...input.profile.topSkills, ...input.profile.coreValues].join(' ').toLowerCase();
-  const modules = new Set<AimModuleId>(['home', 'check-in', 'settings', 'chat']);
+  const spaces = new Set(getRevealedSpaces(input));
+  const modules = new Set<AimModuleId>(['home', 'planner', 'check-in', 'settings', 'chat', 'life-update']);
 
-  if (input.dailyPlan.priorityTasks.length > 0 || input.dailyPlan.timeBlocks.length > 0) modules.add('planner');
-  if (input.goals.length > 0) modules.add('goals');
-  if (input.memories.length > 0) modules.add('memory');
-  if (input.projects.length > 0 || includesAny(text, ['project', 'business', 'album', 'film', 'book', 'app', 'launch', 'build', 'create'])) modules.add('projects');
-  if (input.context.opportunityFocus || includesAny(text, ['job', 'work', 'career', 'income', 'employment', 'client', 'money', 'revenue', 'opportunity']) || input.context.workPreferences.incomeUrgency === 'immediate') modules.add('scanner');
-  if (input.wellnessLogs.length > 0 || includesAny(text, ['health', 'sleep', 'stress', 'energy', 'exercise', 'workout', 'nutrition', 'meal', 'weight', 'wellness'])) modules.add('wellness');
-  if (input.context.auditLog.length > 0) modules.add('history');
+  for (const id of ['scanner', 'projects', 'goals', 'memory', 'history', 'wellness', 'relationships'] as const) {
+    if (spaces.has(id)) modules.add(id);
+  }
+  // A user who already saved their own opportunity focus can still return to it.
+  if (input.context.opportunityFocus) modules.add('scanner');
   return modules;
+}
+
+export function getRevealedCoaches(input: ModuleAccessInput): CoachId[] {
+  if (!input.profile.onboardingCompleted) return ['guidance'];
+  const spaces = new Set(getRevealedSpaces(input));
+  return ['guidance', ...(spaces.has('wellness') ? ['health'] : []),
+    ...(['relationships', 'motivation', 'spiritual'] as const).filter(id => spaces.has(id))] as CoachId[];
 }

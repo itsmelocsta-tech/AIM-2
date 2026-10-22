@@ -28,6 +28,7 @@ interface HeaderProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   unlockedSpacesCount?: number;
+  showLibrary?: boolean;
   isOnboarding?: boolean;
 }
 
@@ -44,6 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   unlockedSpacesCount = 0,
+  showLibrary = false,
   isOnboarding = false,
 }) => {
   const effectiveTz = getEffectiveTimeZone(userProfile.timeZone);
@@ -123,7 +125,7 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           {/* Google Drive Status Button */}
-          <button
+          {(showLibrary || driveState.isConnected) && <button
             id="google-drive-header-btn"
             onClick={onOpenDriveModal}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-xl font-medium transition-colors border ${
@@ -137,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden md:inline">
               {driveState.isConnected ? 'Drive Synced' : 'Google Drive'}
             </span>
-          </button>
+          </button>}
 
           {/* Quick Capture Button */}
           <button

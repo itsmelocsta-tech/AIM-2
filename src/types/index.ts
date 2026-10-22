@@ -35,6 +35,8 @@ export const AIM_CATEGORIES: AIMCategory[] = [
   'Assets',
 ];
 
+export type ContextualSpace = 'scanner' | 'projects' | 'goals' | 'memory' | 'history' | 'wellness' | 'relationships' | 'motivation' | 'spiritual' | 'atmosphere' | 'crystal-lab';
+
 export interface UserProfile {
   id?: string;
   name: string;
@@ -50,6 +52,8 @@ export interface UserProfile {
   coreValues: string[];
   ninetyDayTrajectory: string;
   onboardingCompleted: boolean;
+  /** Navigation preferences inferred from this account's own submitted words. */
+  contextualSpaces?: ContextualSpace[];
   /** Only new accounts that have just finished onboarding enter this short guide. */
   firstRunGuideStep?: 'intro' | 'planner' | 'check-in' | 'done';
   /** The user's own cues for returning to a task and making the next finish easier. */

@@ -41,7 +41,7 @@ export const ChatAdvisorModule: React.FC<ChatAdvisorProps> = ({
   onToast,
 }) => {
   const [inputText, setInputText] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<AIMCategory | undefined>(undefined);
+  const selectedCategory: AIMCategory | undefined = undefined;
   const [isThinking, setIsThinking] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -254,32 +254,6 @@ export const ChatAdvisorModule: React.FC<ChatAdvisorProps> = ({
 
         {/* Input Bar */}
         <div className="p-4 bg-slate-950 border-t border-slate-800 space-y-2">
-          {/* Optional Category Tag Selector */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider shrink-0 mr-1">
-              Focus Space:
-            </span>
-            <button
-              onClick={() => setSelectedCategory(undefined)}
-              className={`px-2 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
-                !selectedCategory ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-slate-400 border border-slate-800'
-              }`}
-            >
-              Auto-Detect
-            </button>
-            {AIM_CATEGORIES.slice(0, 8).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-2 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
-                  selectedCategory === cat ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-slate-400 border border-slate-800'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
           <form onSubmit={handleSendMessage} className="flex gap-2 items-center">
             <input
               type="text"

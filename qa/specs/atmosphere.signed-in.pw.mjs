@@ -28,7 +28,7 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
         location: '', timeZone: 'America/Chicago', desiredIdentity: 'Creative professional',
         coreMission: 'Make time for drawing', currentMonthlyIncome: 0, targetMonthlyIncome: 0,
         primaryObstacle: '', topSkills: [], coreValues: [], ninetyDayTrajectory: '',
-        onboardingCompleted: true, firstRunGuideStep: 'done', createdAt: new Date().toISOString(),
+        onboardingCompleted: true, firstRunGuideStep: 'done', contextualSpaces: ['atmosphere'], createdAt: new Date().toISOString(),
       });
       // A harmless probe never writes a paid entitlement. If live rules still
       // allow any billing write, remove this probe and fail the verification.
@@ -85,6 +85,23 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
     const first = await provision();
     const second = await provision();
     await signIn(first);
+    // The reply is a fixture; the account, submitted user text and profile persistence are real.
+    await expect(page.locator('#nav-tab-wellness')).toHaveCount(0);
+    await page.route('**/api/aim/chat', route => route.fulfill({ status: 200, json: { reply: 'We can take this one step at a time.' } }));
+    await page.locator('#nav-tab-chat').click();
+    await page.getByPlaceholder('Ask AIM for help with your day, a problem, a goal, or earning money...').fill('I want to improve my sleep and talk with my friend.');
+    await page.locator('#chat-advisor-module form button[type="submit"]').click();
+    await expect(page.locator('#nav-tab-wellness')).toBeVisible();
+    await expect(page.locator('#nav-tab-relationships')).toBeVisible();
+    await expect(page.locator('#nav-tab-chat')).toHaveAttribute('aria-current', 'page');
+    await signInWithEmailAndPassword(auth, first.email, first.password);
+    await expect.poll(async () => (await getDoc(doc(db, 'users', first.uid))).data()?.contextualSpaces || []).toEqual(expect.arrayContaining(['wellness', 'relationships']));
+    await page.evaluate(() => { localStorage.removeItem('aim_chat_messages'); localStorage.removeItem('aim_user_profile'); });
+    await page.reload();
+    await expect(page.locator('#nav-tab-wellness')).toBeVisible({ timeout: 45000 });
+    await expect(page.locator('#nav-tab-relationships')).toBeVisible();
+    await page.locator('#nav-tab-settings').click();
+    note('User-topic navigation reveals without changing screens and restores from the real cloud profile after local profile/chat removal: PASS (chat reply fixture).');
     const sound = page.getByRole('region', { name: 'Fractal Soundscapes' });
     await expect(sound.getByLabel('Sound mode')).toHaveValue('fractal');
     await expect(sound.getByLabel('Soundscape volume')).toHaveValue('25');
@@ -128,10 +145,14 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
     // above cover both widths without including any account information.
     await signOut();
     await signIn(second);
+    await expect(page.locator('#nav-tab-wellness')).toHaveCount(0);
+    await expect(page.locator('#nav-tab-relationships')).toHaveCount(0);
     await expect(panel).toContainText('0 comparisons saved.');
     await expect(panel).toContainText('Applied: None (default AIM appearance)');
     await signOut();
     await signIn(first);
+    await expect(page.locator('#nav-tab-wellness')).toBeVisible();
+    await expect(page.locator('#nav-tab-relationships')).toBeVisible();
     await expect(panel).toContainText('Applied: forest');
     await expect(panel).toContainText('1 comparisons saved.');
     note('Real sign-out/sign-in and per-account preference isolation: PASS');
