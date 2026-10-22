@@ -22,6 +22,7 @@ interface SettingsModuleProps {
   projects: AIMProject[];
   onUpdateContext: (updatedContext: PersonalOperatingContext) => void;
   onToast: (msg: string) => void;
+  showAtmosphere?: boolean;
 }
 
 export const SettingsModule: React.FC<SettingsModuleProps> = ({
@@ -29,6 +30,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
   projects,
   onUpdateContext,
   onToast,
+  showAtmosphere = false,
 }) => {
   const [formData, setFormData] = useState<PersonalOperatingContext>(() => ({
     ...context,
@@ -111,8 +113,8 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
         </p>
       </div>
 
-      {user && <AtmosphereCalibration userId={user.uid} />}
-      <FractalSoundscapes />
+      {showAtmosphere && user && <AtmosphereCalibration userId={user.uid} />}
+      {showAtmosphere && <FractalSoundscapes />}
       <form onSubmit={handleSave} className="space-y-5">
         {/* Section 1: Location & Search Parameters */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">

@@ -1,19 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Sparkles,
-  Calendar,
-  Target,
-  Brain,
-  Heart,
-  MessageSquare,
-  RefreshCw,
-  Compass,
-  Layers,
-  Send,
-  Clock,
-  Sliders,
-  ShieldCheck,
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles } from 'lucide-react';
 import {
   UserProfile,
   MemoryItem,
@@ -27,6 +13,7 @@ import {
   AIMProject,
   JobListing,
   DailyActionRecommendation,
+  CoachId,
 } from './types';
 import {
   storageService,
@@ -60,7 +47,8 @@ import { VoiceModal } from './components/common/VoiceModal';
 import { GlobalQuickInput } from './components/common/GlobalQuickInput';
 import { ConversationalHomeModule } from './components/modules/ConversationalHomeModule';
 import { FirstRunGuide } from './components/modules/FirstRunGuide';
-import { getUnlockedModules } from './services/moduleAccessService';
+import { useContextualNavigation } from './hooks/useContextualNavigation';
+import { ContextualNavigation } from './components/common/ContextualNavigation';
 import { DEFAULT_ENTITLEMENT, hasPremiumAccess } from './services/entitlementService';
 import { fetchEntitlement } from './services/entitlementApi';
 import { UpgradeModal } from './components/common/UpgradeModal';
@@ -458,22 +446,11 @@ export default function App() {
     }
   };
 
-  const navigationTabs = [
-    { id: 'home', label: 'Today', icon: Sparkles },
-    { id: 'scanner', label: 'Your Opportunities', icon: Compass },
-    { id: 'projects', label: 'Projects', icon: Layers, count: aimProjects.length },
-    { id: 'check-in', label: 'Check-In', icon: Send },
-    { id: 'history', label: 'Audit History', icon: Clock },
-    { id: 'settings', label: 'OS Context', icon: Sliders },
-    { id: 'planner', label: 'Daily Planner', icon: Calendar, count: dailyPlan.priorityTasks.length },
-    { id: 'goals', label: 'Goals', icon: Target, count: goals.length },
-    { id: 'memory', label: 'Memory Vault', icon: Brain, count: memories.length },
-    { id: 'wellness', label: 'Wellness', icon: Heart, count: wellnessLogs.length },
-    { id: 'chat', label: 'Advisor Orbs', icon: MessageSquare },
-  ];
-
   const calibration = storageService.getCalibration(user?.uid);
-  const unlockedModules = useMemo(() => getUnlockedModules({
+  const navigation = useContextualNavigation({
+    userId: user?.uid,
+    ready: Boolean(user && loadedUserId === user.uid),
+    onUpdateProfile: handleUpdateProfile,
     profile: userProfile,
     calibrationText: [calibration?.currentState, calibration?.changesWanted, calibration?.desiredState].filter(Boolean).join(' '),
     context: aimContext,
@@ -482,8 +459,10 @@ export default function App() {
     memories,
     dailyPlan,
     wellnessLogs,
-  }), [userProfile, calibration?.currentState, calibration?.changesWanted, calibration?.desiredState, aimContext, aimProjects, goals, memories, dailyPlan, wellnessLogs]);
-  const visibleNavigationTabs = navigationTabs.filter((tab) => unlockedModules.has(tab.id as any));
+    chatMessages,
+    lifeUpdates,
+  });
+  const unlockedModules = navigation.modules;
   const isPremium = hasPremiumAccess(entitlement);
   const requirePremiumUi = (action: () => void) => { if (isPremium) action(); else setIsUpgradeOpen(true); };
   const isReady = Boolean(user && loadedUserId === user.uid);
@@ -501,8 +480,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!unlockedModules.has(activeTab as any)) setActiveTab('home');
-  }, [activeTab, unlockedModules]);
+    if (!unlockedModules.has(activeTab as any) || (activeTab === 'relationships' && !isPremium)) setActiveTab('home');
+  }, [activeTab, unlockedModules, isPremium]);
 
   const totalLearnedItems =
     memories.length +
@@ -510,6 +489,15 @@ export default function App() {
     dailyPlan.priorityTasks.length +
     wellnessLogs.length +
     lifeUpdates.length;
+
+  const coachView = (initialCoachId: CoachId = 'guidance') => <CoachShell
+    key={`${user?.uid}-${initialCoachId}`} initialCoachId={initialCoachId} availableCoaches={navigation.coaches}
+    userProfile={userProfile} dailyPlan={dailyPlan} goals={goals} memories={memories}
+    wellnessLogs={wellnessLogs} lifeUpdates={lifeUpdates}
+    onUpdateDailyPlan={handleUpdateDailyPlan} onUpdateGoals={handleUpdateGoals}
+    onUpdateMemories={handleUpdateMemories} onUpdateLifeUpdates={handleUpdateLifeUpdates}
+    onUpdateProfile={handleUpdateProfile} onNavigateToTab={setActiveTab}
+    onOpenLifeUpdate={() => requirePremiumUi(() => setActiveTab('life-update'))} onToast={showToast} />;
 
   return (
     <div id="aim-app-root" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
@@ -528,38 +516,11 @@ export default function App() {
         setActiveTab={setActiveTab}
         unlockedSpacesCount={totalLearnedItems}
         isOnboarding={isOnboarding || Boolean(guideStep)}
+        showLibrary={unlockedModules.has('memory')}
       />
 
-      {/* Modules appear only after AIM understands why the user needs them. */}
-      {!isOnboarding && !guideStep && <nav id="aim-primary-nav" className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 px-3 sm:px-4 lg:px-8 py-2 sticky top-[69px] z-30 shadow-sm animate-fadeIn">
-        <div className="max-w-6xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-thin">
-          {visibleNavigationTabs.map((tab, index) => {
-            const Icon = tab.icon;
-            const isActive = currentTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                id={`nav-tab-${tab.id}`}
-                onClick={() => setActiveTab(tab.id)}
-                style={{ animationDelay: `${index * 90}ms`, animationFillMode: 'both' }}
-                className={`animate-fadeIn flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
-                  isActive
-                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span>{tab.label}</span>
-                {typeof tab.count === 'number' && tab.count > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 font-bold border border-indigo-800">
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </nav>}
+      {!isOnboarding && !guideStep && <ContextualNavigation availableModules={unlockedModules} activeTab={currentTab}
+        onNavigate={id => id === 'relationships' ? requirePremiumUi(() => setActiveTab(id)) : setActiveTab(id)} />}
 
       {/* Main Content Area */}
       <main id="aim-main-content" className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-6">
@@ -604,7 +565,7 @@ export default function App() {
               >
                 Today’s plan
               </button>
-              <button
+              {navigation.coaches.length > 1 && <button
                 id="home-view-advisor-btn"
                 onClick={() => requirePremiumUi(() => setHomeViewMode('advisor'))}
                 className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all ${
@@ -614,12 +575,14 @@ export default function App() {
                 }`}
               >
                 Your Coaches
-              </button>
+              </button>}
             </div>
 
-            {homeViewMode === 'daily_os' ? (
+            {homeViewMode === 'daily_os' || !isPremium ? (
               <AimDashboardModule
                 atmosphereOwnerId={user.uid}
+                availableViews={navigation.spaces}
+                availableModules={unlockedModules}
                 userProfile={userProfile}
                 dailyPlan={dailyPlan}
                 startingPoint={calibration?.currentState}
@@ -636,24 +599,7 @@ export default function App() {
                 onToast={showToast}
               />
             ) : (
-              <CoachShell
-                userProfile={userProfile}
-                dailyPlan={dailyPlan}
-                goals={goals}
-                memories={memories}
-                wellnessLogs={wellnessLogs}
-                lifeUpdates={lifeUpdates}
-                onUpdateDailyPlan={handleUpdateDailyPlan}
-                onUpdateGoals={handleUpdateGoals}
-                onUpdateMemories={handleUpdateMemories}
-                onUpdateLifeUpdates={handleUpdateLifeUpdates}
-                onUpdateProfile={handleUpdateProfile}
-                onNavigateToTab={setActiveTab}
-                onOpenLifeUpdate={(initialText) => {
-                  requirePremiumUi(() => setActiveTab('life-update'));
-                }}
-                onToast={showToast}
-              />
+              coachView()
             )}
           </div>
         ))}
@@ -661,6 +607,8 @@ export default function App() {
         {(guideStep === 'planner' || guideStep === 'check-in') && (
           <FirstRunGuide step={guideStep} profile={userProfile} dailyPlan={dailyPlan} onNext={advanceGuide} />
         )}
+
+        {isReady && !guideStep && currentTab === 'relationships' && isPremium && coachView('relationships')}
 
         {isReady && !guideStep && currentTab === 'scanner' && (
           <OpportunityScannerModule
@@ -686,6 +634,7 @@ export default function App() {
             context={aimContext}
             projects={aimProjects}
             onApplyContextUpdate={handleUpdateAimContext}
+            onUserMention={navigation.mention}
             onApplyProjectUpdate={handleUpdateAimProjects}
             onToast={showToast}
             onNavigateToHome={() => setActiveTab('home')}
@@ -701,6 +650,7 @@ export default function App() {
 
         {isReady && !guideStep && currentTab === 'settings' && (
           <SettingsModule
+            showAtmosphere={navigation.spaces.includes('atmosphere')}
             context={aimContext}
             projects={aimProjects}
             onUpdateContext={handleUpdateAimContext}
@@ -815,13 +765,14 @@ export default function App() {
       <GlobalQuickInput
         isOpen={isQuickCaptureOpen}
         onClose={() => setIsQuickCaptureOpen(false)}
-        onSaveMemory={(mem) => handleUpdateMemories([mem, ...memories])}
-        onSaveTask={(task) =>
+        onSaveMemory={(mem) => { navigation.mention('Remember ' + mem.content); handleUpdateMemories([mem, ...memories]); }}
+        onSaveTask={(task) => {
+          navigation.mention(task.task);
           handleUpdateDailyPlan({
             ...dailyPlan,
             priorityTasks: [...dailyPlan.priorityTasks, task],
-          })
-        }
+          });
+        }}
         onToast={showToast}
       />
 

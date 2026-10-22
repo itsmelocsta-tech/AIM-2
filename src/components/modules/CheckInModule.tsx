@@ -28,6 +28,7 @@ interface CheckInModuleProps {
   onApplyProjectUpdate: (updatedProjects: AIMProject[]) => void;
   onToast: (msg: string) => void;
   onNavigateToHome: () => void;
+  onUserMention?: (text: string) => void;
 }
 
 export const CheckInModule: React.FC<CheckInModuleProps> = ({
@@ -37,6 +38,7 @@ export const CheckInModule: React.FC<CheckInModuleProps> = ({
   onApplyProjectUpdate,
   onToast,
   onNavigateToHome,
+  onUserMention,
 }) => {
   const [inputText, setInputText] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -89,6 +91,7 @@ export const CheckInModule: React.FC<CheckInModuleProps> = ({
   const handleAnalyzeCheckIn = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputText.trim()) return;
+    onUserMention?.(inputText);
 
     setIsAnalyzing(true);
     try {
