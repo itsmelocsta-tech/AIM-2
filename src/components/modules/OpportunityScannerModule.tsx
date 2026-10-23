@@ -57,6 +57,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
     jobScannerService.getSearchSuggestions()
   );
   const [isScanning, setIsScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [lastScanResult, setLastScanResult] = useState<{
@@ -134,6 +135,8 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
 
   // Manual Scan Trigger
   const handleExecuteScan = async () => {
+    if (isScanning) return;
+    setScanError(null);
     setIsScanning(true);
     try {
       // Call server endpoint or fallback to service
@@ -159,10 +162,19 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
         console.warn('Live API scan fallback to client service:', err);
       }
 
-      const scanResult = responseData || jobScannerService.executeScan(false);
+      // A successful HTTP status does not guarantee a valid scan payload.
+      // Never pass malformed server data into React rendering.
+      const scanResult = responseData && typeof responseData === 'object' && !Array.isArray(responseData)
+        ? responseData
+        : jobScannerService.executeScan(false);
 
-      if (scanResult.searchSuggestions) {
-        setSearchSuggestions(scanResult.searchSuggestions);
+      if (Array.isArray(scanResult.searchSuggestions)) {
+        setSearchSuggestions(scanResult.searchSuggestions.filter((item: unknown) =>
+          item && typeof item === 'object' && typeof (item as JobSearchSuggestion).id === 'string' &&
+          typeof (item as JobSearchSuggestion).organization === 'string' &&
+          typeof (item as JobSearchSuggestion).category === 'string' &&
+          typeof (item as JobSearchSuggestion).url === 'string'
+        ));
       }
 
       setListings(jobScannerService.getListings());
@@ -183,7 +195,10 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
         );
       }
     } catch (e: any) {
-      onToast('Failed to complete scan: ' + (e.message || 'Network error'));
+      const message = e instanceof Error ? e.message : 'Network error';
+      setScanError('Scan could not finish. Your saved opportunities are safe. Please retry.');
+      console.error('[OpportunityScanner] Scan failed:', e);
+      onToast('Failed to complete scan: ' + message);
     } finally {
       setIsScanning(false);
     }
@@ -403,6 +418,8 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
           </label>
         </div>
       </div>
+
+      {scanError && <div role="alert" className="rounded-xl border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-100">{scanError}</div>}
 
       {/* Header & Controls */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
