@@ -59,6 +59,12 @@ const MAX_CLIENT_CACHE = 50;
 
 export class VoiceEngine {
   private recognition: any = null;
+  private dictationRequested = false;
+  private dictationFinal = '';
+  private dictationInterim = '';
+  private lastTranscript = '';
+  private dictationStateCallback: ((listening: boolean) => void) | null = null;
+  private restartTimer: ReturnType<typeof setTimeout> | null = null;
   private voiceState: VoiceState = 'idle';
   private speakerState: SpeakerState = 'ready';
 
@@ -95,7 +101,7 @@ export class VoiceEngine {
         (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         this.recognition = new SpeechRecognition();
-        this.recognition.continuous = false;
+        this.recognition.continuous = true;
         this.recognition.interimResults = true;
         this.recognition.lang = 'en-US';
 
@@ -104,35 +110,56 @@ export class VoiceEngine {
         };
 
         this.recognition.onresult = (event: any) => {
-          let interimTranscript = '';
-          let finalTranscript = '';
-
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
-            }
+          let interim = '';
+          let final = '';
+          for (let i = 0; i < event.results.length; i++) {
+            const part = event.results[i][0]?.transcript || '';
+            if (event.results[i].isFinal) final += part + ' ';
+            else interim += part;
           }
-
-          const current = finalTranscript || interimTranscript;
-          if (current) {
+          this.dictationInterim = interim;
+          const transcript = [this.dictationFinal, final.trim(), interim.trim()].filter(Boolean).join(' ').trim();
+          if (transcript) {
+            this.lastTranscript = transcript;
             this.setVoiceState('transcribing');
-            if (this.onResultCallback) {
-              this.onResultCallback(current);
-            }
+            this.onResultCallback?.(transcript);
           }
         };
 
         this.recognition.onend = () => {
-          if (this.voiceState === 'listening' || this.voiceState === 'transcribing') {
+          if (this.dictationRequested) {
+            // Mobile speech recognition may end after silence despite continuous=true.
+            // Restart only while the user explicitly keeps dictation active.
+            // The browser starts a fresh results list after each restart.
+            this.dictationFinal = this.lastTranscript;
+            this.restartTimer = setTimeout(() => {
+              if (!this.dictationRequested) return;
+              try {
+                this.recognition.start();
+              } catch (error) {
+                console.warn('[VoiceEngine] Dictation restart failed:', error);
+                this.dictationRequested = false;
+                this.setVoiceState('error');
+                this.dictationStateCallback?.(false);
+              }
+            }, 200);
+          } else {
             this.setVoiceState('idle');
+            this.dictationStateCallback?.(false);
           }
         };
 
         this.recognition.onerror = (e: any) => {
           console.warn('[VoiceEngine] Speech recognition error:', e);
-          this.setVoiceState(e.error === 'not-allowed' ? 'error' : 'idle');
+          if (['not-allowed', 'service-not-allowed', 'audio-capture'].includes(e.error)) {
+            this.dictationRequested = false;
+            this.setVoiceState('error');
+            this.dictationStateCallback?.(false);
+          } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
+            this.dictationRequested = false;
+            this.setVoiceState('error');
+            this.dictationStateCallback?.(false);
+          }
         };
       }
     }
@@ -653,6 +680,12 @@ export class VoiceEngine {
   ): boolean {
     if (!this.recognition) return false;
     this.onResultCallback = onResult;
+    this.dictationStateCallback = onStateChange || null;
+    this.dictationFinal = '';
+    this.dictationInterim = '';
+    this.lastTranscript = '';
+    this.dictationRequested = true;
+    if (this.restartTimer) clearTimeout(this.restartTimer);
 
     try {
       this.stopSpeaking(true);
@@ -661,6 +694,7 @@ export class VoiceEngine {
       if (onStateChange) onStateChange(true);
       return true;
     } catch (e) {
+      this.dictationRequested = false;
       console.warn('[VoiceEngine] Failed to start speech recognition:', e);
       this.setVoiceState('error');
       if (onStateChange) onStateChange(false);
@@ -669,6 +703,10 @@ export class VoiceEngine {
   }
 
   public stopListening(): void {
+    this.dictationRequested = false;
+    if (this.restartTimer) clearTimeout(this.restartTimer);
+    this.restartTimer = null;
+    this.dictationStateCallback?.(false);
     if (this.recognition) {
       try {
         this.recognition.stop();
