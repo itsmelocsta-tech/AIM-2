@@ -63,6 +63,7 @@ export class VoiceEngine {
   private dictationFinal = '';
   private dictationInterim = '';
   private lastTranscript = '';
+  private recognitionSessionBase = '';
   private dictationStateCallback: ((listening: boolean) => void) | null = null;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
   private voiceState: VoiceState = 'idle';
@@ -118,7 +119,8 @@ export class VoiceEngine {
             else interim += part;
           }
           this.dictationInterim = interim;
-          const transcript = [this.dictationFinal, final.trim(), interim.trim()].filter(Boolean).join(' ').trim();
+          const sessionText = [final.trim(), interim.trim()].filter(Boolean).join(' ').trim();
+          const transcript = [this.recognitionSessionBase, sessionText].filter(Boolean).join(' ').trim();
           if (transcript) {
             this.lastTranscript = transcript;
             this.setVoiceState('transcribing');
@@ -131,7 +133,7 @@ export class VoiceEngine {
             // Mobile speech recognition may end after silence despite continuous=true.
             // Restart only while the user explicitly keeps dictation active.
             // The browser starts a fresh results list after each restart.
-            this.dictationFinal = this.lastTranscript;
+            this.recognitionSessionBase = this.lastTranscript;
             this.restartTimer = setTimeout(() => {
               if (!this.dictationRequested) return;
               try {
@@ -684,6 +686,7 @@ export class VoiceEngine {
     this.dictationFinal = '';
     this.dictationInterim = '';
     this.lastTranscript = '';
+    this.recognitionSessionBase = '';
     this.dictationRequested = true;
     if (this.restartTimer) clearTimeout(this.restartTimer);
 
