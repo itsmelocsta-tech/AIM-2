@@ -1,3 +1,4 @@
+import { normalizeJobSearchSuggestions } from '../../services/jobSearchSuggestions';
 import { authenticatedFetch, AuthenticationError } from '../../services/authenticatedFetch';
 import React, { useState } from 'react';
 
@@ -168,14 +169,9 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
         ? responseData
         : jobScannerService.executeScan(false);
 
-      if (Array.isArray(scanResult.searchSuggestions)) {
-        setSearchSuggestions(scanResult.searchSuggestions.filter((item: unknown) =>
-          item && typeof item === 'object' && typeof (item as JobSearchSuggestion).id === 'string' &&
-          typeof (item as JobSearchSuggestion).organization === 'string' &&
-          typeof (item as JobSearchSuggestion).category === 'string' &&
-          typeof (item as JobSearchSuggestion).url === 'string'
-        ));
-      }
+      const suggestions = normalizeJobSearchSuggestions(scanResult.searchSuggestions);
+      // Missing or unusable payloads must not erase the existing career resources.
+      if (suggestions.length > 0) setSearchSuggestions(suggestions);
 
       setListings(jobScannerService.getListings());
       setScanRuns(jobScannerService.getScanRuns());
