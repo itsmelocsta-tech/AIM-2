@@ -72,9 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="font-semibold tracking-tight text-sm sm:text-base text-white">AIM</span>
-              <span className="hidden sm:inline text-[10px] tracking-wider uppercase px-2 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 font-medium border border-indigo-800/50">
-                Your daily guide
-              </span>
+              <span className="text-[10px] sm:text-xs tracking-wide text-indigo-200 font-medium block">Before I Am</span>
             </div>
           </div>
         </button>
