@@ -97,6 +97,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       catch { throw new Error('Disposable SDK session could not be established.'); }
       // Remove credentials retained in the hidden auth form before any failure snapshot.
       await page.locator('input[type="password"]').evaluateAll(nodes => nodes.forEach(n => { n.value = ''; }));
+      await page.getByRole('button', { name: 'Agree and continue', exact: true }).click();
       await expect(page.locator('#aim-current-state-textarea')).toBeVisible({ timeout: 45000 });
       note('Email signup and workspace loading');
     });

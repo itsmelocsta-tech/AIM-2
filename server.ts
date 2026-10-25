@@ -13,6 +13,8 @@ import { requireAuth } from './server/firebaseAdmin';
 import { readEntitlement, requirePremium } from './server/entitlementService';
 import { compareCrystalLayers } from './server/crystalOptics';
 import { generateWithFallback } from './server/generateWithFallback';
+import { deleteAccount } from './server/accountDeletion';
+import { reportAiContent } from './server/aiContentReports';
 import {
   PlayBillingError,
   getPlayLaunchOffer,
@@ -29,6 +31,9 @@ const PORT = 3000;
 app.use('/api/optics', express.json({ limit: '2kb' }));
 app.use(express.json({ limit: '10mb' }));
 app.use('/api/aim', requireAuth);
+app.use('/api/aim', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+app.delete('/api/aim/account', deleteAccount);
+app.post('/api/aim/content-reports', reportAiContent);
 
 // Public numerical utility: bounded inputs, no account data, AI or paid calls.
 app.post('/api/optics/compare', (req, res) => {

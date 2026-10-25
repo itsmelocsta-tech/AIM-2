@@ -212,7 +212,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, reauthent
                   d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.2 0-5.8-2.3-6.7-5.3L1.6 15.9C3.5 19.8 7.4 23 12 23z"
                 />
               </svg>
-              <span>Continue with Google</span>
+              <span>{(window as any).AimAndroidApp ? 'Google sign-in: website only' : 'Continue with Google'}</span>
             </button>
 
             <div className="relative flex items-center justify-center">

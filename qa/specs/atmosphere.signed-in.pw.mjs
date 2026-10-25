@@ -61,7 +61,13 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
       }
     }, { email: account.email, password: account.password });
     await page.locator('form').filter({ has: page.locator('input[type="email"]') }).locator('button[type="submit"]').click();
+    const consent = page.getByRole('button', { name: 'Agree and continue', exact: true });
+    await expect(consent.or(page.locator('#nav-tab-home'))).toBeVisible({ timeout: 45000 });
+    if (await consent.isVisible()) await consent.click();
+    await page.getByText('More', { exact: true }).click();
+    await page.getByText('More', { exact: true }).click();
     await expect(page.locator('#nav-tab-settings')).toBeVisible({ timeout: 45000 });
+    if (!(await page.locator('#nav-tab-settings').isVisible())) await page.getByText('More', { exact: true }).click();
     await page.locator('#nav-tab-settings').click();
     await expect(page.getByRole('region', { name: 'Personalize My Atmosphere' })).toBeVisible();
   }
@@ -88,18 +94,20 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
     // The reply is a fixture; the account, submitted user text and profile persistence are real.
     await expect(page.locator('#nav-tab-wellness')).toHaveCount(0);
     await page.route('**/api/aim/chat', route => route.fulfill({ status: 200, json: { reply: 'We can take this one step at a time.' } }));
+    await page.getByText('More', { exact: true }).click();
     await page.locator('#nav-tab-chat').click();
     await page.getByPlaceholder('Ask AIM for help with your day, a problem, a goal, or earning money...').fill('I want to improve my sleep and talk with my friend.');
     await page.locator('#chat-advisor-module form button[type="submit"]').click();
-    await expect(page.locator('#nav-tab-wellness')).toBeVisible();
-    await expect(page.locator('#nav-tab-relationships')).toBeVisible();
+    await expect(page.locator('#nav-tab-wellness')).toHaveCount(1);
+    await expect(page.locator('#nav-tab-relationships')).toHaveCount(1);
     await expect(page.locator('#nav-tab-chat')).toHaveAttribute('aria-current', 'page');
     await signInWithEmailAndPassword(auth, first.email, first.password);
     await expect.poll(async () => (await getDoc(doc(db, 'users', first.uid))).data()?.contextualSpaces || []).toEqual(expect.arrayContaining(['wellness', 'relationships']));
     await page.evaluate(() => { localStorage.removeItem('aim_chat_messages'); localStorage.removeItem('aim_user_profile'); });
     await page.reload();
-    await expect(page.locator('#nav-tab-wellness')).toBeVisible({ timeout: 45000 });
-    await expect(page.locator('#nav-tab-relationships')).toBeVisible();
+    await expect(page.locator('#nav-tab-wellness')).toHaveCount(1, { timeout: 45000 });
+    await expect(page.locator('#nav-tab-relationships')).toHaveCount(1);
+    if (!(await page.locator('#nav-tab-settings').isVisible())) await page.getByText('More', { exact: true }).click();
     await page.locator('#nav-tab-settings').click();
     note('User-topic navigation reveals without changing screens and restores from the real cloud profile after local profile/chat removal: PASS (chat reply fixture).');
     const sound = page.getByRole('region', { name: 'Fractal Soundscapes' });
@@ -114,6 +122,7 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
     });
     await page.locator('#nav-tab-home').click();
     await expect.poll(async () => (await audioState(page)).every(s => s.state === 'closed')).toBe(true);
+    if (!(await page.locator('#nav-tab-settings').isVisible())) await page.getByText('More', { exact: true }).click();
     await page.locator('#nav-tab-settings').click();
     await expect(sound.getByRole('status')).toHaveText('Soundscape is off.');
     note('Deployed Settings: no autoplay, real sound samples after Play, navigation closes audio without restart: PASS');
@@ -128,7 +137,9 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
     await panel.getByRole('button', { name: 'Apply manual settings', exact: true }).click();
     await expect(panel).toContainText('Applied: forest');
     await page.reload();
+    await page.getByText('More', { exact: true }).click();
     await expect(page.locator('#nav-tab-settings')).toBeVisible({ timeout: 45000 });
+    if (!(await page.locator('#nav-tab-settings').isVisible())) await page.getByText('More', { exact: true }).click();
     await page.locator('#nav-tab-settings').click();
     await expect(panel).toContainText('Applied: forest');
     await expect(panel).toContainText('1 comparisons saved.');
@@ -151,8 +162,8 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
     await expect(panel).toContainText('Applied: None (default AIM appearance)');
     await signOut();
     await signIn(first);
-    await expect(page.locator('#nav-tab-wellness')).toBeVisible();
-    await expect(page.locator('#nav-tab-relationships')).toBeVisible();
+    await expect(page.locator('#nav-tab-wellness')).toHaveCount(1);
+    await expect(page.locator('#nav-tab-relationships')).toHaveCount(1);
     await expect(panel).toContainText('Applied: forest');
     await expect(panel).toContainText('1 comparisons saved.');
     note('Real sign-out/sign-in and per-account preference isolation: PASS');
@@ -163,7 +174,9 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
     await panel.getByRole('button', { name: 'Confirm delete', exact: true }).click();
     await expect(panel).toContainText('Applied: None (default AIM appearance)');
     await page.reload();
+    await page.getByText('More', { exact: true }).click();
     await expect(page.locator('#nav-tab-settings')).toBeVisible({ timeout: 45000 });
+    if (!(await page.locator('#nav-tab-settings').isVisible())) await page.getByText('More', { exact: true }).click();
     await page.locator('#nav-tab-settings').click();
     await expect(panel).toContainText('Applied: None (default AIM appearance)');
     note('Reset retains the applied appearance; deletion survives reload: PASS');

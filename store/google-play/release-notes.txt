@@ -1,0 +1,3 @@
+Initial testing release of AIM — Before I Am.
+Personal planning, goal and project organization, check-ins, optional atmosphere and soundscapes, privacy and account deletion controls, and AI response reporting.
+Payments remain disabled. This release requires real-device validation before public production approval.
