@@ -18,7 +18,10 @@ import {
   CheckSquare,
   Flame,
   Target,
+  Mic,
+  MicOff,
 } from 'lucide-react';
+import { voiceEngine } from '../../services/voiceService';
 import { DailyPlan, PriorityTask, TimeBlock, UserProfile, Goal } from '../../types';
 import { api } from '../../services/api';
 import { driveService } from '../../services/driveService';
@@ -57,6 +60,23 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
 
   // New task input
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [dictatingField, setDictatingField] = useState<string | null>(null);
+  const toggleDictation = (field: string, value: string, setter: (text: string) => void) => {
+    if (dictatingField === field) { voiceEngine.stopListening(); setDictatingField(null); return; }
+    voiceEngine.stopListening();
+    const base = value.trim();
+    const started = voiceEngine.startListening(
+      (transcript) => setter([base, transcript].filter(Boolean).join(' ')),
+      (listening) => { if (!listening) setDictatingField(null); }
+    );
+    if (started) setDictatingField(field);
+    else onToast('Microphone unavailable. Please check browser microphone permission.');
+  };
+  const DictateButton = ({ field, value, setter }: { field: string; value: string; setter: (text: string) => void }) => (
+    <button type="button" onClick={() => toggleDictation(field, value, setter)} aria-label={dictatingField === field ? 'Stop dictation' : 'Dictate instead of typing'} title={dictatingField === field ? 'Stop dictation' : 'Speak instead of typing'} className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/50 px-3 py-2 text-xs text-indigo-200 hover:bg-indigo-950">
+      {dictatingField === field ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}{dictatingField === field ? 'Stop recording' : 'Speak'}
+    </button>
+  );
   const finisherTask = nextFinisherTask(dailyPlan);
 
   const saveFinishingSystem = () => {
@@ -338,6 +358,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               placeholder="e.g. Focus on closing the $3,500 proposal with Alex, ship project deliverables, keep energy high, and hit the gym at 4:30pm."
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
             />
+            <DictateButton field="morningNotes" value={morningNotes} setter={setMorningNotes} />
           </div>
 
           <div>
@@ -352,6 +373,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               placeholder="e.g. Checking messages before I finish the draft"
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
             />
+            <DictateButton field="driftTrigger" value={driftTrigger} setter={setDriftTrigger} />
             {protectiveRoutine && <p className="mt-2 text-xs text-amber-200 break-words">Your existing setup: {protectiveRoutine}</p>}
           </div>
 
@@ -402,6 +424,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               placeholder="e.g. Sent all 15 pitches, followed up with 2 clients. Got tired around 2pm, should take a 15 min fresh air break. Feeling excited about tomorrow."
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
+            <DictateButton field="eveningNotes" value={eveningNotes} setter={setEveningNotes} />
           </div>
 
           <div>
@@ -416,6 +439,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               placeholder="e.g. Put my draft on the calendar at 9 and capture new ideas in one note"
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
+            <DictateButton field="protectiveRoutine" value={protectiveRoutine} setter={setProtectiveRoutine} />
           </div>
 
           <div className="flex justify-end gap-3">
@@ -587,6 +611,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                   placeholder="+ Add another priority task..."
                   className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
+            <DictateButton field="newTaskTitle" value={newTaskTitle} setter={setNewTaskTitle} />
                 <button
                   type="submit"
                   className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold"
@@ -768,7 +793,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                 </div>
                 <p className="text-xs text-slate-400 italic">"{g.why}"</p>
                 <div className="space-y-1.5 pt-2 border-t border-slate-900">
-                  {g.milestones.map((m, mIdx) => (
+                  {(Array.isArray(g.milestones) ? g.milestones : []).map((m, mIdx) => (
                     <div key={mIdx} className="text-[11px] text-slate-300 flex items-center gap-2">
                       <CheckSquare className="w-3.5 h-3.5 text-slate-600" />
                       <span>{m}</span>

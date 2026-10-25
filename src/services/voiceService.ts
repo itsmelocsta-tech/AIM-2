@@ -59,6 +59,11 @@ const MAX_CLIENT_CACHE = 50;
 
 export class VoiceEngine {
   private recognition: any = null;
+  private keepListening = false;
+  private recognitionRestartTimer: ReturnType<typeof setTimeout> | null = null;
+  private recognitionFinalText = '';
+  private currentRecognitionFinalText = '';
+  private recognitionStateCallback: ((listening: boolean) => void) | null = null;
   private voiceState: VoiceState = 'idle';
   private speakerState: SpeakerState = 'ready';
 
@@ -95,7 +100,7 @@ export class VoiceEngine {
         (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         this.recognition = new SpeechRecognition();
-        this.recognition.continuous = false;
+        this.recognition.continuous = true;
         this.recognition.interimResults = true;
         this.recognition.lang = 'en-US';
 
@@ -104,35 +109,53 @@ export class VoiceEngine {
         };
 
         this.recognition.onresult = (event: any) => {
-          let interimTranscript = '';
-          let finalTranscript = '';
-
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
-            }
+          // Results may repeat across events. Keep committed segments and replace
+          // only the current interim text, never previously finalized speech.
+          let interim = '';
+          let finalized = '';
+          for (let i = 0; i < event.results.length; i++) {
+            const phrase = event.results[i][0]?.transcript || '';
+            if (event.results[i].isFinal) finalized += phrase + ' ';
+            else interim += phrase;
           }
-
-          const current = finalTranscript || interimTranscript;
-          if (current) {
-            this.setVoiceState('transcribing');
-            if (this.onResultCallback) {
-              this.onResultCallback(current);
-            }
-          }
+          this.currentRecognitionFinalText = finalized.trim();
+          const transcript = [this.recognitionFinalText, finalized.trim(), interim.trim()]
+            .filter(Boolean).join(' ').trim();
+          if (transcript) this.onResultCallback?.(transcript);
+          this.setVoiceState('listening');
         };
 
         this.recognition.onend = () => {
-          if (this.voiceState === 'listening' || this.voiceState === 'transcribing') {
+          if (this.keepListening) {
+            // Preserve the final segments from this recognition session before
+            // restarting after browser-imposed silence/time limits.
+            if (this.currentRecognitionFinalText) {
+              this.recognitionFinalText = [this.recognitionFinalText, this.currentRecognitionFinalText].filter(Boolean).join(' ');
+              this.currentRecognitionFinalText = '';
+            }
+            this.recognitionRestartTimer = setTimeout(() => {
+              if (!this.keepListening) return;
+              try { this.recognition.start(); }
+              catch (err) {
+                console.warn('[VoiceEngine] Recognition restart failed:', err);
+                this.keepListening = false;
+                this.setVoiceState('error');
+                this.recognitionStateCallback?.(false);
+              }
+            }, 250);
+          } else {
             this.setVoiceState('idle');
+            this.recognitionStateCallback?.(false);
           }
         };
 
         this.recognition.onerror = (e: any) => {
-          console.warn('[VoiceEngine] Speech recognition error:', e);
-          this.setVoiceState(e.error === 'not-allowed' ? 'error' : 'idle');
+          console.warn('[VoiceEngine] Speech recognition error:', e.error);
+          if (['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported'].includes(e.error)) {
+            this.keepListening = false;
+            this.setVoiceState('error');
+            this.recognitionStateCallback?.(false);
+          }
         };
       }
     }
@@ -653,6 +676,11 @@ export class VoiceEngine {
   ): boolean {
     if (!this.recognition) return false;
     this.onResultCallback = onResult;
+    this.recognitionStateCallback = onStateChange || null;
+    this.recognitionFinalText = '';
+    this.currentRecognitionFinalText = '';
+    this.keepListening = true;
+    if (this.recognitionRestartTimer) clearTimeout(this.recognitionRestartTimer);
 
     try {
       this.stopSpeaking(true);
@@ -662,6 +690,7 @@ export class VoiceEngine {
       return true;
     } catch (e) {
       console.warn('[VoiceEngine] Failed to start speech recognition:', e);
+      this.keepListening = false;
       this.setVoiceState('error');
       if (onStateChange) onStateChange(false);
       return false;
@@ -669,6 +698,9 @@ export class VoiceEngine {
   }
 
   public stopListening(): void {
+    this.keepListening = false;
+    if (this.recognitionRestartTimer) clearTimeout(this.recognitionRestartTimer);
+    this.recognitionRestartTimer = null;
     if (this.recognition) {
       try {
         this.recognition.stop();
@@ -676,6 +708,7 @@ export class VoiceEngine {
         // Ignore
       }
       this.setVoiceState('idle');
+      this.recognitionStateCallback?.(false);
     }
   }
 

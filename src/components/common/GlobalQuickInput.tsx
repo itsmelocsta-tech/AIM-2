@@ -5,7 +5,10 @@ import {
   Brain,
   Zap,
   Send,
+  Mic,
+  MicOff,
 } from 'lucide-react';
+import { voiceEngine } from '../../services/voiceService';
 import { AIMCategory, AIM_CATEGORIES, MemoryItem, PriorityTask } from '../../types';
 
 interface GlobalQuickInputProps {
@@ -24,6 +27,17 @@ export const GlobalQuickInput: React.FC<GlobalQuickInputProps> = ({
   onToast,
 }) => {
   const [text, setText] = useState('');
+  const [isDictating, setIsDictating] = useState(false);
+  const toggleDictation = () => {
+    if (isDictating) { voiceEngine.stopListening(); setIsDictating(false); return; }
+    const base = text.trim();
+    const started = voiceEngine.startListening(
+      (transcript) => setText([base, transcript].filter(Boolean).join(' ')),
+      (listening) => { if (!listening) setIsDictating(false); }
+    );
+    if (started) setIsDictating(true);
+    else onToast('Microphone unavailable. Check your browser microphone permission.');
+  };
   const [intentType, setIntentType] = useState<'memory' | 'task'>('memory');
   const [category, setCategory] = useState<AIMCategory>('Personal');
 
@@ -59,6 +73,8 @@ export const GlobalQuickInput: React.FC<GlobalQuickInputProps> = ({
       onToast(`Captured in AIM ${category} Memory Vault!`);
     }
 
+    voiceEngine.stopListening();
+    setIsDictating(false);
     setText('');
     onClose();
   };
@@ -126,6 +142,10 @@ export const GlobalQuickInput: React.FC<GlobalQuickInputProps> = ({
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
+
+          <button type="button" onClick={toggleDictation} aria-label={isDictating ? 'Stop dictation' : 'Dictate your note'} className="inline-flex items-center gap-2 rounded-lg border border-indigo-500/50 px-3 py-2 text-xs text-indigo-200 hover:bg-indigo-950">
+            {isDictating ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}{isDictating ? 'Stop recording' : 'Speak instead of typing'}
+          </button>
 
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
