@@ -89,7 +89,7 @@ export function PrivacyPolicyPage() {
       </section>
 
       <section><h2>Children</h2>
-        <p>AIM is not designed for children under 13, and we do not knowingly collect personal information from children under 13. If you believe a child under 13 provided information to AIM, contact us so we can review and delete it.</p>
+        <p>AIM is not designed for children or teenagers under 18, and we do not knowingly collect personal information from children or teenagers under 18. If you believe a child under 13 provided information to AIM, contact us so we can review and delete it.</p>
       </section>
 
       <section><h2>Your choices and privacy requests</h2>
@@ -116,7 +116,7 @@ export function TermsOfUsePage() {
       <p>These terms apply when you use AIM, a planning and wellness-support app operated by <strong>AIM</strong> By using AIM, you agree to these terms. If you do not agree, do not use the service.</p>
 
       <section><h2>Who can use AIM</h2>
-        <p>You must be at least 13 and able to agree to these terms. If you are under the age of legal adulthood where you live, use AIM only with a parent or guardian’s permission. AIM is not designed for children under 13.</p>
+        <p>You must be at least 18 and able to agree to these terms. AIM’s AI features are for adults.</p>
       </section>
 
       <section><h2>Your account and information</h2>
@@ -170,7 +170,7 @@ export function AILimitedUseNotice({ onContinue, onSignOut }: { onContinue: () =
           <p>AIM sends the details you choose to share, and some saved plan information, to Google Gemini so it can make plans and answer you. This may include things about your health, money, work, relationships, or location.</p>
           <p>Google’s terms depend on whether AIM uses free or paid Gemini service. With free service, Google may use prompts and replies to improve its products, and human reviewers may review some content. With paid service, Google says it does not use prompts and replies to improve its products, but may keep them briefly for safety and legal reasons. AIM has not confirmed which billing mode is active, so please assume the free-service rules could apply.</p>
           <p>Do not enter passwords, account numbers, government ID numbers, or private details you would not want reviewed. Read the <a className="text-indigo-300 underline" href="/privacy">Privacy Policy</a> before you continue.</p>
-          <p>By tapping “Agree and continue,” you agree that AIM can send the information you choose to share to Google Gemini for the AI features described above.</p>
+          <p>By tapping “Agree and continue,” you confirm that you are at least 18 and agree that AIM can send the information you choose to share to Google Gemini for the AI features described above.</p>
         </div>
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
           <button type="button" onClick={onSignOut} className="rounded-xl border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800">Sign out</button>

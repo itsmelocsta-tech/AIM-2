@@ -28,3 +28,5 @@ Package: `app.aim.lifeos`. Android target API 36. Version code 1 / version 1.0.0
 - https://support.google.com/googleplay/android-developer/answer/14094294
 
 The build now writes server code and its source map to `.server/`, outside the public `dist/` folder. `scripts/check-release-output.mjs` fails the build if server code or environment files enter public output.
+
+Current source check: Gemini API Additional Terms (effective March 23, 2026) restrict API Clients directed toward or likely accessed by under-18s, and prohibit personal/sensitive information in Unpaid Services. The connected Firebase project shows Spark/no-cost. The production Gemini key’s billing project remains unverified; public personal-data processing is not cleared. No billing upgrade was performed. https://ai.google.dev/gemini-api/terms
