@@ -19,6 +19,7 @@ export function AccountDeletionPage() {
       const result = await response.json();
       if (!response.ok || !result.deleted) throw new Error(result.error || 'Deletion did not finish. Please retry.');
       storageService.clearAllData();
+      if (user) localStorage.removeItem(`aim_ai_consent_v1:${user.uid}`);
       setDeleted(true);
       await logOut();
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Deletion did not finish. Please retry.'); }

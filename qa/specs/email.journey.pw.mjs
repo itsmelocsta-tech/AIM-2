@@ -57,14 +57,12 @@ test('real Basic email account completes onboarding, persistence, opportunities 
     try {
       const session = await signInWithEmailAndPassword(sdkAuth, email, password);
       if (session.user.uid !== uid) throw new Error('Identity mismatch');
-      for (const name of ['projects', 'schedules', 'goals', 'memories', 'wellness', 'life_updates', 'daily_plans', 'settings']) {
-        const ref = collection(db, 'users', uid, name);
-        const records = await getDocs(ref);
-        for (const record of records.docs) await deleteDoc(record.ref);
-        if (!(await getDocs(ref)).empty) throw new Error('Records remain');
-      }
-      await deleteDoc(doc(db, 'users', uid));
-      await deleteUser(session.user);
+      const freshToken = await session.user.getIdToken(true);
+      const headers = { Authorization: `Bearer ${freshToken}` };
+      if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) headers['x-vercel-protection-bypass'] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+      const response = await safeRequest('delete', `${process.env.AIM_PREVIEW_URL}/api/aim/account`, { headers, data: { confirmed: true } });
+      if (response.status() !== 200 || !(await response.json()).deleted) throw new Error('Account deletion endpoint failed');
+      note('Server account deletion removes the real disposable account and associated data');
       try { await signInWithEmailAndPassword(sdkAuth, email, password); }
       catch { note('Disposable data and identity cleanup'); return; }
       throw new Error('Identity remains');
@@ -99,6 +97,13 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       await page.locator('input[type="password"]').evaluateAll(nodes => nodes.forEach(n => { n.value = ''; }));
       await page.getByRole('button', { name: 'Agree and continue', exact: true }).click();
       await expect(page.locator('#aim-current-state-textarea')).toBeVisible({ timeout: 45000 });
+      const reportHeaders = { Authorization: `Bearer ${token}` };
+      if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) reportHeaders['x-vercel-protection-bypass'] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+      const report = await safeRequest('post', `${process.env.AIM_PREVIEW_URL}/api/aim/content-reports`, {
+        headers: reportHeaders, data: { content: 'Fictional QA response for safety reporting verification.', reason: 'other', feature: 'release-qa' }
+      });
+      expect(report.status()).toBe(201);
+      note('Authenticated AI content report accepted by the deployed server');
       note('Email signup and workspace loading');
     });
 
@@ -140,6 +145,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
     await test.step('Reload from Firebase and finish the first-run guide', async () => {
       await page.evaluate(() => localStorage.clear());
       await page.reload();
+      await page.getByRole('button', { name: 'Agree and continue', exact: true }).click();
       await expect(page.locator('#aim-first-run-intro')).toBeVisible({ timeout: 45000 });
       await page.locator('#aim-first-run-next-intro').click();
       await page.locator('#aim-first-run-next-planner').click();
@@ -154,6 +160,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
     });
 
     await test.step('Save a personal opportunity target and reload without the local cache', async () => {
+      if (!(await page.locator('#nav-tab-scanner').isVisible())) await page.getByText('More', { exact: true }).click();
       await page.locator('#nav-tab-scanner').click();
       const setup = page.locator('#opportunity-scanner-setup');
       await setup.locator('select').selectOption('creative');
@@ -165,6 +172,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       await page.evaluate(() => localStorage.clear());
       await page.reload();
       await expect(page.locator('#aim-primary-nav')).toBeVisible({ timeout: 45000 });
+      if (!(await page.locator('#nav-tab-scanner').isVisible())) await page.getByText('More', { exact: true }).click();
       await page.locator('#nav-tab-scanner').click();
       await expect(page.locator('#opportunity-scanner-screen')).toContainText('Illustration clients');
       await expect(page.locator('#opportunity-scanner-screen')).toContainText('Austin');
@@ -254,6 +262,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       await page.locator('#nav-tab-planner').click();
       await expect(page.locator('#daily-planner-module')).toContainText(savedPlan.priorityTasks[0].task);
       expect(await readDocument(`daily_plans/${savedPlan.date}`)).toEqual(savedPlan);
+      if (!(await page.locator('#nav-tab-scanner').isVisible())) await page.getByText('More', { exact: true }).click();
       await page.locator('#nav-tab-scanner').click();
       await expect(page.locator('#opportunity-scanner-screen')).toContainText('Illustration clients');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
