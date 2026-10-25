@@ -21,6 +21,11 @@ test('real Basic email account completes onboarding, persistence, opportunities 
   const db = getFirestore(sdkApp, config.firestoreDatabaseId);
   const verified = [];
   const note = name => { verified.push(name); testInfo.annotations.push({ type: 'verified', description: `${name}: PASS` }); };
+  async function navigate(id) {
+    const tab = page.locator(`#nav-tab-${id}`);
+    if (!(await tab.isVisible())) await page.getByText('More', { exact: true }).click();
+    await tab.click();
+  }
   async function enterCredentials() {
     // Evaluate is recorded without its argument values; locator.fill(password)
     // would put the generated password in Playwright's HTML step title.
@@ -151,7 +156,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       await page.locator('#aim-first-run-next-planner').click();
       await page.locator('#aim-first-run-next-check-in').click();
       await expect(page.locator('#aim-primary-nav')).toBeVisible();
-      await page.locator('#nav-tab-planner').click();
+      await navigate('planner');
       await expect(page.locator('#daily-planner-module')).toBeVisible();
       const plans = await getDocs(collection(db, 'users', uid, 'daily_plans'));
       savedPlan = plans.docs[0]?.data();
@@ -160,8 +165,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
     });
 
     await test.step('Save a personal opportunity target and reload without the local cache', async () => {
-      if (!(await page.locator('#nav-tab-scanner').isVisible())) await page.getByText('More', { exact: true }).click();
-      await page.locator('#nav-tab-scanner').click();
+      await navigate('scanner');
       const setup = page.locator('#opportunity-scanner-setup');
       await setup.locator('select').selectOption('creative');
       await setup.locator('textarea').fill('Illustration clients');
@@ -172,8 +176,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       await page.evaluate(() => localStorage.clear());
       await page.reload();
       await expect(page.locator('#aim-primary-nav')).toBeVisible({ timeout: 45000 });
-      if (!(await page.locator('#nav-tab-scanner').isVisible())) await page.getByText('More', { exact: true }).click();
-      await page.locator('#nav-tab-scanner').click();
+      await navigate('scanner');
       await expect(page.locator('#opportunity-scanner-screen')).toContainText('Illustration clients');
       await expect(page.locator('#opportunity-scanner-screen')).toContainText('Austin');
       await expect(page.locator('#opportunity-scanner-screen')).not.toContainText(/Fort Worth|DFW|driver jobs/i);
@@ -181,7 +184,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
     });
 
     await test.step('Save and recover a Basic wellness record through normal navigation', async () => {
-      await page.locator('#nav-tab-wellness').click();
+      await navigate('wellness');
       const wellness = page.locator('#wellness-engine-module');
       await expect(wellness).toBeVisible();
       await expect(page.getByRole('dialog', { name: 'Unlock AIM Premium' })).toBeHidden();
@@ -193,8 +196,8 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       }, { timeout: 20000 }).toBe(true);
       await page.evaluate(() => localStorage.clear());
       await page.reload();
-      await expect(page.locator('#nav-tab-wellness')).toBeVisible({ timeout: 45000 });
-      await page.locator('#nav-tab-wellness').click();
+      await expect(page.locator('#aim-primary-nav')).toBeVisible({ timeout: 45000 });
+      await navigate('wellness');
       await expect(wellness.locator('textarea')).toHaveValue('Fictional QA note: a short walk helped me take a break.');
       for (const [name, viewport] of [['phone', { width: 390, height: 844 }], ['desktop', { width: 1280, height: 900 }]]) {
         await page.setViewportSize(viewport);
@@ -209,7 +212,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
     });
 
     await test.step('Verify signed-in Basic access and Premium enforcement', async () => {
-      await page.locator('#nav-tab-home').click();
+      await navigate('home');
       await page.getByRole('button', { name: 'Your Coaches', exact: true }).click();
       await expect(page.getByRole('dialog', { name: 'Unlock AIM Premium' })).toBeVisible();
       const premium = page.getByRole('dialog', { name: 'Unlock AIM Premium' });
@@ -259,11 +262,10 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       await enterCredentials();
       await form.locator('button[type="submit"]').click();
       await expect(page.locator('#aim-primary-nav')).toBeVisible({ timeout: 45000 });
-      await page.locator('#nav-tab-planner').click();
+      await navigate('planner');
       await expect(page.locator('#daily-planner-module')).toContainText(savedPlan.priorityTasks[0].task);
       expect(await readDocument(`daily_plans/${savedPlan.date}`)).toEqual(savedPlan);
-      if (!(await page.locator('#nav-tab-scanner').isVisible())) await page.getByText('More', { exact: true }).click();
-      await page.locator('#nav-tab-scanner').click();
+      await navigate('scanner');
       await expect(page.locator('#opportunity-scanner-screen')).toContainText('Illustration clients');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       const screenshotOptions = { style: '#aim-main-header, #aim-primary-nav, #aim-primary-nav * { opacity: 0 !important; visibility: hidden !important; }' };
