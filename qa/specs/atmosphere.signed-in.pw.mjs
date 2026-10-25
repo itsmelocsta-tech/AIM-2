@@ -65,7 +65,6 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
     await expect(consent.or(page.locator('#nav-tab-home'))).toBeVisible({ timeout: 45000 });
     if (await consent.isVisible()) await consent.click();
     await page.getByText('More', { exact: true }).click();
-    await page.getByText('More', { exact: true }).click();
     await expect(page.locator('#nav-tab-settings')).toBeVisible({ timeout: 45000 });
     if (!(await page.locator('#nav-tab-settings').isVisible())) await page.getByText('More', { exact: true }).click();
     await page.locator('#nav-tab-settings').click();
