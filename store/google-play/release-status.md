@@ -15,7 +15,7 @@ Package: `app.aim.lifeos`. Android target API 36. Version code 1 / version 1.0.0
 - App access: account creation is required. Provide a dedicated reviewer account and precise steps; do not publish credentials in this repository.
 - Data safety: audit email/user IDs, optional profile/context and financial details, optional health/wellness entries, approximate/precise web location, files/Drive metadata, speech-to-text handling, AI prompt processing, technical logs, and subscription identifiers. Do not declare no data collection.
 - Privacy contact currently reuses the contact in the existing public release branch: franciscohilburn04@gmail.com. Verify it is monitored before submitting.
-- Complete the Health apps declaration for the general wellness features. AIM does not diagnose, treat, cure, or prevent illness.
+- Google’s organization-account rules explicitly cover health apps; its health-app categories include wellness, sleep and stress management. Resolve the developer account type for AIM’s actual wellness features before paying for registration. Complete the Health apps declaration for the general wellness features. AIM does not diagnose, treat, cure, or prevent illness.
 - Complete target audience, IARC content rating, ads, and AI-generated-content declarations in Play Console using the actual release behavior. No content rating or production approval is claimed here.
 - Publish final HTTPS privacy, terms, and account-deletion URLs. Verify them without Vercel login.
 - Upload the 512×512 PNG icon, a 1024×500 feature graphic, and actual app screenshots after current-build verification.
@@ -26,3 +26,5 @@ Package: `app.aim.lifeos`. Android target API 36. Version code 1 / version 1.0.0
 - https://support.google.com/googleplay/android-developer/answer/11926878
 - https://support.google.com/googleplay/android-developer/answer/10144311
 - https://support.google.com/googleplay/android-developer/answer/14094294
+
+The build now writes server code and its source map to `.server/`, outside the public `dist/` folder. `scripts/check-release-output.mjs` fails the build if server code or environment files enter public output.

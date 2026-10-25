@@ -175,6 +175,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       await expect.poll(async () => JSON.stringify(await readDocument('settings/context')), { timeout: 20000 }).toContain('Illustration clients');
       await page.evaluate(() => localStorage.clear());
       await page.reload();
+      await page.getByRole('button', { name: 'Agree and continue', exact: true }).click();
       await expect(page.locator('#aim-primary-nav')).toBeVisible({ timeout: 45000 });
       await navigate('scanner');
       await expect(page.locator('#opportunity-scanner-screen')).toContainText('Illustration clients');
@@ -196,6 +197,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       }, { timeout: 20000 }).toBe(true);
       await page.evaluate(() => localStorage.clear());
       await page.reload();
+      await page.getByRole('button', { name: 'Agree and continue', exact: true }).click();
       await expect(page.locator('#aim-primary-nav')).toBeVisible({ timeout: 45000 });
       await navigate('wellness');
       await expect(wellness.locator('textarea')).toHaveValue('Fictional QA note: a short walk helped me take a break.');
