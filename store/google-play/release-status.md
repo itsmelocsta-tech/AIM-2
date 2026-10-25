@@ -9,7 +9,7 @@ Package: `app.aim.lifeos`. Android target API 36. Version code 1 / version 1.0.0
 - If a new personal developer account is used, Google requires 12 continuously opted-in closed testers for at least 14 days before an application for production access. Three web testers do not satisfy that requirement.
 - Purchases stay disabled until Play products, service access, real license-test purchase/restore/renewal/revocation, and server enforcement are verified.
 - Native Google OAuth is not implemented in this WebView; Google forbids embedded OAuth. Email/guest entry remains available. Do not claim native Google login passed.
-- Confirm the production Gemini project's data-use/billing configuration before accepting sensitive wellness or other sensitive personal data. No paid service was enabled.
+- AI Studio shows the known AIM-2 project (gen-lang-client-0573723214) on Free tier with Set up billing. Public personal-data processing is blocked until the actual production key is verified against a billing-backed project and the applicable terms. No paid service was enabled.
 
 ## Store declarations to complete honestly
 - App access: account creation is required. Provide a dedicated reviewer account and precise steps; do not publish credentials in this repository.
@@ -29,4 +29,4 @@ Package: `app.aim.lifeos`. Android target API 36. Version code 1 / version 1.0.0
 
 The build now writes server code and its source map to `.server/`, outside the public `dist/` folder. `scripts/check-release-output.mjs` fails the build if server code or environment files enter public output.
 
-Current source check: Gemini API Additional Terms (effective March 23, 2026) restrict API Clients directed toward or likely accessed by under-18s, and prohibit personal/sensitive information in Unpaid Services. The connected Firebase project shows Spark/no-cost. The production Gemini key’s billing project remains unverified; public personal-data processing is not cleared. No billing upgrade was performed. https://ai.google.dev/gemini-api/terms
+Current source check: Gemini API Additional Terms (effective March 23, 2026) restrict API Clients directed toward or likely accessed by under-18s, and prohibit personal/sensitive information in Unpaid Services. The connected Firebase project shows Spark/no-cost, and AI Studio confirms the known AIM-2 API project is Free tier. The exact deployment key’s project was not read from secrets. Public personal-data processing is not cleared until a billing-backed project is verified. No billing upgrade was performed. https://ai.google.dev/gemini-api/terms

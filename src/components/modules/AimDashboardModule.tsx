@@ -17,7 +17,7 @@ function DashboardFrame({ preview = false, initialView, ownerId, availableViews 
       {preview ? <a className="crystal-secondary" href="/"><CalendarDays size={16} />Open my AIM<ArrowRight size={15} /></a> : <button type="button" aria-pressed={view === 'day'} onClick={() => setView('day')}><CalendarDays size={16} />My day</button>}
       {showLab && <button type="button" aria-pressed={view === 'lab'} onClick={() => setView('lab')}><Layers3 size={16} />Crystal Lab</button>}
       {showAtmosphere && <button type="button" aria-pressed={view === 'atmosphere'} onClick={() => setView('atmosphere')}><Sparkles size={16} />Atmosphere</button>}
-      <span>Powered by Fractal Atmospheres</span>
+      <span>A space that feels like you</span>
     </div>
     <AdaptiveAtmosphere key={ownerId} ownerId={ownerId} visible={view === 'atmosphere'} />
     {view === 'lab' ? <CrystalLab /> : view === 'day' ? children : null}

@@ -109,7 +109,7 @@ test('signed-in atmosphere settings persist across reload and isolate accounts',
     if (!(await page.locator('#nav-tab-settings').isVisible())) await page.getByText('More', { exact: true }).click();
     await page.locator('#nav-tab-settings').click();
     note('User-topic navigation reveals without changing screens and restores from the real cloud profile after local profile/chat removal: PASS (chat reply fixture).');
-    const sound = page.getByRole('region', { name: 'Fractal Soundscapes' });
+    const sound = page.getByRole('region', { name: 'Soundscapes' });
     await expect(sound.getByLabel('Sound mode')).toHaveValue('fractal');
     await expect(sound.getByLabel('Soundscape volume')).toHaveValue('25');
     await expect(sound.getByLabel('Session length')).toHaveValue('25');
