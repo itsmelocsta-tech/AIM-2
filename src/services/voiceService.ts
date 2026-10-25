@@ -62,6 +62,7 @@ export class VoiceEngine {
   private keepListening = false;
   private recognitionRestartTimer: ReturnType<typeof setTimeout> | null = null;
   private recognitionFinalText = '';
+  private currentRecognitionFinalText = '';
   private recognitionStateCallback: ((listening: boolean) => void) | null = null;
   private voiceState: VoiceState = 'idle';
   private speakerState: SpeakerState = 'ready';
@@ -117,6 +118,7 @@ export class VoiceEngine {
             if (event.results[i].isFinal) finalized += phrase + ' ';
             else interim += phrase;
           }
+          this.currentRecognitionFinalText = finalized.trim();
           const transcript = [this.recognitionFinalText, finalized.trim(), interim.trim()]
             .filter(Boolean).join(' ').trim();
           if (transcript) this.onResultCallback?.(transcript);
@@ -127,14 +129,9 @@ export class VoiceEngine {
           if (this.keepListening) {
             // Preserve the final segments from this recognition session before
             // restarting after browser-imposed silence/time limits.
-            const results = this.recognition.results;
-            if (results) {
-              const finals: string[] = [];
-              for (let i = 0; i < results.length; i++) {
-                if (results[i].isFinal) finals.push(results[i][0]?.transcript || '');
-              }
-              const segment = finals.join(' ').trim();
-              if (segment) this.recognitionFinalText = [this.recognitionFinalText, segment].filter(Boolean).join(' ');
+            if (this.currentRecognitionFinalText) {
+              this.recognitionFinalText = [this.recognitionFinalText, this.currentRecognitionFinalText].filter(Boolean).join(' ');
+              this.currentRecognitionFinalText = '';
             }
             this.recognitionRestartTimer = setTimeout(() => {
               if (!this.keepListening) return;
@@ -681,6 +678,7 @@ export class VoiceEngine {
     this.onResultCallback = onResult;
     this.recognitionStateCallback = onStateChange || null;
     this.recognitionFinalText = '';
+    this.currentRecognitionFinalText = '';
     this.keepListening = true;
     if (this.recognitionRestartTimer) clearTimeout(this.recognitionRestartTimer);
 
