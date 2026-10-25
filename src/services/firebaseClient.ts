@@ -20,7 +20,7 @@ export const googleProvider = new GoogleAuthProvider();
 
 export async function signInWithGoogle() {
   // Google forbids OAuth inside embedded WebViews. Do not start a broken popup.
-  if ((window as any).AimAndroidApp) {
+  if ((typeof window !== 'undefined' && (window as any).AimAndroidApp)) {
     return { user: null, error: 'Google sign-in is available in the AIM website. In the Android app, sign in or create an account with email.' };
   }
   try {
