@@ -164,6 +164,44 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       note('Firebase plan reload and first-run guide persistence');
     });
 
+    await test.step('Dictate and save Quick Capture on the deployed app', async () => {
+      // A simulated recognizer verifies deployed UI/state integration only.
+      // It does not establish physical audio capture or native permission UI.
+      await page.evaluate(() => {
+        window.SpeechRecognition = class {
+          constructor() { window.captureRecognizer = this; }
+          start() { this.onstart?.(); }
+          stop() { this.onend?.(); }
+        };
+      });
+      await page.locator('#quick-capture-header-btn').click();
+      const capture = page.locator('form').filter({ has: page.getByPlaceholder('Capture any thought, framework, script, or idea...') });
+      const draft = capture.locator('textarea');
+      await capture.getByRole('button', { name: /Speak into Capture/ }).click();
+      await page.evaluate(() => {
+        const result = [{ transcript: 'Fictional QA note: send the illustration draft.' }]; result.isFinal = true;
+        window.captureRecognizer.onresult({ results: [result] });
+      });
+      await expect(draft).toHaveValue('Fictional QA note: send the illustration draft.');
+      await capture.getByRole('button', { name: /Stop dictation for Capture/ }).click();
+      await draft.fill('Fictional QA voice draft reviewed before saving.');
+      for (const [name, viewport] of [['phone', { width: 390, height: 844 }], ['desktop', { width: 1280, height: 900 }]]) {
+        await page.setViewportSize(viewport);
+        const mic = await capture.locator('.aim-field-mic').boundingBox();
+        expect(mic.width).toBeGreaterThanOrEqual(44); expect(mic.height).toBeGreaterThanOrEqual(44);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await testInfo.attach(`fictional-quick-capture-${name}`, { body: await capture.screenshot(), contentType: 'image/png' });
+      }
+      await capture.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(draft).toBeHidden();
+      await expect.poll(async () => {
+        const records = await getDocs(collection(db, 'users', uid, 'memories'));
+        return records.docs.some(record => record.data().content === 'Fictional QA voice draft reviewed before saving.');
+      }, { timeout: 20000 }).toBe(true);
+      await page.setViewportSize({ width: 390, height: 844 });
+      note('Deployed Quick Capture simulated dictation, manual review, Firebase save and phone/desktop microphone bounds');
+    });
+
     await test.step('Save a personal opportunity target and reload without the local cache', async () => {
       await navigate('scanner');
       const setup = page.locator('#opportunity-scanner-setup');
