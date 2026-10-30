@@ -1,3 +1,4 @@
+import { VoiceInput } from '../common/VoiceTextField';
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { AtmosphereCalibration } from './AtmosphereCalibration';
@@ -113,7 +114,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div>
               <label className="block text-slate-400 font-semibold mb-1">Search Center City / Area</label>
-              <input
+              <VoiceInput
                 type="text"
                 value={formData.location || ''}
                 placeholder="e.g. Austin, TX or Chicago, IL"
@@ -203,7 +204,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
 
             <div>
               <label className="block text-slate-400 font-semibold mb-1">Scan Trigger Time</label>
-              <input
+              <VoiceInput
                 type="text"
                 value={formData.scanTime || ''}
                 onChange={(e) => setFormData({ ...formData, scanTime: e.target.value })}

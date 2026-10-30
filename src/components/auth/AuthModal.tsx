@@ -1,3 +1,4 @@
+import { VoiceInput } from '../common/VoiceTextField';
 import React, { useEffect, useState } from 'react';
 import { ShieldCheck, Mail, Lock, LogIn, UserPlus, X, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -225,7 +226,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, reauthent
                 <label className="block text-xs text-slate-400 font-medium mb-1">Email Address</label>
                 <div className="relative">
                   <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
-                  <input
+                  <VoiceInput
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

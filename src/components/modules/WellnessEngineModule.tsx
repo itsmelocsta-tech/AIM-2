@@ -1,3 +1,4 @@
+import { VoiceTextarea } from '../common/VoiceTextField';
 import React, { useState } from 'react';
 import {
   Heart,
@@ -230,7 +231,7 @@ export const WellnessEngineModule: React.FC<WellnessEngineProps> = ({
               <label className="block text-xs font-medium text-slate-300 mb-1">
                 Body, Energy & Recovery Notes
               </label>
-              <textarea
+              <VoiceTextarea
                 rows={2}
                 value={wellnessNotes || ''}
                 onChange={(e) => setWellnessNotes(e.target.value)}

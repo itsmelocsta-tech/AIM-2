@@ -1,7 +1,7 @@
+import { VoiceTextarea } from '../common/VoiceTextField';
 import { authenticatedFetch, AuthenticationError } from '../../services/authenticatedFetch';
 import React, { useState } from 'react';
 import {
-  Mic,
   Send,
   AlertTriangle,
   CheckCircle2,
@@ -41,7 +41,6 @@ export const CheckInModule: React.FC<CheckInModuleProps> = ({
   onUserMention,
 }) => {
   const [inputText, setInputText] = useState('');
-  const [isListening, setIsListening] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [parsedResult, setParsedResult] = useState<CheckInConflictResult | null>(null);
 
@@ -59,33 +58,6 @@ export const CheckInModule: React.FC<CheckInModuleProps> = ({
 
   const handleChipClick = (chipPrompt: string) => {
     setInputText((prev) => (prev ? prev + ' ' + chipPrompt : chipPrompt));
-  };
-
-  const handleVoiceToggle = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      onToast('Speech recognition is not supported in this browser. Please type your update.');
-      return;
-    }
-
-    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const recognition = new SpeechRec();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    if (!isListening) {
-      setIsListening(true);
-      recognition.start();
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInputText((prev) => (prev ? `${prev} ${transcript}` : transcript));
-        setIsListening(false);
-      };
-      recognition.onerror = () => setIsListening(false);
-      recognition.onend = () => setIsListening(false);
-    } else {
-      setIsListening(false);
-      recognition.stop();
-    }
   };
 
   const handleAnalyzeCheckIn = async (e?: React.FormEvent) => {
@@ -214,7 +186,7 @@ export const CheckInModule: React.FC<CheckInModuleProps> = ({
       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5">
         <form onSubmit={handleAnalyzeCheckIn} className="space-y-3">
           <div className="relative">
-            <textarea
+            <VoiceTextarea
               rows={4}
               placeholder="e.g. 'I applied to The Parking Spot shuttle driver role' or 'Finished the BrandNMotion landing page' or 'I am blocked on the $340 deposit for Everfleet'..."
               value={inputText || ''}
@@ -222,18 +194,7 @@ export const CheckInModule: React.FC<CheckInModuleProps> = ({
               className="w-full p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 leading-relaxed"
             />
 
-            <button
-              type="button"
-              onClick={handleVoiceToggle}
-              className={`absolute right-3 bottom-3 p-2 rounded-xl transition-all ${
-                isListening
-                  ? 'bg-red-600 text-white animate-pulse'
-                  : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
-              }`}
-              title="Speak your update"
-            >
-              <Mic className="w-4 h-4" />
-            </button>
+
           </div>
 
           <div className="flex items-center justify-between pt-1">

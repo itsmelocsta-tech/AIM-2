@@ -1,3 +1,4 @@
+import { VoiceInput } from '../common/VoiceTextField';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Send,
@@ -255,7 +256,7 @@ export const ChatAdvisorModule: React.FC<ChatAdvisorProps> = ({
         {/* Input Bar */}
         <div className="p-4 bg-slate-950 border-t border-slate-800 space-y-2">
           <form onSubmit={handleSendMessage} className="flex gap-2 items-center">
-            <input
+            <VoiceInput
               type="text"
               value={inputText || ''}
               onChange={(e) => setInputText(e.target.value)}

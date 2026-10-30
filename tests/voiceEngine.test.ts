@@ -59,3 +59,45 @@ it.each(['masculine', 'feminine'] as const)('moves a saved %s Texas voice to neu
   engine.setSelection(gender, 'texas');
   expect(engine.getActiveProfile().accentStyle).toBe('general_american');
 });
+it('keeps finalized speech across silence, replaces interim words, and ignores results after Stop', async () => {
+  vi.useFakeTimers();
+  const instances: any[] = [];
+  vi.stubGlobal('window', { SpeechRecognition: class {
+    onstart: any; onend: any; onresult: any; onerror: any;
+    start = vi.fn(); stop = vi.fn();
+    constructor() { instances.push(this); }
+  } });
+  const engine = new VoiceEngine(), result = vi.fn(), state = vi.fn();
+  const emit = (text: string, final: boolean) => {
+    const segment: any = [{ transcript: text }]; segment.isFinal = final;
+    instances[0].onresult({ results: [segment] });
+  };
+  try {
+    expect(engine.startListening(result, state)).toBe(true);
+    emit('call', false); emit('call the client', true);
+    instances[0].onend(); await vi.advanceTimersByTimeAsync(250);
+    emit('tomorrow', true);
+    expect(result.mock.calls.map(c => c[0])).toEqual(['call', 'call the client', 'call the client tomorrow']);
+    expect(instances[0].start).toHaveBeenCalledTimes(2);
+    engine.stopListening(); emit('late words', true);
+    expect(result).toHaveBeenCalledTimes(3);
+    instances[0].onend(); await vi.advanceTimersByTimeAsync(500);
+    expect(instances[0].start).toHaveBeenCalledTimes(2);
+    expect(state).toHaveBeenLastCalledWith(false);
+  } finally { engine.stopListening(); vi.useRealTimers(); }
+});
+it('hands microphone ownership to another field and reports denied permission', () => {
+  const instances: any[] = [];
+  vi.stubGlobal('window', { SpeechRecognition: class {
+    onerror: any; start = vi.fn(); stop = vi.fn();
+    constructor() { instances.push(this); }
+  } });
+  const first = new VoiceEngine(), second = new VoiceEngine(), state = vi.fn(), error = vi.fn();
+  first.startListening(vi.fn(), state);
+  second.startListening(vi.fn(), vi.fn(), error);
+  expect(instances[0].stop).toHaveBeenCalledOnce();
+  expect(state).toHaveBeenLastCalledWith(false);
+  instances[1].onerror({ error: 'not-allowed' });
+  expect(error).toHaveBeenCalledWith(expect.stringContaining('Allow microphone access'));
+  first.stopListening(); second.stopListening();
+});

@@ -1,3 +1,4 @@
+import { VoiceInput, VoiceTextarea } from '../common/VoiceTextField';
 import React, { useState } from 'react';
 import {
   Target,
@@ -190,7 +191,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
           <form onSubmit={handleAddGoal} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-slate-300 mb-1">Goal Title *</label>
-              <input
+              <VoiceInput
                 type="text"
                 required
                 value={newTitle || ''}
@@ -204,7 +205,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
               <label className="block text-xs font-medium text-slate-300 mb-1">
                 The Deep "Why" (Who will this help you become?) *
               </label>
-              <textarea
+              <VoiceTextarea
                 rows={2}
                 required
                 value={newWhy || ''}
@@ -241,7 +242,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">Monthly Revenue Impact ($)</label>
-              <input
+              <VoiceInput
                 type="number"
                 value={newRevenue ?? 0}
                 onChange={(e) => setNewRevenue(Number(e.target.value))}
@@ -252,7 +253,7 @@ export const GoalManifestationModule: React.FC<GoalManifestationProps> = ({
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">Known Obstacles (comma separated)</label>
-              <input
+              <VoiceInput
                 type="text"
                 value={newObstacles || ''}
                 onChange={(e) => setNewObstacles(e.target.value)}

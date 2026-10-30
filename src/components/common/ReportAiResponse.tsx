@@ -1,3 +1,4 @@
+import { VoiceTextarea } from './VoiceTextField';
 import React, { useState } from 'react';
 import { authenticatedFetch } from '../../services/authenticatedFetch';
 
@@ -30,13 +31,13 @@ export function ReportAiResponse({ feature }: { feature: string }) {
         <h2 id="report-ai-title" className="text-xl font-bold">Report an AI response</h2>
         <p className="mt-2 text-sm text-slate-300">Send a harmful, offensive, or misleading response to the AIM team. Include only the response you want reviewed.</p>
         <label htmlFor="report-ai-content" className="mt-4 block text-sm">Response to report</label>
-        <textarea id="report-ai-content" required maxLength={8000} rows={4} value={content} onChange={event => setContent(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-950 p-3" />
+        <VoiceTextarea id="report-ai-content" required maxLength={8000} rows={4} value={content} onChange={event => setContent(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-950 p-3" />
         <label htmlFor="report-ai-reason" className="mt-3 block text-sm">Reason</label>
         <select id="report-ai-reason" value={reason} onChange={event => setReason(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-950 p-3">
           <option value="unsafe">Harmful or unsafe</option><option value="offensive">Offensive content</option><option value="misleading">Misleading or inaccurate</option><option value="other">Other</option>
         </select>
         <label htmlFor="report-ai-details" className="mt-3 block text-sm">Notes (optional)</label>
-        <textarea id="report-ai-details" maxLength={2000} rows={2} value={details} onChange={event => setDetails(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-950 p-3" />
+        <VoiceTextarea id="report-ai-details" maxLength={2000} rows={2} value={details} onChange={event => setDetails(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-950 p-3" />
         <p role="status" className="mt-3 text-sm text-indigo-200">{message}</p>
         <div className="mt-4 flex justify-end gap-3">
           <button type="button" disabled={saving} onClick={() => setOpen(false)} className="rounded-lg border border-slate-600 px-4 py-3">Close</button>

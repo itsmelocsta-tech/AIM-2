@@ -1,3 +1,4 @@
+import { VoiceTextarea, VoiceInput } from '../common/VoiceTextField';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   RefreshCw,
@@ -580,7 +581,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
                   <label className="text-xs font-semibold text-slate-300">
                     Edit AIM's interpretation directly:
                   </label>
-                  <textarea
+                  <VoiceTextarea
                     rows={3}
                     value={editingUnderstoodPoints.join('\n')}
                     onChange={(e) => setEditingUnderstoodPoints(e.target.value.split('\n'))}
@@ -1015,7 +1016,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Updated Content:
                 </label>
-                <textarea
+                <VoiceTextarea
                   rows={4}
                   value={editedContent || ''}
                   onChange={(e) => setEditedContent(e.target.value)}
@@ -1027,7 +1028,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Reason / Revision Note (Optional):
                 </label>
-                <input
+                <VoiceInput
                   type="text"
                   value={revisionNote || ''}
                   onChange={(e) => setRevisionNote(e.target.value)}

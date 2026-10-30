@@ -1,3 +1,4 @@
+import { VoiceTextarea, VoiceInput } from '../common/VoiceTextField';
 import { plainPlanLabel } from '../../utils/planLanguage';
 import React, { useState } from 'react';
 import {
@@ -18,10 +19,7 @@ import {
   CheckSquare,
   Flame,
   Target,
-  Mic,
-  MicOff,
 } from 'lucide-react';
-import { voiceEngine } from '../../services/voiceService';
 import { DailyPlan, PriorityTask, TimeBlock, UserProfile, Goal } from '../../types';
 import { api } from '../../services/api';
 import { driveService } from '../../services/driveService';
@@ -60,23 +58,6 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
 
   // New task input
   const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [dictatingField, setDictatingField] = useState<string | null>(null);
-  const toggleDictation = (field: string, value: string, setter: (text: string) => void) => {
-    if (dictatingField === field) { voiceEngine.stopListening(); setDictatingField(null); return; }
-    voiceEngine.stopListening();
-    const base = value.trim();
-    const started = voiceEngine.startListening(
-      (transcript) => setter([base, transcript].filter(Boolean).join(' ')),
-      (listening) => { if (!listening) setDictatingField(null); }
-    );
-    if (started) setDictatingField(field);
-    else onToast('Microphone unavailable. Please check browser microphone permission.');
-  };
-  const DictateButton = ({ field, value, setter }: { field: string; value: string; setter: (text: string) => void }) => (
-    <button type="button" onClick={() => toggleDictation(field, value, setter)} aria-label={dictatingField === field ? 'Stop dictation' : 'Dictate instead of typing'} title={dictatingField === field ? 'Stop dictation' : 'Speak instead of typing'} className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/50 px-3 py-2 text-xs text-indigo-200 hover:bg-indigo-950">
-      {dictatingField === field ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}{dictatingField === field ? 'Stop recording' : 'Speak'}
-    </button>
-  );
   const finisherTask = nextFinisherTask(dailyPlan);
 
   const saveFinishingSystem = () => {
@@ -351,21 +332,20 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             <label className="block text-xs font-medium text-slate-300 mb-1">
               What is your primary intent, responsibilities, or known obstacles for today?
             </label>
-            <textarea
+            <VoiceTextarea
               rows={3}
               value={morningNotes || ''}
               onChange={(e) => setMorningNotes(e.target.value)}
               placeholder="e.g. Focus on closing the $3,500 proposal with Alex, ship project deliverables, keep energy high, and hit the gym at 4:30pm."
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
             />
-            <DictateButton field="morningNotes" value={morningNotes} setter={setMorningNotes} />
           </div>
 
           <div>
             <label htmlFor="drift-trigger" className="block text-xs font-medium text-slate-300 mb-1">
               Drifter: What tends to pull you away from finishing? (optional)
             </label>
-            <input
+            <VoiceInput
               id="drift-trigger"
               type="text"
               value={driftTrigger}
@@ -373,7 +353,6 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               placeholder="e.g. Checking messages before I finish the draft"
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
             />
-            <DictateButton field="driftTrigger" value={driftTrigger} setter={setDriftTrigger} />
             {protectiveRoutine && <p className="mt-2 text-xs text-amber-200 break-words">Your existing setup: {protectiveRoutine}</p>}
           </div>
 
@@ -417,21 +396,20 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             <label className="block text-xs font-medium text-slate-300 mb-1">
               What went well? What was hard? What did you learn?
             </label>
-            <textarea
+            <VoiceTextarea
               rows={4}
               value={eveningNotes || ''}
               onChange={(e) => setEveningNotes(e.target.value)}
               placeholder="e.g. Sent all 15 pitches, followed up with 2 clients. Got tired around 2pm, should take a 15 min fresh air break. Feeling excited about tomorrow."
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
-            <DictateButton field="eveningNotes" value={eveningNotes} setter={setEveningNotes} />
           </div>
 
           <div>
             <label htmlFor="architect-routine" className="block text-xs font-medium text-slate-300 mb-1">
               What could make your next step easier? (optional)
             </label>
-            <input
+            <VoiceInput
               id="architect-routine"
               type="text"
               value={protectiveRoutine}
@@ -439,7 +417,6 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               placeholder="e.g. Put my draft on the calendar at 9 and capture new ideas in one note"
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
-            <DictateButton field="protectiveRoutine" value={protectiveRoutine} setter={setProtectiveRoutine} />
           </div>
 
           <div className="flex justify-end gap-3">
@@ -604,14 +581,13 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
 
               {/* Quick Task Add */}
               <form onSubmit={handleAddTask} className="flex gap-2 pt-2 border-t border-slate-800">
-                <input
+                <VoiceInput
                   type="text"
                   value={newTaskTitle || ''}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
                   placeholder="+ Add another priority task..."
                   className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
-            <DictateButton field="newTaskTitle" value={newTaskTitle} setter={setNewTaskTitle} />
                 <button
                   type="submit"
                   className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold"

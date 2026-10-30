@@ -57,8 +57,11 @@ const GREETING_SESSION_KEY = 'aim_greeting_session_state';
 const clientAudioCache = new Map<string, { audioUrl: string; spokenText: string; timestamp: number }>();
 const MAX_CLIENT_CACHE = 50;
 
+let microphoneOwner: VoiceEngine | null = null;
+
 export class VoiceEngine {
   private recognition: any = null;
+  private onRecognitionError: ((message: string) => void) | null = null;
   private keepListening = false;
   private recognitionRestartTimer: ReturnType<typeof setTimeout> | null = null;
   private recognitionFinalText = '';
@@ -109,6 +112,7 @@ export class VoiceEngine {
         };
 
         this.recognition.onresult = (event: any) => {
+          if (!this.keepListening) return;
           // Results may repeat across events. Keep committed segments and replace
           // only the current interim text, never previously finalized speech.
           let interim = '';
@@ -140,6 +144,7 @@ export class VoiceEngine {
                 console.warn('[VoiceEngine] Recognition restart failed:', err);
                 this.keepListening = false;
                 this.setVoiceState('error');
+                this.onRecognitionError?.('Microphone stopped. Tap the microphone to try again.');
                 this.recognitionStateCallback?.(false);
               }
             }, 250);
@@ -154,6 +159,9 @@ export class VoiceEngine {
           if (['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported'].includes(e.error)) {
             this.keepListening = false;
             this.setVoiceState('error');
+            this.onRecognitionError?.(e.error === 'not-allowed' || e.error === 'service-not-allowed'
+              ? 'Microphone access is unavailable. Allow microphone access in your browser or device settings, then try again.'
+              : 'Microphone unavailable. Check your microphone and try again.');
             this.recognitionStateCallback?.(false);
           }
         };
@@ -672,9 +680,13 @@ export class VoiceEngine {
 
   public startListening(
     onResult: (text: string) => void,
-    onStateChange?: (listening: boolean) => void
+    onStateChange?: (listening: boolean) => void,
+    onError?: (message: string) => void
   ): boolean {
     if (!this.recognition) return false;
+    if (microphoneOwner) microphoneOwner.stopListening();
+    microphoneOwner = this;
+    this.onRecognitionError = onError || null;
     this.onResultCallback = onResult;
     this.recognitionStateCallback = onStateChange || null;
     this.recognitionFinalText = '';
@@ -698,6 +710,7 @@ export class VoiceEngine {
   }
 
   public stopListening(): void {
+    if (microphoneOwner === this) microphoneOwner = null;
     this.keepListening = false;
     if (this.recognitionRestartTimer) clearTimeout(this.recognitionRestartTimer);
     this.recognitionRestartTimer = null;
