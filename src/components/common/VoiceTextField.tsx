@@ -106,7 +106,7 @@ const Control = forwardRef<TextControl, (InputProps | AreaProps) & { multiline: 
       disabled={disabled} onClick={dictation.toggle}>
       {dictation.listening ? <MicOff aria-hidden="true" size={18} /> : <Mic aria-hidden="true" size={18} />}
     </button>
-    <span id={statusId} role={dictation.error ? 'alert' : 'status'} className={dictation.error || dictation.listening ? 'aim-field-status' : 'sr-only'}>
+    <span id={statusId} role={dictation.error ? 'alert' : dictation.listening ? 'status' : undefined} className={dictation.error || dictation.listening ? 'aim-field-status' : 'sr-only'}>
       {dictation.error || (dictation.listening ? 'Listening… Tap the microphone to stop.' : 'Tap the microphone to speak, then review your text before saving or sending.')}
     </span>
   </div>;
