@@ -79,10 +79,14 @@ it('keeps finalized speech across silence, replaces interim words, and ignores r
     emit('tomorrow', true);
     expect(result.mock.calls.map(c => c[0])).toEqual(['call', 'call the client', 'call the client tomorrow']);
     expect(instances[0].start).toHaveBeenCalledTimes(2);
+    emit('tomorrow morning', false);
+    instances[0].onend(); await vi.advanceTimersByTimeAsync(250);
+    emit('at ten', true);
+    expect(result).toHaveBeenLastCalledWith('call the client tomorrow morning at ten');
     engine.stopListening(); emit('late words', true);
-    expect(result).toHaveBeenCalledTimes(3);
+    expect(result).toHaveBeenCalledTimes(5);
     instances[0].onend(); await vi.advanceTimersByTimeAsync(500);
-    expect(instances[0].start).toHaveBeenCalledTimes(2);
+    expect(instances[0].start).toHaveBeenCalledTimes(3);
     expect(state).toHaveBeenLastCalledWith(false);
   } finally { engine.stopListening(); vi.useRealTimers(); }
 });

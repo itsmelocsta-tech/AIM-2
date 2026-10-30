@@ -65,7 +65,7 @@ export class VoiceEngine {
   private keepListening = false;
   private recognitionRestartTimer: ReturnType<typeof setTimeout> | null = null;
   private recognitionFinalText = '';
-  private currentRecognitionFinalText = '';
+  private currentRecognitionSessionText = '';
   private recognitionStateCallback: ((listening: boolean) => void) | null = null;
   private voiceState: VoiceState = 'idle';
   private speakerState: SpeakerState = 'ready';
@@ -122,7 +122,7 @@ export class VoiceEngine {
             if (event.results[i].isFinal) finalized += phrase + ' ';
             else interim += phrase;
           }
-          this.currentRecognitionFinalText = finalized.trim();
+          this.currentRecognitionSessionText = [finalized.trim(), interim.trim()].filter(Boolean).join(' ');
           const transcript = [this.recognitionFinalText, finalized.trim(), interim.trim()]
             .filter(Boolean).join(' ').trim();
           if (transcript) this.onResultCallback?.(transcript);
@@ -131,11 +131,11 @@ export class VoiceEngine {
 
         this.recognition.onend = () => {
           if (this.keepListening) {
-            // Preserve the final segments from this recognition session before
-            // restarting after browser-imposed silence/time limits.
-            if (this.currentRecognitionFinalText) {
-              this.recognitionFinalText = [this.recognitionFinalText, this.currentRecognitionFinalText].filter(Boolean).join(' ');
-              this.currentRecognitionFinalText = '';
+            // Preserve the last visible words, including interim speech if a mobile
+            // browser ends without a final event, before restarting after silence.
+            if (this.currentRecognitionSessionText) {
+              this.recognitionFinalText = [this.recognitionFinalText, this.currentRecognitionSessionText].filter(Boolean).join(' ');
+              this.currentRecognitionSessionText = '';
             }
             this.recognitionRestartTimer = setTimeout(() => {
               if (!this.keepListening) return;
@@ -156,7 +156,7 @@ export class VoiceEngine {
 
         this.recognition.onerror = (e: any) => {
           console.warn('[VoiceEngine] Speech recognition error:', e.error);
-          if (['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported'].includes(e.error)) {
+          if (['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported', 'network', 'aborted'].includes(e.error)) {
             this.keepListening = false;
             this.setVoiceState('error');
             this.onRecognitionError?.(e.error === 'not-allowed' || e.error === 'service-not-allowed'
@@ -690,7 +690,7 @@ export class VoiceEngine {
     this.onResultCallback = onResult;
     this.recognitionStateCallback = onStateChange || null;
     this.recognitionFinalText = '';
-    this.currentRecognitionFinalText = '';
+    this.currentRecognitionSessionText = '';
     this.keepListening = true;
     if (this.recognitionRestartTimer) clearTimeout(this.recognitionRestartTimer);
 

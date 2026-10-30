@@ -97,6 +97,15 @@ test('permission failures show recovery and another tap retries', async ({ page 
   await expect(note(page)).toHaveValue('Recovered');
 });
 
+test('page hiding stops capture and late events cannot change the draft', async ({ page }) => {
+  await mic(page).click();
+  await page.evaluate(() => window.emitSpeech('Keep this draft', false));
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await expect(mic(page)).toHaveAttribute('aria-pressed', 'false');
+  await page.evaluate(() => window.emitSpeech('Late hidden words', true));
+  await expect(note(page)).toHaveValue('Keep this draft');
+});
+
 test('unsupported browser keeps microphone visible and typing available', async ({ page }) => {
   await page.addInitScript(() => { window.SpeechRecognition = undefined; window.webkitSpeechRecognition = undefined; });
   await page.reload(); await mic(page).click();
