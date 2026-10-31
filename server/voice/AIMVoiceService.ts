@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { createHash } from 'node:crypto';
+import { userVoiceCache } from './userVoiceCache';
 import { DEFAULT_VOICE_PROFILE_ID, getVoiceProfile, getProfileIdForSelection, normalizeAccentKey } from '../../src/services/voiceProfiles';
 
 export interface SpokenFormatOptions {
@@ -31,9 +32,6 @@ export interface VoiceSynthesisResponse {
   modelUsed?: string;
 }
 
-// Memory cache for synthesized voice snippets (keyed by text + profileId)
-const audioCache = new Map<string, VoiceSynthesisResponse>();
-const MAX_CACHE_SIZE = 100;
 const TTS_MODELS = ['gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts'];
 
 export class AIMVoiceService {
@@ -267,7 +265,8 @@ export class AIMVoiceService {
    */
   public async synthesizeSpeech(
     ai: GoogleGenAI,
-    req: VoiceSynthesisRequest
+    req: VoiceSynthesisRequest,
+    authenticatedUid?: string
   ): Promise<VoiceSynthesisResponse> {
     const rawText = req.text.trim();
     if (!rawText) {
@@ -289,7 +288,8 @@ export class AIMVoiceService {
 
     // 2. Check in-memory audio cache for instantaneous replay/preview
     const cacheKey = createHash('sha256').update(JSON.stringify({ spokenText, voiceName, stylePrompt, accentStyle, emotion, speakingRate, pitch, models: TTS_MODELS })).digest('hex');
-    const cached = audioCache.get(cacheKey);
+    const cache = userVoiceCache.acquire(authenticatedUid, cacheKey);
+    const cached = cache.cached;
     if (cached) {
       return {
         ...cached,
@@ -370,10 +370,6 @@ export class AIMVoiceService {
         }
 
         // 6. Cache the synthesized audio
-        if (audioCache.size >= MAX_CACHE_SIZE) {
-          const oldestKey = audioCache.keys().next().value;
-          if (oldestKey) audioCache.delete(oldestKey);
-        }
         const result: VoiceSynthesisResponse = {
           audioBase64: finalAudioBase64,
           mimeType: finalMimeType,
@@ -383,7 +379,7 @@ export class AIMVoiceService {
           provider: 'gemini-tts',
           modelUsed: model,
         };
-        audioCache.set(cacheKey, result);
+        cache.save(result);
         return result;
       } catch (err: any) {
         lastError = err;

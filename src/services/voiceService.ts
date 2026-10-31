@@ -54,10 +54,28 @@ const CENTRAL_VOICE_CONFIG_KEY = 'aim_central_voice_config';
 const GREETING_SESSION_KEY = 'aim_greeting_session_state';
 
 // In-memory client-side audio cache for instantaneous replay/preview
-const clientAudioCache = new Map<string, { audioUrl: string; spokenText: string; timestamp: number }>();
+const clientAudioCache = new Map<string, { audioUrl: string; spokenText: string; timestamp: number; expiry: ReturnType<typeof setTimeout> }>();
 const MAX_CLIENT_CACHE = 50;
 
 let microphoneOwner: VoiceEngine | null = null;
+let speakerOwner: VoiceEngine | null = null;
+
+function clearClientVoiceCache(): void {
+  for (const entry of clientAudioCache.values()) {
+    clearTimeout(entry.expiry);
+    URL.revokeObjectURL(entry.audioUrl);
+  }
+  clientAudioCache.clear();
+}
+
+// Clear playback, pending requests and text/audio retained by the previous account.
+export function resetVoiceSession(): void {
+  const owners = new Set([microphoneOwner, speakerOwner]);
+  for (const owner of owners) owner?.clearSession();
+  microphoneOwner = null;
+  speakerOwner = null;
+  clearClientVoiceCache();
+}
 
 export class VoiceEngine {
   private recognition: any = null;
@@ -269,7 +287,7 @@ export class VoiceEngine {
     this.savePreferences();
 
     // Invalidate client audio cache so new voice selections generate fresh audio
-    clientAudioCache.clear();
+    clearClientVoiceCache();
   }
 
   public setVoiceProfile(profileId: string): void {
@@ -429,7 +447,9 @@ export class VoiceEngine {
     }
 
     // 1. Stop any currently active speech / audio playback cleanly
+    speakerOwner?.stopSpeaking(false);
     this.stopSpeaking(false);
+    speakerOwner = this;
 
     const formattedText =
       normalizedOptions?.formatForSpeech !== false
@@ -516,14 +536,22 @@ export class VoiceEngine {
         if (clientAudioCache.size >= MAX_CLIENT_CACHE) {
           const oldestKey = clientAudioCache.keys().next().value;
           if (oldestKey) {
+            clearTimeout(clientAudioCache.get(oldestKey)!.expiry);
             URL.revokeObjectURL(clientAudioCache.get(oldestKey)!.audioUrl);
             clientAudioCache.delete(oldestKey);
           }
         }
+        const expiry = setTimeout(() => {
+          if (clientAudioCache.get(cacheKey)?.audioUrl === audioUrl) {
+            URL.revokeObjectURL(audioUrl);
+            clientAudioCache.delete(cacheKey);
+          }
+        }, 5 * 60_000);
         clientAudioCache.set(cacheKey, {
           audioUrl,
           spokenText: formattedText,
           timestamp: Date.now(),
+          expiry,
         });
 
         // Play synthesized natural audio
@@ -651,6 +679,19 @@ export class VoiceEngine {
       this.setVoiceState('speaking');
       if (this.activeOptions?.onResume) this.activeOptions.onResume();
     }
+  }
+
+  public clearSession(): void {
+    this.stopListening();
+    this.stopSpeaking();
+    this.currentText = '';
+    this.currentSpokenText = '';
+    this.activeOptions = null;
+    this.recognitionFinalText = '';
+    this.currentRecognitionSessionText = '';
+    this.onResultCallback = null;
+    this.onRecognitionError = null;
+    this.recognitionStateCallback = null;
   }
 
   public replay(overrideText?: string): void {

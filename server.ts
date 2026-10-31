@@ -1,3 +1,4 @@
+import type { AuthenticatedRequest } from './server/firebaseAdmin';
 import express, { Request, Response } from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -1196,14 +1197,14 @@ app.post('/api/aim/voice/speak', async (req: Request, res: Response) => {
       speakingRate,
       pitch,
       formatForSpeech: formatForSpeech !== false,
-    });
+    }, (req as AuthenticatedRequest).user?.uid);
 
     // Operational proof without logging the user's words, identity, or credentials.
     console.info('[VoiceAPI] Generated neural audio', {
       model: result.modelUsed, voice: result.voiceNameUsed, mimeType: result.mimeType,
       cached: Boolean(result.cached),
     });
-    res.json(result);
+    res.set('Cache-Control', 'no-store').json(result);
   } catch (err: any) {
     console.warn('[VoiceAPI] Natural speech unavailable');
     res.status(503).json({ error: 'Natural voice is temporarily unavailable. Your written response is still available. Please try again.', code: 'natural_voice_unavailable' });

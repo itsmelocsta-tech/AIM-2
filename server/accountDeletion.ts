@@ -3,6 +3,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { AuthenticatedRequest, getFirebaseAdminApp } from './firebaseAdmin';
 import config from '../firebase-applet-config.json';
+import { userVoiceCache } from './voice/userVoiceCache';
 
 /** Delete only the authenticated account. Leave Auth usable if cleanup needs a retry. */
 export async function deleteAccount(req: AuthenticatedRequest, res: Response) {
@@ -13,6 +14,8 @@ export async function deleteAccount(req: AuthenticatedRequest, res: Response) {
   if (req.user?.firebase?.sign_in_provider !== 'anonymous' && (!Number.isFinite(age) || age < -60 || age > 300)) {
     return res.status(403).json({ code: 'RECENT_LOGIN_REQUIRED', error: 'Sign out and sign in again, then request deletion within five minutes.' });
   }
+  // Purge cached audio and invalidate pending writes even if database deletion needs a retry.
+  userVoiceCache.purge(uid);
   try {
     const app = getFirebaseAdminApp();
     if (!app) throw new Error('Unavailable');

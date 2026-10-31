@@ -9,6 +9,7 @@ vi.mock('firebase-admin/firestore', () => ({ getFirestore: () => ({
   }),
   recursiveDelete: async (ref: any) => { if (calls.fail) throw new Error('offline'); calls.removed.push(ref.path); },
 }) }));
+import { userVoiceCache } from '../server/voice/userVoiceCache';
 import { deleteAccount } from '../server/accountDeletion';
 beforeEach(() => { calls.removed = []; calls.auth = []; calls.fail = false; });
 function response() { return { status: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(), json: vi.fn() } as any; }
@@ -32,4 +33,15 @@ it('allows the verified anonymous session to delete its data without an unavaila
   const req = request(); req.user = { uid: 'owner', firebase: { sign_in_provider: 'anonymous' } };
   const res = response(); await deleteAccount(req, res);
   expect(res.json).toHaveBeenCalledWith({ deleted: true });
+});
+
+it('purges personal audio and invalidates synthesis even if database cleanup fails', async () => {
+  const pending = userVoiceCache.acquire('owner', 'pending-deletion');
+  userVoiceCache.acquire('owner', 'ready-deletion').save({ audioBase64: 'private' } as any);
+  calls.fail = true;
+  await deleteAccount(request(), response());
+  pending.save({ audioBase64: 'late' } as any);
+  expect(userVoiceCache.acquire('owner', 'ready-deletion').cached).toBeUndefined();
+  expect(userVoiceCache.acquire('owner', 'pending-deletion').cached).toBeUndefined();
+  userVoiceCache.purge('owner');
 });

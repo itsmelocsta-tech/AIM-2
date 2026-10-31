@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 const request = vi.hoisted(() => vi.fn());
 vi.mock('../src/services/authenticatedFetch', () => ({ authenticatedFetch: request }));
-import { VoiceEngine } from '../src/services/voiceService';
+import { VoiceEngine, resetVoiceSession } from '../src/services/voiceService';
 let deviceSpeak: ReturnType<typeof vi.fn>;
 let audioPlay: ReturnType<typeof vi.fn>;
 beforeEach(() => {
@@ -11,7 +11,7 @@ beforeEach(() => {
   vi.stubGlobal('localStorage', { getItem: () => null, setItem: vi.fn() });
   vi.stubGlobal('Audio', class { onplay: any; paused = false; currentTime = 0; play = audioPlay; pause() {} removeAttribute() {} });
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { resetVoiceSession(); vi.unstubAllGlobals(); });
 it.each(['http-error', 'legacy-fallback', 'network-error'])('shows retry rather than robotic speech on %s', async (failure) => {
   if (failure === 'network-error') request.mockRejectedValue(new Error('offline'));
   else request.mockResolvedValue(new Response(JSON.stringify({ provider: 'fallback', spokenText: 'Hello.' }), { status: failure === 'http-error' ? 503 : 200 }));
@@ -128,4 +128,23 @@ it('does not duplicate Android speech replayed after silence restart', async () 
     emit('the microphone works');
     expect(result).toHaveBeenLastCalledWith('right now I am testing the microphone works');
   } finally { engine.stopListening(); vi.useRealTimers(); }
+});
+
+it('clears replay audio on account changes and expires idle cached text/audio', async () => {
+  vi.useFakeTimers();
+  const revoke = vi.spyOn(URL, 'revokeObjectURL');
+  request.mockResolvedValue(new Response(JSON.stringify({ provider: 'gemini-tts', audioBase64: 'AAAA', mimeType: 'audio/wav' })));
+  const engine = new VoiceEngine();
+  try {
+    await engine.speak('Private account one.');
+    resetVoiceSession();
+    expect(revoke).toHaveBeenCalledTimes(1);
+    engine.replay();
+    expect(request).toHaveBeenCalledTimes(1);
+    request.mockResolvedValue(new Response(JSON.stringify({ provider: 'gemini-tts', audioBase64: 'AAAA', mimeType: 'audio/wav' })));
+    await engine.speak('Private account one.');
+    expect(request).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(revoke).toHaveBeenCalledTimes(2);
+  } finally { resetVoiceSession(); revoke.mockRestore(); vi.useRealTimers(); }
 });

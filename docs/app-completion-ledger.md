@@ -27,3 +27,11 @@ Checked current official Apple review/submission guidance and Google developer-a
 
 ## Resume rule
 Reuse only evidence valid for the current source/environment. Continue independent fixes while owner gates are blocked. No paid services, registration fees, entitlement fabrication, production promotion or submission were performed by this work.
+
+## Privacy follow-up in this candidate
+Read the latest production AI data-handling note (updated 2026-10-31). It confirms the known Google key's project and Free tier, but the exact production secret still has not been matched. Google-project logging switches were off/disabled; sharing was not independently verified. Billing remains unchanged.
+Implemented account-scoped, maximum-five-minute server voice caches with active expiry and bounded capacity. Account deletion purges this runtime's entries and invalidates in-flight cache writes. Other runtime instances expire their entries within the same five-minute bound; no distributed cache-wide deletion claim.
+Client audio cache entries now expire after five minutes and release blob URLs; account changes/sign-out clear voice replay text, listening, active playback, pending requests and cached audio. Voice API responses use Cache-Control: no-store.
+Provider abuse logs, backups and storage retention outside this cache remain separately unverified.
+Rechecked Play Console: connected account still opens signup. App Store Connect opens Apple Account sign-in.
+Earlier local and GitHub results above apply to the speech-only candidate 4160cbd235da5985aeea647d8bee548a32b685f8. Current privacy candidate requires fresh verification; final commit-bound runs are maintained in PR #37.
