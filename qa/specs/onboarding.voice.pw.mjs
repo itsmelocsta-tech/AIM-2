@@ -89,3 +89,25 @@ test('answer controls sit inside the answer corner and Back preserves all drafts
   await expect(page.locator('#aim-desired-state-textarea')).toHaveValue('My future goal');
   await page.screenshot({ path: testInfo.outputPath('onboarding-controls-and-back.png'), fullPage: true });
 });
+
+
+test('approved brief copy, icon controls, and Back survives audio cleanup failure', async ({ page }, testInfo) => {
+  await page.goto('/qa/onboarding-voice-harness/');
+  await expect(page.getByRole('heading', { name: 'Hello. I’m AIM.', exact: true })).toBeVisible();
+  await expect(page.getByText('Step 1: Who are you?', { exact: true })).toBeVisible();
+  await expect(page.locator('#aim-box-speaker-btn-1')).toHaveCount(0);
+  await expect(page.getByText('Write as much as you need', { exact: true })).toHaveCount(0);
+  await page.locator('#aim-current-state-textarea').fill('My saved situation');
+  await page.getByRole('button', { name: 'Next: What you want to change' }).click();
+  await expect(page.getByRole('heading', { name: 'What do you want to change?', exact: true })).toBeVisible();
+  await expect(page.getByText('Tell me what you want to be different.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Unlimited space', { exact: true })).toHaveCount(0);
+  const controls = page.getByTestId('answer-voice-controls');
+  await expect(controls).toHaveText('');
+  await expect(controls.getByRole('button')).toHaveCount(2);
+  await page.locator('#aim-changes-wanted-textarea').fill('My saved change');
+  await page.screenshot({ path: testInfo.outputPath('approved-page-2.png'), fullPage: true });
+  await page.evaluate(() => window.failVoiceCleanup());
+  await page.locator('#aim-back-to-current-state').click();
+  await expect(page.locator('#aim-current-state-textarea')).toHaveValue('My saved situation');
+});

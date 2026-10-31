@@ -597,6 +597,10 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         id="aim-onboarding-step-1"
         className="min-h-[calc(100vh-120px)] flex flex-col items-center justify-start px-4 py-6 max-w-3xl mx-auto text-center animate-fadeIn"
       >
+          <span className="self-start inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950/80 text-indigo-300 border border-indigo-800">
+            <Sparkles className="w-3 h-3 text-indigo-400" />
+            Step 1: Who are you?
+          </span>
         {/* Floating Orb */}
         <div className="relative flex items-center justify-center my-2">
           <div className="absolute w-44 h-44 rounded-full bg-indigo-600/25 blur-2xl pointer-events-none" />
@@ -612,16 +616,9 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
         {/* Introduction & Prompt */}
         <div className="space-y-2 mt-3 max-w-2xl">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950/80 text-indigo-300 border border-indigo-800">
-            <Sparkles className="w-3 h-3 text-indigo-400" />
-            Step 1 of 3 · Where you are
-          </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            Hello. I’m AIM, your life operating system.
+            Hello. I’m AIM.
           </h1>
-          <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed">
-            Let’s keep it simple. Who are you, and what’s your situation right now?
-          </p>
         </div>
 
         {/* Controls Row: Microphone State Pill + Visible Speaker Button */}
@@ -656,16 +653,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
                   Where you are right now
                 </span>
               </div>
-              <div className="flex items-center gap-2.5">
-                <AimSpeakerButton
-                  id="aim-box-speaker-btn-1"
-                  state={speakerStateStep1}
-                  onClick={handleSpeakerClickStep1}
-                />
-                <span className="text-[11px] text-slate-400">
-                  {currentStateText.length > 0 ? `${currentStateText.length} chars` : 'Write as much as you need'}
-                </span>
-              </div>
+
             </div>
 
             <textarea
@@ -730,13 +718,11 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             {isChangeQuestion ? 'Step 2 of 3 · What you want to change' : 'Step 3 of 3 · Where you want to be'}
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            {isChangeQuestion ? 'What would you like to change about your situation?' : 'Who do you want to be when this is all said and done?'}
+            {isChangeQuestion ? 'What do you want to change?' : 'Who do you want to be when this is all said and done?'}
           </h1>
-          <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed">
-            {isChangeQuestion
-              ? 'Tell me what you want to be different. You can type or speak.'
-              : 'Describe the life you’re working toward: money, relationships, health, or anything else that matters to you.'}
-          </p>
+          {!isChangeQuestion && <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed">
+            Describe the life you’re working toward: money, relationships, health, or anything else that matters to you.
+          </p>}
         </div>
 
         {/* Unlimited Character Space Text Area */}
@@ -746,14 +732,12 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-slate-300 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-emerald-400" />
-                  {isChangeQuestion ? 'What you want to change' : 'Where you want to be'}
+                  {isChangeQuestion ? 'Tell me what you want to be different.' : 'Where you want to be'}
                 </span>
               </div>
-              <div className="flex items-center gap-2.5">
-                <span className="text-[11px] text-slate-400">
-                  {answer.length > 0 ? `${answer.length} chars` : 'Unlimited space'}
-                </span>
-              </div>
+              {!isChangeQuestion && <span className="text-[11px] text-slate-400">
+                {answer.length > 0 ? `${answer.length} chars` : 'Unlimited space'}
+              </span>}
             </div>
 
             <div className="relative">
@@ -779,19 +763,20 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
           <button
             type="button"
             onClick={handleToggleVoice}
-            className={`inline-flex items-center gap-2 px-4 min-h-11 py-2 rounded-full text-xs font-medium border transition-all duration-300 cursor-pointer ${micState.colorClass}`}
+            aria-label={isListening ? 'Listening… dictating live' : 'Dictate with Voice'}
+            aria-pressed={isListening}
+            title={isListening ? 'Stop dictation' : 'Dictate with Voice'}
+            className={isChangeQuestion
+              ? 'inline-flex items-center justify-center w-11 h-11 text-emerald-400 hover:text-emerald-200 focus-visible:outline-2 focus-visible:outline-emerald-300'
+              : `inline-flex items-center gap-2 px-4 min-h-11 py-2 rounded-full text-xs font-medium border cursor-pointer ${micState.colorClass}`}
           >
-            <span className={`w-2 h-2 rounded-full ${micState.dotClass}`} />
-            <span>{isListening ? 'Listening… dictating live' : 'Dictate with Voice'}</span>
-            {isListening ? (
-              <MicOff className="w-3.5 h-3.5 ml-0.5 text-blue-300" />
-            ) : (
-              <Mic className="w-3.5 h-3.5 ml-0.5 text-emerald-400" />
-            )}
+            {!isChangeQuestion && <span>{isListening ? 'Listening… dictating live' : 'Dictate with Voice'}</span>}
+            {isListening ? <MicOff className={isChangeQuestion ? 'w-6 h-6' : 'w-3.5 h-3.5'} /> : <Mic className={isChangeQuestion ? 'w-6 h-6' : 'w-3.5 h-3.5'} />}
           </button>
 
           <AimSpeakerButton
             id={isChangeQuestion ? 'aim-step-2-speaker-btn' : 'aim-step-3-speaker-btn'}
+            iconOnly={isChangeQuestion}
             className="min-h-11"
             state={speakerState}
             onClick={onSpeakerClick}
@@ -807,12 +792,13 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             <button
               type="button"
               onClick={() => {
-                voiceEngine.stopListening();
-                voiceEngine.stopSpeaking(true);
+                // Navigation must not depend on a failed audio/recognition cleanup.
+                setCurrentStep(isChangeQuestion ? 'tell_about_yourself' : 'what_would_you_change');
                 setIsListening(false);
                 setIsSpeaking(false);
                 setErrorMessage(null);
-                setCurrentStep(isChangeQuestion ? 'tell_about_yourself' : 'what_would_you_change');
+                try { voiceEngine.stopListening(); } catch { /* Continue navigating. */ }
+                try { voiceEngine.stopSpeaking(true); } catch { /* Continue navigating. */ }
               }}
               id={isChangeQuestion ? 'aim-back-to-current-state' : 'aim-back-to-changes'}
               className="w-full sm:w-auto min-h-11 px-4 py-2.5 text-sm text-slate-300 hover:text-slate-200 bg-slate-900 hover:bg-slate-800 rounded-xl border border-slate-800 transition-colors flex items-center justify-center gap-1.5"

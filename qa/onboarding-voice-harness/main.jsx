@@ -4,6 +4,9 @@ import { ConversationalHomeModule } from '../../src/components/modules/Conversat
 import { LifeUpdateModule } from '../../src/components/modules/LifeUpdateModule';
 import { DEFAULT_PROFILE, DEFAULT_DAILY_PLAN } from '../../src/services/storage';
 import '../../src/index.css';
+import { voiceEngine } from '../../src/services/voiceService';
+window.failVoiceCleanup = () => { voiceEngine.stopSpeaking = () => { throw new Error('Fictional audio cleanup failure'); }; };
+
 const profile = { ...DEFAULT_PROFILE, id: 'fictional-voice-regression', onboardingCompleted: false };
 const noop = () => {};
 const common = { userProfile: profile, dailyPlan: DEFAULT_DAILY_PLAN, goals: [], memories: [], wellnessLogs: [], onNavigateToTab: noop, onToast: noop };
