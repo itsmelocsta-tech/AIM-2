@@ -1116,7 +1116,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
           />
 
           <AimOrbCanvas
-            size={220}
+            size={chatMessages.length > 0 ? 128 : 220}
             isListening={isListening}
             isSpeaking={isSpeaking}
             isThinking={isThinking}
@@ -1151,7 +1151,8 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         {chatMessages.length > 0 && (
           <div
             id="aim-recent-dialogue"
-            className="w-full mt-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 text-left text-xs sm:text-sm leading-relaxed backdrop-blur-sm shadow-lg space-y-3 transition-all"
+            role="region" aria-label="Latest AIM response" tabIndex={0}
+            className="w-full min-w-0 min-h-[10rem] mt-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 text-left text-base leading-7 break-words [overflow-wrap:anywhere] backdrop-blur-sm shadow-lg space-y-3 transition-all"
           >
             {isListening && liveTranscript ? (
               <div className="flex items-start gap-2.5 text-blue-300 italic font-sans">
@@ -1179,7 +1180,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
                     {isVoiceMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
                   </button>
                 </div>
-                <p className="text-slate-200 whitespace-pre-line">
+                <p className="text-slate-200 whitespace-pre-wrap">
                   {chatMessages[chatMessages.length - 1]?.content}
                 </p>
               </div>
@@ -1249,7 +1250,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
               placeholder="What’s on your mind today?"
-              className="flex-1 bg-transparent px-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent px-4 py-2.5 text-base text-white placeholder-slate-500 focus:outline-none"
             />
             <button
               type="submit"

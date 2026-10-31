@@ -50,3 +50,10 @@ Preparing a separate AIM Test debug APK pinned to that immutable web preview, ra
 The preview is protected. The owner enters a private access link into a debug-only native dialog; no access code is placed in source or compiled into the APK. Release launch behavior and production access protection are unchanged.
 Native installation, voice, file picker, keyboard/insets and navigation remain unverified until a physical Samsung test.
 Native background alarms remain a distinct gap: current Android manifest has neither notification nor exact-alarm permissions. Do not infer native alarm support from browser functionality.
+
+## iPhone response readability — 2026-10-31
+Amber reports the conversation response window is too small to read. Source evidence: mobile home/coach response text used 12px styles; VoiceModal used 12px text, a 160px maximum response height and a 200px orb inside a clipped panel.
+Enlarged response text to 16px with 28px line height, wrapping and preserved paragraphs. Removed the small response-height cap; the voice panel scrolls within the visible viewport and adapts to visualViewport resize. Reduced the voice orb and the active-home orb after a reply. Composer text is at least 16px in those views.
+Added long-response and reduced-viewport checks on actual home/voice components in two iPhone-sized WebKit projects plus desktop Chromium. These tests use fictional data and mocked AI; no physical iPhone/Safari keyboard or Amber usability pass is implied. Exact-head run evidence is maintained in PR #37.
+Detailed Figma review remains blocked by the observed Starter MCP quota. No paid upgrade. No microphone, account persistence, provider, pricing, or permissions behavior intentionally changed.
+The previously generated Android APK remains pinned to the older immutable web preview; a new web tester link is needed for this correction.

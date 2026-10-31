@@ -353,7 +353,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {/* Spoken Greeting / Guidance Dialogue Card */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 max-w-lg w-full shadow-lg backdrop-blur-sm space-y-3">
-          <p className="text-sm sm:text-base font-medium text-slate-100 leading-relaxed">
+          <p className="text-base font-medium text-slate-100 leading-7 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
             {greetingText}
           </p>
 
