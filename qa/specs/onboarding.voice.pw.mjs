@@ -59,7 +59,7 @@ test('life update replaces each cumulative transcript instead of appending it', 
   }
 });
 
-test('answer controls sit below the answer and Back preserves all drafts', async ({ page }, testInfo) => {
+test('answer controls sit inside the answer corner and Back preserves all drafts', async ({ page }, testInfo) => {
   await page.goto('/qa/onboarding-voice-harness/');
   await page.locator('#aim-current-state-textarea').fill('My original situation');
   await page.getByRole('button', { name: 'Next: What you want to change' }).click();
@@ -69,7 +69,9 @@ test('answer controls sit below the answer and Back preserves all drafts', async
   await expect(page.getByRole('button', { name: 'Listen', exact: true })).toHaveCount(1);
   const box = await change.boundingBox();
   const controls = await page.getByTestId('answer-voice-controls').boundingBox();
-  expect(controls.y).toBeGreaterThanOrEqual(box.y + box.height);
+  expect(controls.y).toBeGreaterThan(box.y);
+  expect(controls.y + controls.height).toBeLessThan(box.y + box.height);
+  expect(controls.x + controls.width).toBeLessThanOrEqual(box.x + box.width);
   await page.getByRole('button', { name: 'Dictate with Voice', exact: true }).click();
   await page.evaluate(() => window.emitResultList([['with voice', false]]));
   await expect(change).toHaveValue('My requested change with voice');

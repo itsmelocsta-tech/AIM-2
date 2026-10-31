@@ -756,6 +756,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               </div>
             </div>
 
+            <div className="relative">
             <textarea
               ref={activeTextAreaRef}
               id={isChangeQuestion ? 'aim-changes-wanted-textarea' : 'aim-desired-state-textarea'}
@@ -770,11 +771,11 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               placeholder={isChangeQuestion
                 ? 'For example: I want to stop living paycheck to paycheck and have more time with my family.'
                 : 'For example: I want financial stability, strong relationships, and better health.'}
-              className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 sm:p-4 text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 resize-none font-normal leading-relaxed"
+              className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 sm:p-4 pb-20 sm:pb-20 text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 resize-none font-normal leading-relaxed"
             />
 
         {/* Controls Row: Microphone State Pill + Visible Speaker Button */}
-        <div data-testid="answer-voice-controls" className="flex items-center justify-end gap-2 flex-wrap pt-2">
+        <div data-testid="answer-voice-controls" className="absolute bottom-3 right-3 left-3 flex items-center justify-end gap-2 flex-wrap">
           <button
             type="button"
             onClick={handleToggleVoice}
@@ -791,12 +792,14 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
 
           <AimSpeakerButton
             id={isChangeQuestion ? 'aim-step-2-speaker-btn' : 'aim-step-3-speaker-btn'}
+            className="min-h-11"
             state={speakerState}
             onClick={onSpeakerClick}
           />
         </div>
 
 
+            </div>
           </div>
 
           {/* Action Row */}
