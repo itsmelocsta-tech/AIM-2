@@ -85,7 +85,7 @@ describe('onboarding draft isolation', () => {
     const middle = renderOnboarding('old-draft');
     expect(middle).toContain('aim-onboarding-step-2');
     expect(middle).toContain('aim-changes-wanted-textarea');
-    expect(middle).toContain('What would you like to change');
+    expect(middle).toContain('What do you want to change?');
     expect(middle).not.toContain('aim-desired-state-textarea');
 
     storageService.saveCalibration({ currentState: 'I need a new job', changesWanted: 'Find reliable work', desiredState: '' }, 'new-draft');
