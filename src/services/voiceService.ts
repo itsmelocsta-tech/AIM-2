@@ -131,16 +131,14 @@ export class VoiceEngine {
 
         this.recognition.onresult = (event: any) => {
           if (!this.keepListening) return;
-          // Results may repeat across events. Keep committed segments and replace
-          // only the current interim text, never previously finalized speech.
-          let interim = '';
-          let finalized = '';
+          // This list is a snapshot, not a batch of new words. Some Android
+          // recognizers put growing hypotheses in separate entries, even final
+          // ones. Rebuild from the snapshot and merge their overlapping words.
+          let sessionText = '';
           for (let i = 0; i < event.results.length; i++) {
-            const phrase = event.results[i][0]?.transcript || '';
-            if (event.results[i].isFinal) finalized += phrase + ' ';
-            else interim += phrase;
+            sessionText = this.appendRecognitionText(sessionText, event.results[i][0]?.transcript || '');
           }
-          this.currentRecognitionSessionText = [finalized.trim(), interim.trim()].filter(Boolean).join(' ');
+          this.currentRecognitionSessionText = sessionText;
           const transcript = this.appendRecognitionText(this.recognitionFinalText, this.currentRecognitionSessionText);
           if (transcript) this.onResultCallback?.(transcript);
           this.setVoiceState('listening');
@@ -193,9 +191,11 @@ export class VoiceEngine {
     if (!left) return right;
     if (!right) return left;
     const a = left.split(/\s+/), b = right.split(/\s+/);
+    const normalize = (word: string) => word.toLowerCase().replace(/[’‘]/g, "'")
+      .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
     let overlap = 0;
     for (let n = Math.min(a.length, b.length); n > 0; n--) {
-      if (a.slice(-n).join(' ').toLowerCase() === b.slice(0, n).join(' ').toLowerCase()) { overlap = n; break; }
+      if (a.slice(-n).map(normalize).join(' ') === b.slice(0, n).map(normalize).join(' ')) { overlap = n; break; }
     }
     return [left, ...b.slice(overlap)].join(' ').trim();
   }

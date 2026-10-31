@@ -113,6 +113,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
   }, []);
 
   // Handle Voice Dictation Toggle
+  const voiceDraftBaseRef = useRef('');
   const handleToggleVoice = () => {
     setMicErrorMessage(null);
 
@@ -122,13 +123,11 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
       return;
     }
 
+    voiceDraftBaseRef.current = updateText.trim();
     const started = voiceEngine.startListening(
       (fullText) => {
         setVoiceTranscript(fullText);
-        setUpdateText((prev) => {
-          const trimmed = prev.trim();
-          return trimmed ? `${trimmed} ${fullText}` : fullText;
-        });
+        setUpdateText([voiceDraftBaseRef.current, fullText].filter(Boolean).join(' '));
       },
       (listening) => {
         setIsVoiceListening(listening);

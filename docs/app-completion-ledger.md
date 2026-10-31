@@ -35,3 +35,11 @@ Client audio cache entries now expire after five minutes and release blob URLs; 
 Provider abuse logs, backups and storage retention outside this cache remain separately unverified.
 Rechecked Play Console: connected account still opens signup. App Store Connect opens Apple Account sign-in.
 Earlier local and GitHub results above apply to the speech-only candidate 4160cbd235da5985aeea647d8bee548a32b685f8. Current privacy candidate requires fresh verification; final commit-bound runs are maintained in PR #37.
+
+## Samsung retest failure — 2026-10-31
+The user reports that dictation still repeats on the corrected preview; the supplied onboarding screenshot visibly repeats growing phrase prefixes. Physical Samsung dictation is FAIL, superseding any suggestion that simulated passes proved this device fixed.
+Reproduced a second input shape in two failing tests: several growing transcripts in one results list, with interim or final flags. Prior code concatenated list entries, producing "I'm I'm testing". Rebuild each event snapshot using overlapping fragment merging; preserve interim replacement and restart handling. Device event telemetry is not available, so this is a reproduced matching pattern, not proof of every device cause.
+Also fixed Life Update's independently confirmed callback append: it appended every cumulative transcript to the last rendered value. It now combines the draft captured at microphone start with the latest full transcript.
+Added actual onboarding and Life Update component browser harnesses. These use fictional speech/provider fixtures, not physical recording, and must not be represented as a real-device PASS.
+No screen layout, navigation, branding, or permission behavior changed. Existing Figma design context remains quota-blocked; no paid upgrade.
+The next preview is a candidate for device verification, not a verified Samsung fix. Existing duplicated saved text is user content; do not silently delete or rewrite it.

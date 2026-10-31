@@ -148,3 +148,44 @@ it('clears replay audio on account changes and expires idle cached text/audio', 
     expect(revoke).toHaveBeenCalledTimes(2);
   } finally { resetVoiceSession(); revoke.mockRestore(); vi.useRealTimers(); }
 });
+
+it.each([false, true])('replaces cumulative Android fragments within one result list (final=%s)', (final) => {
+  const instances: any[] = [];
+  vi.stubGlobal('window', { SpeechRecognition: class {
+    onresult: any; start = vi.fn(); stop = vi.fn();
+    constructor() { instances.push(this); }
+  } });
+  const engine = new VoiceEngine(), result = vi.fn();
+  const phrases = ["I'm", "I'm testing", "I'm testing the", "I'm testing the mic", "I'm testing the mic to see"];
+  try {
+    engine.startListening(result);
+    for (let count = 1; count <= phrases.length; count++) {
+      const results = phrases.slice(0, count).map(text => {
+        const segment: any = [{ transcript: text }]; segment.isFinal = final; return segment;
+      });
+      instances[0].onresult({ resultIndex: count - 1, results });
+      expect(result).toHaveBeenLastCalledWith(phrases[count - 1]);
+    }
+  } finally { engine.stopListening(); }
+});
+
+it('keeps intentional repeated words inside one phrase and replaces shrinking interim snapshots', () => {
+  const instances: any[] = [];
+  vi.stubGlobal('window', { SpeechRecognition: class {
+    onresult: any; start = vi.fn(); stop = vi.fn();
+    constructor() { instances.push(this); }
+  } });
+  const engine = new VoiceEngine(), result = vi.fn();
+  const emit = (entries: [string, boolean][]) => instances[0].onresult({
+    results: entries.map(([text, isFinal]) => Object.assign([{ transcript: text }], { isFinal })),
+  });
+  try {
+    engine.startListening(result);
+    emit([['I said no no', true], ['then changed tomorrow', false]]);
+    expect(result).toHaveBeenLastCalledWith('I said no no then changed tomorrow');
+    emit([['I said no no', true], ['then stopped', false]]);
+    expect(result).toHaveBeenLastCalledWith('I said no no then stopped');
+    emit([['I said no no', true]]);
+    expect(result).toHaveBeenLastCalledWith('I said no no');
+  } finally { engine.stopListening(); }
+});
