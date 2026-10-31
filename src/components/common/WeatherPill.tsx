@@ -1,3 +1,4 @@
+import { VoiceInput } from './VoiceTextField';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Sun,
@@ -287,7 +288,7 @@ export const WeatherPill: React.FC<WeatherPillProps> = ({
 
                 <div className="relative">
                   <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input
+                  <VoiceInput
                     ref={searchInputRef}
                     type="text"
                     value={searchQuery}

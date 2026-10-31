@@ -1,3 +1,4 @@
+import { VoiceTextarea, VoiceInput } from '../common/VoiceTextField';
 import { plainPlanLabel } from '../../utils/planLanguage';
 import React, { useState } from 'react';
 import {
@@ -331,7 +332,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             <label className="block text-xs font-medium text-slate-300 mb-1">
               What is your primary intent, responsibilities, or known obstacles for today?
             </label>
-            <textarea
+            <VoiceTextarea
               rows={3}
               value={morningNotes || ''}
               onChange={(e) => setMorningNotes(e.target.value)}
@@ -344,7 +345,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             <label htmlFor="drift-trigger" className="block text-xs font-medium text-slate-300 mb-1">
               Drifter: What tends to pull you away from finishing? (optional)
             </label>
-            <input
+            <VoiceInput
               id="drift-trigger"
               type="text"
               value={driftTrigger}
@@ -395,7 +396,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             <label className="block text-xs font-medium text-slate-300 mb-1">
               What went well? What was hard? What did you learn?
             </label>
-            <textarea
+            <VoiceTextarea
               rows={4}
               value={eveningNotes || ''}
               onChange={(e) => setEveningNotes(e.target.value)}
@@ -408,7 +409,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
             <label htmlFor="architect-routine" className="block text-xs font-medium text-slate-300 mb-1">
               What could make your next step easier? (optional)
             </label>
-            <input
+            <VoiceInput
               id="architect-routine"
               type="text"
               value={protectiveRoutine}
@@ -580,7 +581,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
 
               {/* Quick Task Add */}
               <form onSubmit={handleAddTask} className="flex gap-2 pt-2 border-t border-slate-800">
-                <input
+                <VoiceInput
                   type="text"
                   value={newTaskTitle || ''}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
@@ -768,7 +769,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                 </div>
                 <p className="text-xs text-slate-400 italic">"{g.why}"</p>
                 <div className="space-y-1.5 pt-2 border-t border-slate-900">
-                  {g.milestones.map((m, mIdx) => (
+                  {(Array.isArray(g.milestones) ? g.milestones : []).map((m, mIdx) => (
                     <div key={mIdx} className="text-[11px] text-slate-300 flex items-center gap-2">
                       <CheckSquare className="w-3.5 h-3.5 text-slate-600" />
                       <span>{m}</span>

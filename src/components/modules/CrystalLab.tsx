@@ -1,3 +1,4 @@
+import { VoiceInput } from '../common/VoiceTextField';
 import React, { useEffect, useRef, useState } from 'react';
 import { Download, Play, RotateCcw, Waves, ArrowUpRight } from 'lucide-react';
 import { DEFAULT_CRYSTAL_SETTINGS, type CrystalComparison, type CrystalSettings } from '../../types/optics';
@@ -77,7 +78,7 @@ export function CrystalLab() {
             const next = e.target.value === 'glass' ? { ...DEFAULT_CRYSTAL_SETTINGS } : { ...DEFAULT_CRYSTAL_SETTINGS, nA: 2.35, nB: 1.45, dA: 85, dB: 135 };
             setSettings(next); setData(null); setError('');
           }}><option value="custom" disabled>Choose a preset or edit below</option><option value="glass">Glass / air</option><option value="contrast">High / low index dielectric</option></select></label>
-          <div className="crystal-input-grid">{numericFields.map(([key, label, min, max, step]) => <label key={key}>{label}<input required type="number" min={min} max={max} step={step} value={Number.isFinite(settings[key]) ? settings[key] : ''} onChange={e => change(key, e.target.value === '' ? NaN : Number(e.target.value))} /></label>)}</div>
+          <div className="crystal-input-grid">{numericFields.map(([key, label, min, max, step]) => <label key={key}>{label}<VoiceInput aria-label={label} required type="number" min={min} max={max} step={step} value={Number.isFinite(settings[key]) ? settings[key] : ''} onChange={e => change(key, e.target.value === '' ? NaN : Number(e.target.value))} /></label>)}</div>
           <label>Polarization<select value={settings.polarization} onChange={e => change('polarization', e.target.value as 's' | 'p')}><option value="s">s · perpendicular</option><option value="p">p · parallel</option></select></label>
           <label>Compare Fibonacci with<select value={settings.control} onChange={e => change('control', e.target.value as 'matched' | 'periodic')}><option value="matched">Same-count reordered control</option><option value="periodic">Periodic AB</option></select></label>
           <p className="crystal-help">{settings.control === 'matched' ? 'Same material amounts and total thickness. Only layer order changes.' : 'Periodic AB can have different material amounts. Compare the counts alongside the curves.'} A cavity adds the same central air layer to both stacks.</p>

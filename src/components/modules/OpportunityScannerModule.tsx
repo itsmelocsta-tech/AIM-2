@@ -1,3 +1,4 @@
+import { VoiceTextarea, VoiceInput } from '../common/VoiceTextField';
 import { normalizeJobSearchSuggestions } from '../../services/jobSearchSuggestions';
 import { authenticatedFetch, AuthenticationError } from '../../services/authenticatedFetch';
 import React, { useState } from 'react';
@@ -301,7 +302,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Tell AIM what to look for</label>
-              <textarea
+              <VoiceTextarea
                 value={focusDescription}
                 onChange={(e) => setFocusDescription(e.target.value)}
                 rows={4}
@@ -313,7 +314,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Location <span className="normal-case font-normal">(optional)</span></label>
-              <input
+              <VoiceInput
                 value={focusLocation}
                 onChange={(e) => setFocusLocation(e.target.value)}
                 placeholder="City, region, remote, nationwide, or leave blank"
@@ -485,7 +486,7 @@ export const OpportunityScannerModule: React.FC<OpportunityScannerModuleProps> =
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-            <input
+            <VoiceInput
               type="text"
               placeholder="Search by employer (The Parking Spot, Enterprise), role, or city..."
               value={searchQuery || ''}

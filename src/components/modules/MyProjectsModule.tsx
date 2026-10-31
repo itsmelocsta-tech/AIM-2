@@ -1,3 +1,4 @@
+import { VoiceInput, VoiceTextarea } from '../common/VoiceTextField';
 import React, { useState } from 'react';
 import {
   Layers,
@@ -130,7 +131,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-            <input
+            <VoiceInput
               type="text"
               placeholder="Search projects by name, goal, or phase..."
               value={searchQuery}
@@ -334,7 +335,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block text-slate-400 font-semibold mb-1">Project Name</label>
-                <input
+                <VoiceInput
                   type="text"
                   value={editingProject.name || ''}
                   onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
@@ -345,7 +346,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">Priority Rank (1-10)</label>
-                  <input
+                  <VoiceInput
                     type="number"
                     min={1}
                     max={20}
@@ -356,7 +357,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
                 </div>
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">Phase</label>
-                  <input
+                  <VoiceInput
                     type="text"
                     value={editingProject.phase || ''}
                     onChange={(e) => setEditingProject({ ...editingProject, phase: e.target.value })}
@@ -367,7 +368,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
 
               <div>
                 <label className="block text-slate-400 font-semibold mb-1">Goal & Purpose</label>
-                <textarea
+                <VoiceTextarea
                   rows={2}
                   value={editingProject.goal || ''}
                   onChange={(e) => setEditingProject({ ...editingProject, goal: e.target.value })}
@@ -377,7 +378,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
 
               <div>
                 <label className="block text-slate-400 font-semibold mb-1">Next Recommended Action</label>
-                <textarea
+                <VoiceTextarea
                   rows={2}
                   value={editingProject.nextAction || ''}
                   onChange={(e) => setEditingProject({ ...editingProject, nextAction: e.target.value })}
@@ -387,7 +388,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
 
               <div>
                 <label className="block text-slate-400 font-semibold mb-1">Last Completed Action</label>
-                <input
+                <VoiceInput
                   type="text"
                   value={editingProject.lastCompletedAction || ''}
                   onChange={(e) => setEditingProject({ ...editingProject, lastCompletedAction: e.target.value })}
@@ -397,7 +398,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
 
               <div>
                 <label className="block text-slate-400 font-semibold mb-1">Blockers (one per line)</label>
-                <textarea
+                <VoiceTextarea
                   rows={2}
                   value={(editingProject.blockers || []).join('\n')}
                   onChange={(e) =>
@@ -463,7 +464,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block text-slate-400 font-semibold mb-1">Project Name *</label>
-                <input
+                <VoiceInput
                   type="text"
                   required
                   placeholder="e.g. Fort Worth Mobile Wash Route"
@@ -476,7 +477,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">Phase</label>
-                  <input
+                  <VoiceInput
                     type="text"
                     placeholder="Planning, Launch, Packaging"
                     value={newProjectPhase}
@@ -486,7 +487,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
                 </div>
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">Collaborators</label>
-                  <input
+                  <VoiceInput
                     type="text"
                     placeholder="Separate with commas"
                     value={newProjectCollaborators}
@@ -498,7 +499,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
 
               <div>
                 <label className="block text-slate-400 font-semibold mb-1">Your goal and why it matters</label>
-                <textarea
+                <VoiceTextarea
                   rows={2}
                   placeholder="What is the objective of this project and why does it matter?"
                   value={newProjectGoal}
@@ -509,7 +510,7 @@ export const MyProjectsModule: React.FC<MyProjectsModuleProps> = ({
 
               <div>
                 <label className="block text-slate-400 font-semibold mb-1">Immediate Next Action</label>
-                <textarea
+                <VoiceTextarea
                   rows={2}
                   placeholder="What is the concrete next physical or digital step?"
                   value={newProjectNextAction}

@@ -11,6 +11,8 @@ import {
   getIdToken as fbGetIdToken,
 } from '../services/firebaseClient';
 
+import { resetVoiceSession } from '../services/voiceService';
+
 interface AuthContextType {
   user: FirebaseUser | null;
   loading: boolean;
@@ -30,7 +32,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    let previousUid: string | null | undefined;
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (previousUid !== (currentUser?.uid ?? null)) resetVoiceSession();
+      previousUid = currentUser?.uid ?? null;
       setUser(currentUser);
       setLoading(false);
     });

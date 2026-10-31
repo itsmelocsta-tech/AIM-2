@@ -1,3 +1,4 @@
+import { VoiceInput } from '../common/VoiceTextField';
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { AtmosphereCalibration } from './AtmosphereCalibration';
@@ -53,23 +54,10 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
     const updatedContext: PersonalOperatingContext = {
       ...formData,
       transportation: {
-        ...(formData.transportation || {
-          hasPersonalVehicle: false,
-          needsEmployerVehicle: true,
-          driverLicenseType: 'Texas non-CDL Class C',
-          cleanDrivingRecord: true,
-          licenseReissueDate: 'August 2026',
-          apparentHistoryUnderOneYear: true,
-          historicalDrivingExp: 'Passenger and chauffeur driving experience through The Ride Guys (approx. 2019–2022)',
-          cdlQualified: false,
-        }),
+        ...(formData.transportation || {}),
         hasPersonalVehicle: Boolean(formData.hasPersonalVehicle),
         needsEmployerVehicle: Boolean(formData.needsEmployerVehicle),
-        driverLicenseType: formData.driverLicenseType || 'Texas non-CDL Class C',
-        cleanDrivingRecord: Boolean(formData.cleanDrivingRecord),
-        licenseReissueDate: formData.licenseReissueDateNote || 'August 2026',
-        historicalDrivingExp: formData.historicalDrivingExperience || 'Passenger and chauffeur driving experience through The Ride Guys (approx. 2019–2022)',
-      },
+      } as PersonalOperatingContext['transportation'],
     };
     onUpdateContext(updatedContext);
     onToast('Operating settings and constraints saved!');
@@ -109,7 +97,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
           Operating System Context & Constraints
         </h1>
         <p className="text-xs text-slate-400 mt-0.5">
-          Tune your confirmed operating facts, transportation parameters, license constraints, and scanner schedules.
+          Choose your location, travel preferences, and scanner schedule.
         </p>
       </div>
 
@@ -126,7 +114,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div>
               <label className="block text-slate-400 font-semibold mb-1">Search Center City / Area</label>
-              <input
+              <VoiceInput
                 type="text"
                 value={formData.location || ''}
                 placeholder="e.g. Austin, TX or Chicago, IL"
@@ -191,61 +179,6 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
           </div>
         </div>
 
-        {/* Section 3: Driver License & Qualifications */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">
-          <div className="flex items-center gap-2 text-white font-bold text-sm">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <h2>Driver License & Driving History</h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div>
-              <label className="block text-slate-400 font-semibold mb-1">License Class</label>
-              <input
-                type="text"
-                value={formData.driverLicenseType || ''}
-                placeholder="e.g. Class C, Regular, Commercial"
-                onChange={(e) => setFormData({ ...formData, driverLicenseType: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-400 font-semibold mb-1">MVR Record Status</label>
-              <select
-                value={formData.cleanDrivingRecord ? 'clean' : 'violations'}
-                onChange={(e) => setFormData({ ...formData, cleanDrivingRecord: e.target.value === 'clean' })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-medium"
-              >
-                <option value="clean">Clean Driving Record (Zero Violations)</option>
-                <option value="violations">Points / Infractions on Record</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-slate-400 font-semibold mb-1">Reissued License Date Note</label>
-              <input
-                type="text"
-                value={formData.licenseReissueDateNote || ''}
-                placeholder="e.g. Reissued recently, original history 5+ years"
-                onChange={(e) => setFormData({ ...formData, licenseReissueDateNote: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-400 font-semibold mb-1">Historical Experience Notes</label>
-              <input
-                type="text"
-                value={formData.historicalDrivingExperience || ''}
-                placeholder="e.g. Passenger transportation, courier, route delivery"
-                onChange={(e) => setFormData({ ...formData, historicalDrivingExperience: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
-              />
-            </div>
-          </div>
-        </div>
-
         {/* Section 4: Automatic Scan Schedule */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">
           <div className="flex items-center gap-2 text-white font-bold text-sm">
@@ -271,7 +204,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
 
             <div>
               <label className="block text-slate-400 font-semibold mb-1">Scan Trigger Time</label>
-              <input
+              <VoiceInput
                 type="text"
                 value={formData.scanTime || ''}
                 onChange={(e) => setFormData({ ...formData, scanTime: e.target.value })}

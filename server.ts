@@ -1,3 +1,4 @@
+import type { AuthenticatedRequest } from './server/firebaseAdmin';
 import express, { Request, Response } from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -13,6 +14,8 @@ import { requireAuth } from './server/firebaseAdmin';
 import { readEntitlement, requirePremium } from './server/entitlementService';
 import { compareCrystalLayers } from './server/crystalOptics';
 import { generateWithFallback } from './server/generateWithFallback';
+import { deleteAccount } from './server/accountDeletion';
+import { reportAiContent } from './server/aiContentReports';
 import {
   PlayBillingError,
   getPlayLaunchOffer,
@@ -29,6 +32,9 @@ const PORT = 3000;
 app.use('/api/optics', express.json({ limit: '2kb' }));
 app.use(express.json({ limit: '10mb' }));
 app.use('/api/aim', requireAuth);
+app.use('/api/aim', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+app.delete('/api/aim/account', deleteAccount);
+app.post('/api/aim/content-reports', reportAiContent);
 
 // Public numerical utility: bounded inputs, no account data, AI or paid calls.
 app.post('/api/optics/compare', (req, res) => {
@@ -1191,14 +1197,14 @@ app.post('/api/aim/voice/speak', async (req: Request, res: Response) => {
       speakingRate,
       pitch,
       formatForSpeech: formatForSpeech !== false,
-    });
+    }, (req as AuthenticatedRequest).user?.uid);
 
     // Operational proof without logging the user's words, identity, or credentials.
     console.info('[VoiceAPI] Generated neural audio', {
       model: result.modelUsed, voice: result.voiceNameUsed, mimeType: result.mimeType,
       cached: Boolean(result.cached),
     });
-    res.json(result);
+    res.set('Cache-Control', 'no-store').json(result);
   } catch (err: any) {
     console.warn('[VoiceAPI] Natural speech unavailable');
     res.status(503).json({ error: 'Natural voice is temporarily unavailable. Your written response is still available. Please try again.', code: 'natural_voice_unavailable' });

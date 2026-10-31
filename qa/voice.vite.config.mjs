@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 export default defineConfig({
-  optimizeDeps: { entries: ['qa/voice-harness/index.html'] },
+  optimizeDeps: { entries: ['qa/voice-harness/index.html', 'qa/dictation-harness/index.html', 'qa/onboarding-voice-harness/index.html', 'qa/readability-harness/index.html'] },
   plugins: [{ name: 'voice-qa-fixture', enforce: 'pre', resolveId(id) {
     if (id.endsWith('/authenticatedFetch')) return path.resolve('qa/voice-harness/authenticatedFetch.ts');
   } }, react(), tailwindcss()],

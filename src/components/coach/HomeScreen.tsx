@@ -96,6 +96,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   // Guidance Interactive Chat state
   const [guidanceInput, setGuidanceInput] = useState('');
+  const voiceDraftRef = useRef('');
   const [isSubmittingGuidance, setIsSubmittingGuidance] = useState(false);
   const [guidanceResponse, setGuidanceResponse] = useState<CoachResponse | null>(null);
 
@@ -316,16 +317,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     } else if (voiceState === 'listening') {
       voiceEngine.stopListening();
     } else {
-      voiceEngine.startListening(
+      // Dictation updates the editable draft; only Send submits it.
+      // Interim recognition results must never trigger repeated coach requests.
+      voiceDraftRef.current = guidanceInput.trim();
+      const started = voiceEngine.startListening(
         (text) => {
-          if (text.trim()) {
-            handleAskGuidance(text);
-          }
+          setGuidanceInput([voiceDraftRef.current, text.trim()].filter(Boolean).join(' '));
         },
-        (isListening) => {
-          setVoiceState(isListening ? 'listening' : 'idle');
+        (listening) => {
+          setVoiceState(listening ? 'listening' : 'idle');
         }
       );
+      if (!started) {
+        setVoiceState('idle');
+        onToast('Microphone unavailable. You can type your reply instead.');
+      }
     }
   };
 
@@ -347,7 +353,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {/* Spoken Greeting / Guidance Dialogue Card */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 max-w-lg w-full shadow-lg backdrop-blur-sm space-y-3">
-          <p className="text-sm sm:text-base font-medium text-slate-100 leading-relaxed">
+          <p className="text-base font-medium text-slate-100 leading-7 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
             {greetingText}
           </p>
 
@@ -387,7 +393,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               type="text"
               value={guidanceInput || ''}
               onChange={(e) => setGuidanceInput(e.target.value)}
-              placeholder="Ask Guidance: 'What should I do now?' or 'Move meeting to 3pm'..."
+              placeholder="What's on your mind? Speak or type freely..."
               className="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
             <button
@@ -406,7 +412,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   ? 'bg-rose-600 text-white animate-pulse border-rose-500'
                   : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
               }`}
-              title="Speak to Guidance"
+              title={voiceState === 'listening' ? 'Stop recording' : 'Start recording'}
             >
               <Mic className="w-3.5 h-3.5" />
             </button>

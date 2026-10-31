@@ -52,12 +52,12 @@ export function FractalSoundscapes() {
     }
   };
 
-  return <section aria-label="Fractal Soundscapes" className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3 text-white">
-    <h2 className="font-bold text-sm">Fractal Soundscapes</h2>
+  return <section aria-label="Soundscapes" className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3 text-white">
+    <h2 className="font-bold text-sm">Soundscapes</h2>
     <p className="text-xs text-slate-300">Optional ambient audio, generated on your device. Settings stay on this device. Audio stops when you leave Settings or hide AIM.</p>
     <label className="block text-xs">Sound mode
       <select aria-label="Sound mode" className="block w-full mt-1 bg-slate-950 rounded-lg p-2" value={prefs.mode} onChange={e => update({ ...prefs, mode: e.target.value as SoundscapePreferences['mode'] })}>
-        <option value="fractal">Fractal</option><option value="ambient">Ambient</option><option value="silence">Silence</option>
+        <option value="fractal">Dynamic</option><option value="ambient">Ambient</option><option value="silence">Silence</option>
       </select>
     </label>
     <label className="block text-xs">Volume: {prefs.volume}%

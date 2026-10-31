@@ -474,7 +474,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({
               className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-fadeIn`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl p-4 space-y-2.5 text-xs sm:text-sm leading-relaxed ${
+                className={`min-w-0 max-w-[95%] sm:max-w-[85%] rounded-2xl p-4 space-y-2.5 text-base leading-7 break-words [overflow-wrap:anywhere] ${
                   isUser
                     ? 'bg-indigo-600 text-white rounded-br-none shadow-md shadow-indigo-600/20'
                     : 'bg-slate-900/90 border border-slate-800 text-slate-100 rounded-bl-none shadow-sm'

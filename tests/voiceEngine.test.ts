@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 const request = vi.hoisted(() => vi.fn());
 vi.mock('../src/services/authenticatedFetch', () => ({ authenticatedFetch: request }));
-import { VoiceEngine } from '../src/services/voiceService';
+import { VoiceEngine, resetVoiceSession } from '../src/services/voiceService';
 let deviceSpeak: ReturnType<typeof vi.fn>;
 let audioPlay: ReturnType<typeof vi.fn>;
 beforeEach(() => {
@@ -11,7 +11,7 @@ beforeEach(() => {
   vi.stubGlobal('localStorage', { getItem: () => null, setItem: vi.fn() });
   vi.stubGlobal('Audio', class { onplay: any; paused = false; currentTime = 0; play = audioPlay; pause() {} removeAttribute() {} });
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { resetVoiceSession(); vi.unstubAllGlobals(); });
 it.each(['http-error', 'legacy-fallback', 'network-error'])('shows retry rather than robotic speech on %s', async (failure) => {
   if (failure === 'network-error') request.mockRejectedValue(new Error('offline'));
   else request.mockResolvedValue(new Response(JSON.stringify({ provider: 'fallback', spokenText: 'Hello.' }), { status: failure === 'http-error' ? 503 : 200 }));
@@ -58,4 +58,134 @@ it.each(['masculine', 'feminine'] as const)('moves a saved %s Texas voice to neu
   expect(engine.getCentralConfig().label).toBe('Calm & welcoming');
   engine.setSelection(gender, 'texas');
   expect(engine.getActiveProfile().accentStyle).toBe('general_american');
+});
+it('keeps finalized speech across silence, replaces interim words, and ignores results after Stop', async () => {
+  vi.useFakeTimers();
+  const instances: any[] = [];
+  vi.stubGlobal('window', { SpeechRecognition: class {
+    onstart: any; onend: any; onresult: any; onerror: any;
+    start = vi.fn(); stop = vi.fn();
+    constructor() { instances.push(this); }
+  } });
+  const engine = new VoiceEngine(), result = vi.fn(), state = vi.fn();
+  const emit = (text: string, final: boolean) => {
+    const segment: any = [{ transcript: text }]; segment.isFinal = final;
+    instances[0].onresult({ results: [segment] });
+  };
+  try {
+    expect(engine.startListening(result, state)).toBe(true);
+    emit('call', false); emit('call the client', true);
+    instances[0].onend(); await vi.advanceTimersByTimeAsync(250);
+    emit('tomorrow', true);
+    expect(result.mock.calls.map(c => c[0])).toEqual(['call', 'call the client', 'call the client tomorrow']);
+    expect(instances[0].start).toHaveBeenCalledTimes(2);
+    emit('tomorrow morning', false);
+    instances[0].onend(); await vi.advanceTimersByTimeAsync(250);
+    emit('at ten', true);
+    expect(result).toHaveBeenLastCalledWith('call the client tomorrow morning at ten');
+    engine.stopListening(); emit('late words', true);
+    expect(result).toHaveBeenCalledTimes(5);
+    instances[0].onend(); await vi.advanceTimersByTimeAsync(500);
+    expect(instances[0].start).toHaveBeenCalledTimes(3);
+    expect(state).toHaveBeenLastCalledWith(false);
+  } finally { engine.stopListening(); vi.useRealTimers(); }
+});
+it('hands microphone ownership to another field and reports denied permission', () => {
+  const instances: any[] = [];
+  vi.stubGlobal('window', { SpeechRecognition: class {
+    onerror: any; start = vi.fn(); stop = vi.fn();
+    constructor() { instances.push(this); }
+  } });
+  const first = new VoiceEngine(), second = new VoiceEngine(), state = vi.fn(), error = vi.fn();
+  first.startListening(vi.fn(), state);
+  second.startListening(vi.fn(), vi.fn(), error);
+  expect(instances[0].stop).toHaveBeenCalledOnce();
+  expect(state).toHaveBeenLastCalledWith(false);
+  instances[1].onerror({ error: 'not-allowed' });
+  expect(error).toHaveBeenCalledWith(expect.stringContaining('Allow microphone access'));
+  first.stopListening(); second.stopListening();
+});
+
+it('does not duplicate Android speech replayed after silence restart', async () => {
+  vi.useFakeTimers();
+  const instances: any[] = [];
+  vi.stubGlobal('window', { SpeechRecognition: class {
+    onstart: any; onend: any; onresult: any; start = vi.fn(); stop = vi.fn();
+    constructor() { instances.push(this); }
+  } });
+  const engine = new VoiceEngine(), result = vi.fn();
+  const emit = (text: string, final = true) => {
+    const segment: any = [{ transcript: text }]; segment.isFinal = final;
+    instances[0].onresult({ results: [segment] });
+  };
+  try {
+    engine.startListening(result);
+    emit('right now I am testing');
+    instances[0].onend(); await vi.advanceTimersByTimeAsync(250);
+    emit('right now I am testing the microphone');
+    expect(result).toHaveBeenLastCalledWith('right now I am testing the microphone');
+    instances[0].onend(); await vi.advanceTimersByTimeAsync(250);
+    emit('the microphone works');
+    expect(result).toHaveBeenLastCalledWith('right now I am testing the microphone works');
+  } finally { engine.stopListening(); vi.useRealTimers(); }
+});
+
+it('clears replay audio on account changes and expires idle cached text/audio', async () => {
+  vi.useFakeTimers();
+  const revoke = vi.spyOn(URL, 'revokeObjectURL');
+  request.mockResolvedValue(new Response(JSON.stringify({ provider: 'gemini-tts', audioBase64: 'AAAA', mimeType: 'audio/wav' })));
+  const engine = new VoiceEngine();
+  try {
+    await engine.speak('Private account one.');
+    resetVoiceSession();
+    expect(revoke).toHaveBeenCalledTimes(1);
+    engine.replay();
+    expect(request).toHaveBeenCalledTimes(1);
+    request.mockResolvedValue(new Response(JSON.stringify({ provider: 'gemini-tts', audioBase64: 'AAAA', mimeType: 'audio/wav' })));
+    await engine.speak('Private account one.');
+    expect(request).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(revoke).toHaveBeenCalledTimes(2);
+  } finally { resetVoiceSession(); revoke.mockRestore(); vi.useRealTimers(); }
+});
+
+it.each([false, true])('replaces cumulative Android fragments within one result list (final=%s)', (final) => {
+  const instances: any[] = [];
+  vi.stubGlobal('window', { SpeechRecognition: class {
+    onresult: any; start = vi.fn(); stop = vi.fn();
+    constructor() { instances.push(this); }
+  } });
+  const engine = new VoiceEngine(), result = vi.fn();
+  const phrases = ["I'm", "I'm testing", "I'm testing the", "I'm testing the mic", "I'm testing the mic to see"];
+  try {
+    engine.startListening(result);
+    for (let count = 1; count <= phrases.length; count++) {
+      const results = phrases.slice(0, count).map(text => {
+        const segment: any = [{ transcript: text }]; segment.isFinal = final; return segment;
+      });
+      instances[0].onresult({ resultIndex: count - 1, results });
+      expect(result).toHaveBeenLastCalledWith(phrases[count - 1]);
+    }
+  } finally { engine.stopListening(); }
+});
+
+it('keeps intentional repeated words inside one phrase and replaces shrinking interim snapshots', () => {
+  const instances: any[] = [];
+  vi.stubGlobal('window', { SpeechRecognition: class {
+    onresult: any; start = vi.fn(); stop = vi.fn();
+    constructor() { instances.push(this); }
+  } });
+  const engine = new VoiceEngine(), result = vi.fn();
+  const emit = (entries: [string, boolean][]) => instances[0].onresult({
+    results: entries.map(([text, isFinal]) => Object.assign([{ transcript: text }], { isFinal })),
+  });
+  try {
+    engine.startListening(result);
+    emit([['I said no no', true], ['then changed tomorrow', false]]);
+    expect(result).toHaveBeenLastCalledWith('I said no no then changed tomorrow');
+    emit([['I said no no', true], ['then stopped', false]]);
+    expect(result).toHaveBeenLastCalledWith('I said no no then stopped');
+    emit([['I said no no', true]]);
+    expect(result).toHaveBeenLastCalledWith('I said no no');
+  } finally { engine.stopListening(); }
 });

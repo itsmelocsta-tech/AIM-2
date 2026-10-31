@@ -49,6 +49,19 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [visibleHeight, setVisibleHeight] = useState<number>();
+  useEffect(() => {
+    if (!isOpen) return;
+    const viewport = window.visualViewport;
+    const syncHeight = () => setVisibleHeight(viewport?.height ?? window.innerHeight);
+    syncHeight();
+    viewport?.addEventListener('resize', syncHeight);
+    window.addEventListener('resize', syncHeight);
+    return () => {
+      viewport?.removeEventListener('resize', syncHeight);
+      window.removeEventListener('resize', syncHeight);
+    };
+  }, [isOpen]);
   const [lastAIMReply, setLastAIMReply] = useState(
     userProfile?.name
       ? `I'm here with you, ${userProfile.name}. What is on your mind or in front of you today?`
@@ -194,31 +207,32 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
   const activeProfile = voiceEngine.getActiveProfile();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-fadeIn">
-      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl w-full max-w-xl p-8 overflow-hidden shadow-2xl flex flex-col items-center text-center space-y-5 relative">
+    <div className="fixed inset-x-0 top-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-hidden bg-slate-950/90 backdrop-blur-xl animate-fadeIn" style={{ height: visibleHeight ?? '100dvh' }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="aim-voice-dialog-title" className="bg-slate-900/90 border border-slate-800 rounded-3xl w-full min-w-0 max-w-2xl max-h-full p-4 sm:p-6 overflow-y-auto shadow-2xl flex flex-col items-center text-center gap-4 relative">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+          aria-label="Close conversation"
+          className="absolute top-2 right-2 min-h-[44px] min-w-[44px] p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Top Header */}
-        <div className="space-y-1">
+        <div className="space-y-1 px-8 shrink-0">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800 text-xs font-semibold uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
             <span>AIM Verbal Thinking Space</span>
           </div>
-          <h2 className="text-xl font-bold text-white tracking-tight">
+          <h2 id="aim-voice-dialog-title" className="text-lg sm:text-xl font-bold text-white tracking-tight">
             Conversational Life Companion
           </h2>
         </div>
 
         {/* Large Central Glowing AIM Orb */}
-        <div className="py-1 relative">
+        <div className="py-1 relative shrink-0">
           <AimOrbCanvas
-            size={200}
+            size={112}
             isListening={isListening}
             isSpeaking={isSpeaking}
             isThinking={isThinking}
@@ -227,7 +241,7 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
         </div>
 
         {/* Audio Activity Waveform Status Pill */}
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex flex-wrap shrink-0 items-center justify-center gap-3">
           <div
             id="aim-voice-modal-waveform-container"
             className={`inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border transition-all ${
@@ -282,7 +296,7 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
         </div>
 
         {/* Live Transcript / Subtitle Box */}
-        <div className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl p-4 min-h-[90px] flex flex-col justify-center items-center text-xs leading-relaxed max-h-40 overflow-y-auto">
+        <div id="aim-voice-response" role="region" aria-label="AIM response" tabIndex={0} className="w-full min-w-0 shrink-0 bg-slate-950/80 border border-slate-800 rounded-2xl p-4 min-h-[35dvh] text-left text-base leading-7 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
           {isThinking ? (
             <div className="flex items-center gap-2 text-indigo-300">
               <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
@@ -303,10 +317,10 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
         </div>
 
         {/* Controls Bar */}
-        <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
+        <div className="flex flex-col sm:flex-row shrink-0 items-center gap-4 w-full justify-center">
           <button
             onClick={toggleListening}
-            className={`px-6 py-3 rounded-full font-bold text-xs flex items-center gap-2 shadow-lg transition-all ${
+            className={`px-6 py-3 rounded-full font-bold text-base flex items-center gap-2 shadow-lg transition-all ${
               isListening
                 ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse'
                 : 'bg-gradient-to-r from-indigo-600 to-emerald-500 text-white hover:opacity-90'
@@ -326,7 +340,7 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
                 if (e.key === 'Enter') handleProcessVoiceInput(transcript);
               }}
               placeholder="Or type here..."
-              className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 flex-1 sm:w-48"
+              className="min-w-0 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-base text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 flex-1 sm:w-48"
             />
             <button
               onClick={() => handleProcessVoiceInput(transcript)}

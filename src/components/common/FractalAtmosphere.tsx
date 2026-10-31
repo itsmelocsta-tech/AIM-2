@@ -23,7 +23,7 @@ export function FractalAtmosphere({ seed = 8 }: { seed?: number }) {
         </button>
       </div>
       {enabled && (
-        <svg viewBox="0 0 200 200" role="img" aria-label="Symmetrical branching fractal-inspired geometry"
+        <svg viewBox="0 0 200 200" role="img" aria-label="Symmetrical branching pattern"
           className="mx-auto mt-2 h-36 w-36 sm:h-44 sm:w-44 text-cyan-400"
           style={{ filter: 'drop-shadow(0 0 12px rgba(34,211,238,.22))' }}>
           <circle cx="100" cy="100" r="64" fill="none" stroke="currentColor" strokeOpacity=".16" />

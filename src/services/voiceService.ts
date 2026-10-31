@@ -54,11 +54,37 @@ const CENTRAL_VOICE_CONFIG_KEY = 'aim_central_voice_config';
 const GREETING_SESSION_KEY = 'aim_greeting_session_state';
 
 // In-memory client-side audio cache for instantaneous replay/preview
-const clientAudioCache = new Map<string, { audioUrl: string; spokenText: string; timestamp: number }>();
+const clientAudioCache = new Map<string, { audioUrl: string; spokenText: string; timestamp: number; expiry: ReturnType<typeof setTimeout> }>();
 const MAX_CLIENT_CACHE = 50;
+
+let microphoneOwner: VoiceEngine | null = null;
+let speakerOwner: VoiceEngine | null = null;
+
+function clearClientVoiceCache(): void {
+  for (const entry of clientAudioCache.values()) {
+    clearTimeout(entry.expiry);
+    URL.revokeObjectURL(entry.audioUrl);
+  }
+  clientAudioCache.clear();
+}
+
+// Clear playback, pending requests and text/audio retained by the previous account.
+export function resetVoiceSession(): void {
+  const owners = new Set([microphoneOwner, speakerOwner]);
+  for (const owner of owners) owner?.clearSession();
+  microphoneOwner = null;
+  speakerOwner = null;
+  clearClientVoiceCache();
+}
 
 export class VoiceEngine {
   private recognition: any = null;
+  private onRecognitionError: ((message: string) => void) | null = null;
+  private keepListening = false;
+  private recognitionRestartTimer: ReturnType<typeof setTimeout> | null = null;
+  private recognitionFinalText = '';
+  private currentRecognitionSessionText = '';
+  private recognitionStateCallback: ((listening: boolean) => void) | null = null;
   private voiceState: VoiceState = 'idle';
   private speakerState: SpeakerState = 'ready';
 
@@ -95,7 +121,7 @@ export class VoiceEngine {
         (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         this.recognition = new SpeechRecognition();
-        this.recognition.continuous = false;
+        this.recognition.continuous = true;
         this.recognition.interimResults = true;
         this.recognition.lang = 'en-US';
 
@@ -104,38 +130,74 @@ export class VoiceEngine {
         };
 
         this.recognition.onresult = (event: any) => {
-          let interimTranscript = '';
-          let finalTranscript = '';
-
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
-            }
+          if (!this.keepListening) return;
+          // This list is a snapshot, not a batch of new words. Some Android
+          // recognizers put growing hypotheses in separate entries, even final
+          // ones. Rebuild from the snapshot and merge their overlapping words.
+          let sessionText = '';
+          for (let i = 0; i < event.results.length; i++) {
+            sessionText = this.appendRecognitionText(sessionText, event.results[i][0]?.transcript || '');
           }
-
-          const current = finalTranscript || interimTranscript;
-          if (current) {
-            this.setVoiceState('transcribing');
-            if (this.onResultCallback) {
-              this.onResultCallback(current);
-            }
-          }
+          this.currentRecognitionSessionText = sessionText;
+          const transcript = this.appendRecognitionText(this.recognitionFinalText, this.currentRecognitionSessionText);
+          if (transcript) this.onResultCallback?.(transcript);
+          this.setVoiceState('listening');
         };
 
         this.recognition.onend = () => {
-          if (this.voiceState === 'listening' || this.voiceState === 'transcribing') {
+          if (this.keepListening) {
+            // Preserve the last visible words, including interim speech if a mobile
+            // browser ends without a final event, before restarting after silence.
+            if (this.currentRecognitionSessionText) {
+              this.recognitionFinalText = this.appendRecognitionText(this.recognitionFinalText, this.currentRecognitionSessionText);
+              this.currentRecognitionSessionText = '';
+            }
+            this.recognitionRestartTimer = setTimeout(() => {
+              if (!this.keepListening) return;
+              try { this.recognition.start(); }
+              catch (err) {
+                console.warn('[VoiceEngine] Recognition restart failed:', err);
+                this.keepListening = false;
+                this.setVoiceState('error');
+                this.onRecognitionError?.('Microphone stopped. Tap the microphone to try again.');
+                this.recognitionStateCallback?.(false);
+              }
+            }, 250);
+          } else {
             this.setVoiceState('idle');
+            this.recognitionStateCallback?.(false);
           }
         };
 
         this.recognition.onerror = (e: any) => {
-          console.warn('[VoiceEngine] Speech recognition error:', e);
-          this.setVoiceState(e.error === 'not-allowed' ? 'error' : 'idle');
+          console.warn('[VoiceEngine] Speech recognition error:', e.error);
+          if (['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported', 'network', 'aborted'].includes(e.error)) {
+            this.keepListening = false;
+            this.setVoiceState('error');
+            this.onRecognitionError?.(e.error === 'not-allowed' || e.error === 'service-not-allowed'
+              ? 'Microphone access is unavailable. Allow microphone access in your browser or device settings, then try again.'
+              : 'Microphone unavailable. Check your microphone and try again.');
+            this.recognitionStateCallback?.(false);
+          }
         };
       }
     }
+  }
+
+  // Android may replay the previous phrase when speech recognition restarts.
+  // Remove only the overlapping boundary, not repeated words elsewhere.
+  private appendRecognitionText(previous: string, incoming: string): string {
+    const left = previous.trim(), right = incoming.trim();
+    if (!left) return right;
+    if (!right) return left;
+    const a = left.split(/\s+/), b = right.split(/\s+/);
+    const normalize = (word: string) => word.toLowerCase().replace(/[’‘]/g, "'")
+      .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+    let overlap = 0;
+    for (let n = Math.min(a.length, b.length); n > 0; n--) {
+      if (a.slice(-n).map(normalize).join(' ') === b.slice(0, n).map(normalize).join(' ')) { overlap = n; break; }
+    }
+    return [left, ...b.slice(overlap)].join(' ').trim();
   }
 
   private loadPreferences(): void {
@@ -225,7 +287,7 @@ export class VoiceEngine {
     this.savePreferences();
 
     // Invalidate client audio cache so new voice selections generate fresh audio
-    clientAudioCache.clear();
+    clearClientVoiceCache();
   }
 
   public setVoiceProfile(profileId: string): void {
@@ -385,7 +447,9 @@ export class VoiceEngine {
     }
 
     // 1. Stop any currently active speech / audio playback cleanly
+    speakerOwner?.stopSpeaking(false);
     this.stopSpeaking(false);
+    speakerOwner = this;
 
     const formattedText =
       normalizedOptions?.formatForSpeech !== false
@@ -472,14 +536,22 @@ export class VoiceEngine {
         if (clientAudioCache.size >= MAX_CLIENT_CACHE) {
           const oldestKey = clientAudioCache.keys().next().value;
           if (oldestKey) {
+            clearTimeout(clientAudioCache.get(oldestKey)!.expiry);
             URL.revokeObjectURL(clientAudioCache.get(oldestKey)!.audioUrl);
             clientAudioCache.delete(oldestKey);
           }
         }
+        const expiry = setTimeout(() => {
+          if (clientAudioCache.get(cacheKey)?.audioUrl === audioUrl) {
+            URL.revokeObjectURL(audioUrl);
+            clientAudioCache.delete(cacheKey);
+          }
+        }, 5 * 60_000);
         clientAudioCache.set(cacheKey, {
           audioUrl,
           spokenText: formattedText,
           timestamp: Date.now(),
+          expiry,
         });
 
         // Play synthesized natural audio
@@ -609,6 +681,19 @@ export class VoiceEngine {
     }
   }
 
+  public clearSession(): void {
+    this.stopListening();
+    this.stopSpeaking();
+    this.currentText = '';
+    this.currentSpokenText = '';
+    this.activeOptions = null;
+    this.recognitionFinalText = '';
+    this.currentRecognitionSessionText = '';
+    this.onResultCallback = null;
+    this.onRecognitionError = null;
+    this.recognitionStateCallback = null;
+  }
+
   public replay(overrideText?: string): void {
     const textToPlay = overrideText || this.currentText;
     if (textToPlay) {
@@ -649,10 +734,19 @@ export class VoiceEngine {
 
   public startListening(
     onResult: (text: string) => void,
-    onStateChange?: (listening: boolean) => void
+    onStateChange?: (listening: boolean) => void,
+    onError?: (message: string) => void
   ): boolean {
     if (!this.recognition) return false;
+    if (microphoneOwner) microphoneOwner.stopListening();
+    microphoneOwner = this;
+    this.onRecognitionError = onError || null;
     this.onResultCallback = onResult;
+    this.recognitionStateCallback = onStateChange || null;
+    this.recognitionFinalText = '';
+    this.currentRecognitionSessionText = '';
+    this.keepListening = true;
+    if (this.recognitionRestartTimer) clearTimeout(this.recognitionRestartTimer);
 
     try {
       this.stopSpeaking(true);
@@ -662,6 +756,7 @@ export class VoiceEngine {
       return true;
     } catch (e) {
       console.warn('[VoiceEngine] Failed to start speech recognition:', e);
+      this.keepListening = false;
       this.setVoiceState('error');
       if (onStateChange) onStateChange(false);
       return false;
@@ -669,6 +764,10 @@ export class VoiceEngine {
   }
 
   public stopListening(): void {
+    if (microphoneOwner === this) microphoneOwner = null;
+    this.keepListening = false;
+    if (this.recognitionRestartTimer) clearTimeout(this.recognitionRestartTimer);
+    this.recognitionRestartTimer = null;
     if (this.recognition) {
       try {
         this.recognition.stop();
@@ -676,6 +775,7 @@ export class VoiceEngine {
         // Ignore
       }
       this.setVoiceState('idle');
+      this.recognitionStateCallback?.(false);
     }
   }
 

@@ -53,11 +53,11 @@ describe('natural speech generation', () => {
     const ai = client(generate);
     const prefix = 'This is the same beginning. '.repeat(6);
     const first = { text: prefix + 'Choose illustration.', speakingRate: 1 };
-    const result = await service.synthesizeSpeech(ai, first);
-    await service.synthesizeSpeech(ai, { ...first, text: prefix + 'Choose driving.' });
-    await service.synthesizeSpeech(ai, { ...first, speakingRate: 0.8 });
+    const result = await service.synthesizeSpeech(ai, first, 'voice-cache-test');
+    await service.synthesizeSpeech(ai, { ...first, text: prefix + 'Choose driving.' }, 'voice-cache-test');
+    await service.synthesizeSpeech(ai, { ...first, speakingRate: 0.8 }, 'voice-cache-test');
     expect(generate).toHaveBeenCalledTimes(3);
-    const cached = await service.synthesizeSpeech(ai, first);
+    const cached = await service.synthesizeSpeech(ai, first, 'voice-cache-test');
     expect(cached.cached).toBe(true);
     expect(cached.voiceNameUsed).toBe(result.voiceNameUsed);
     expect(generate).toHaveBeenCalledTimes(3);
