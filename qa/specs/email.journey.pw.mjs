@@ -21,6 +21,11 @@ test('real Basic email account completes onboarding, persistence, opportunities 
   const db = getFirestore(sdkApp, config.firestoreDatabaseId);
   const verified = [];
   const note = name => { verified.push(name); testInfo.annotations.push({ type: 'verified', description: `${name}: PASS` }); };
+  async function navigate(id) {
+    const tab = page.locator(`#nav-tab-${id}`);
+    if (!(await tab.isVisible())) await page.getByText('More', { exact: true }).click();
+    await tab.click();
+  }
   async function enterCredentials() {
     // Evaluate is recorded without its argument values; locator.fill(password)
     // would put the generated password in Playwright's HTML step title.
@@ -57,14 +62,12 @@ test('real Basic email account completes onboarding, persistence, opportunities 
     try {
       const session = await signInWithEmailAndPassword(sdkAuth, email, password);
       if (session.user.uid !== uid) throw new Error('Identity mismatch');
-      for (const name of ['projects', 'schedules', 'goals', 'memories', 'wellness', 'life_updates', 'daily_plans', 'settings']) {
-        const ref = collection(db, 'users', uid, name);
-        const records = await getDocs(ref);
-        for (const record of records.docs) await deleteDoc(record.ref);
-        if (!(await getDocs(ref)).empty) throw new Error('Records remain');
-      }
-      await deleteDoc(doc(db, 'users', uid));
-      await deleteUser(session.user);
+      const freshToken = await session.user.getIdToken(true);
+      const headers = { Authorization: `Bearer ${freshToken}` };
+      if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) headers['x-vercel-protection-bypass'] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+      const response = await safeRequest('delete', `${process.env.AIM_PREVIEW_URL}/api/aim/account`, { headers, data: { confirmed: true } });
+      if (response.status() !== 200 || !(await response.json()).deleted) throw new Error('Account deletion endpoint failed');
+      note('Server account deletion removes the real disposable account and associated data');
       try { await signInWithEmailAndPassword(sdkAuth, email, password); }
       catch { note('Disposable data and identity cleanup'); return; }
       throw new Error('Identity remains');
@@ -97,7 +100,15 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       catch { throw new Error('Disposable SDK session could not be established.'); }
       // Remove credentials retained in the hidden auth form before any failure snapshot.
       await page.locator('input[type="password"]').evaluateAll(nodes => nodes.forEach(n => { n.value = ''; }));
+      await page.getByRole('button', { name: 'Agree and continue', exact: true }).click();
       await expect(page.locator('#aim-current-state-textarea')).toBeVisible({ timeout: 45000 });
+      const reportHeaders = { Authorization: `Bearer ${token}` };
+      if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) reportHeaders['x-vercel-protection-bypass'] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+      const report = await safeRequest('post', `${process.env.AIM_PREVIEW_URL}/api/aim/content-reports`, {
+        headers: reportHeaders, data: { content: 'Fictional QA response for safety reporting verification.', reason: 'other', feature: 'release-qa' }
+      });
+      expect(report.status()).toBe(201);
+      note('Authenticated AI content report accepted by the deployed server');
       note('Email signup and workspace loading');
     });
 
@@ -139,12 +150,13 @@ test('real Basic email account completes onboarding, persistence, opportunities 
     await test.step('Reload from Firebase and finish the first-run guide', async () => {
       await page.evaluate(() => localStorage.clear());
       await page.reload();
+      await page.getByRole('button', { name: 'Agree and continue', exact: true }).click();
       await expect(page.locator('#aim-first-run-intro')).toBeVisible({ timeout: 45000 });
       await page.locator('#aim-first-run-next-intro').click();
       await page.locator('#aim-first-run-next-planner').click();
       await page.locator('#aim-first-run-next-check-in').click();
       await expect(page.locator('#aim-primary-nav')).toBeVisible();
-      await page.locator('#nav-tab-planner').click();
+      await navigate('planner');
       await expect(page.locator('#daily-planner-module')).toBeVisible();
       const plans = await getDocs(collection(db, 'users', uid, 'daily_plans'));
       savedPlan = plans.docs[0]?.data();
@@ -152,8 +164,46 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       note('Firebase plan reload and first-run guide persistence');
     });
 
+    await test.step('Dictate and save Quick Capture on the deployed app', async () => {
+      // A simulated recognizer verifies deployed UI/state integration only.
+      // It does not establish physical audio capture or native permission UI.
+      await page.evaluate(() => {
+        window.SpeechRecognition = class {
+          constructor() { window.captureRecognizer = this; }
+          start() { this.onstart?.(); }
+          stop() { this.onend?.(); }
+        };
+      });
+      await page.locator('#quick-capture-header-btn').click();
+      const capture = page.locator('form').filter({ has: page.getByPlaceholder('Capture any thought, framework, script, or idea...') });
+      const draft = capture.locator('textarea');
+      await capture.getByRole('button', { name: /Speak into Capture/ }).click();
+      await page.evaluate(() => {
+        const result = [{ transcript: 'Fictional QA note: send the illustration draft.' }]; result.isFinal = true;
+        window.captureRecognizer.onresult({ results: [result] });
+      });
+      await expect(draft).toHaveValue('Fictional QA note: send the illustration draft.');
+      await capture.getByRole('button', { name: /Stop dictation for Capture/ }).click();
+      await draft.fill('Fictional QA voice draft reviewed before saving.');
+      for (const [name, viewport] of [['phone', { width: 390, height: 844 }], ['desktop', { width: 1280, height: 900 }]]) {
+        await page.setViewportSize(viewport);
+        const mic = await capture.locator('.aim-field-mic').boundingBox();
+        expect(mic.width).toBeGreaterThanOrEqual(44); expect(mic.height).toBeGreaterThanOrEqual(44);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await testInfo.attach(`fictional-quick-capture-${name}`, { body: await capture.screenshot(), contentType: 'image/png' });
+      }
+      await capture.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(draft).toBeHidden();
+      await expect.poll(async () => {
+        const records = await getDocs(collection(db, 'users', uid, 'memories'));
+        return records.docs.some(record => record.data().content === 'Fictional QA voice draft reviewed before saving.');
+      }, { timeout: 20000 }).toBe(true);
+      await page.setViewportSize({ width: 390, height: 844 });
+      note('Deployed Quick Capture simulated dictation, manual review, Firebase save and phone/desktop microphone bounds');
+    });
+
     await test.step('Save a personal opportunity target and reload without the local cache', async () => {
-      await page.locator('#nav-tab-scanner').click();
+      await navigate('scanner');
       const setup = page.locator('#opportunity-scanner-setup');
       await setup.locator('select').selectOption('creative');
       await setup.locator('textarea').fill('Illustration clients');
@@ -163,8 +213,9 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       await expect.poll(async () => JSON.stringify(await readDocument('settings/context')), { timeout: 20000 }).toContain('Illustration clients');
       await page.evaluate(() => localStorage.clear());
       await page.reload();
+      await page.getByRole('button', { name: 'Agree and continue', exact: true }).click();
       await expect(page.locator('#aim-primary-nav')).toBeVisible({ timeout: 45000 });
-      await page.locator('#nav-tab-scanner').click();
+      await navigate('scanner');
       await expect(page.locator('#opportunity-scanner-screen')).toContainText('Illustration clients');
       await expect(page.locator('#opportunity-scanner-screen')).toContainText('Austin');
       await expect(page.locator('#opportunity-scanner-screen')).not.toContainText(/Fort Worth|DFW|driver jobs/i);
@@ -172,7 +223,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
     });
 
     await test.step('Save and recover a Basic wellness record through normal navigation', async () => {
-      await page.locator('#nav-tab-wellness').click();
+      await navigate('wellness');
       const wellness = page.locator('#wellness-engine-module');
       await expect(wellness).toBeVisible();
       await expect(page.getByRole('dialog', { name: 'Unlock AIM Premium' })).toBeHidden();
@@ -184,8 +235,9 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       }, { timeout: 20000 }).toBe(true);
       await page.evaluate(() => localStorage.clear());
       await page.reload();
-      await expect(page.locator('#nav-tab-wellness')).toBeVisible({ timeout: 45000 });
-      await page.locator('#nav-tab-wellness').click();
+      await page.getByRole('button', { name: 'Agree and continue', exact: true }).click();
+      await expect(page.locator('#aim-primary-nav')).toBeVisible({ timeout: 45000 });
+      await navigate('wellness');
       await expect(wellness.locator('textarea')).toHaveValue('Fictional QA note: a short walk helped me take a break.');
       for (const [name, viewport] of [['phone', { width: 390, height: 844 }], ['desktop', { width: 1280, height: 900 }]]) {
         await page.setViewportSize(viewport);
@@ -200,7 +252,7 @@ test('real Basic email account completes onboarding, persistence, opportunities 
     });
 
     await test.step('Verify signed-in Basic access and Premium enforcement', async () => {
-      await page.locator('#nav-tab-home').click();
+      await navigate('home');
       await page.getByRole('button', { name: 'Your Coaches', exact: true }).click();
       await expect(page.getByRole('dialog', { name: 'Unlock AIM Premium' })).toBeVisible();
       const premium = page.getByRole('dialog', { name: 'Unlock AIM Premium' });
@@ -250,10 +302,10 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       await enterCredentials();
       await form.locator('button[type="submit"]').click();
       await expect(page.locator('#aim-primary-nav')).toBeVisible({ timeout: 45000 });
-      await page.locator('#nav-tab-planner').click();
+      await navigate('planner');
       await expect(page.locator('#daily-planner-module')).toContainText(savedPlan.priorityTasks[0].task);
       expect(await readDocument(`daily_plans/${savedPlan.date}`)).toEqual(savedPlan);
-      await page.locator('#nav-tab-scanner').click();
+      await navigate('scanner');
       await expect(page.locator('#opportunity-scanner-screen')).toContainText('Illustration clients');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       const screenshotOptions = { style: '#aim-main-header, #aim-primary-nav, #aim-primary-nav * { opacity: 0 !important; visibility: hidden !important; }' };

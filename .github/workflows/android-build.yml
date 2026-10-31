@@ -5,6 +5,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+env:
+  AIM_TESTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 concurrency:
   group: android-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
@@ -17,6 +19,21 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Select reviewed Android test target
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, re
+          from urllib.parse import urlsplit
+          target = json.load(open('android/test-target.json'))
+          url = urlsplit(target['webOrigin'])
+          if (url.scheme != 'https' or url.username or url.password or url.port
+              or url.path or url.query or url.fragment
+              or not re.fullmatch(r'aim-2-[a-z0-9]+-itsmelocsta-5904\.vercel\.app', url.hostname or '')
+              or not re.fullmatch(r'[a-f0-9]{40}', target['webCommit'])):
+              raise SystemExit('Invalid or unreviewed Android test target')
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              env.write('AIM_ANDROID_WEB_ORIGIN=' + target['webOrigin'] + '\n')
+          PYTHON
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -31,12 +48,46 @@ jobs:
       - name: Compile debug APK, native origin tests, and Android lint
         working-directory: android
         run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --no-daemon
+      - name: Verify APK signature, embedded test origin and package identity
+        run: |
+          set -euo pipefail
+          apk=android/app/build/outputs/apk/debug/app-debug.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > android/apk-signature.txt
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" > android/apk-manifest.txt
+          grep -q "name='app.aim.lifeos.debug'" android/apk-manifest.txt
+          grep -q "application-label:'AIM Test'" android/apk-manifest.txt
+          python3 - <<'PYTHON'
+          import hashlib, json, os, zipfile
+          from pathlib import Path
+          apk = Path('android/app/build/outputs/apk/debug/app-debug.apk')
+          target = json.load(open('android/test-target.json'))
+          with zipfile.ZipFile(apk) as archive:
+              dex = b''.join(archive.read(name) for name in archive.namelist() if name.endswith('.dex'))
+              if target['webOrigin'].encode() not in dex:
+                  raise SystemExit('APK does not contain the reviewed AIM test origin')
+          report = {
+              **target,
+              'nativeCommit': os.environ['GITHUB_SHA'],
+              'nativeSourceCommit': os.environ['AIM_TESTED_SHA'],
+              'packageName': 'app.aim.lifeos.debug',
+              'appLabel': 'AIM Test',
+              'sha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
+              'signatureVerified': True,
+              'physicalDeviceVerified': False,
+              'access': 'Owner enters private preview link on device; no code embedded in APK'
+          }
+          Path('android/android-test-build.json').write_text(json.dumps(report, indent=2) + '\n')
+          PYTHON
+          cp "$apk" android/AIM-Test.apk
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: android-debug-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
-            android/app/build/outputs/apk/debug/*.apk
+            android/AIM-Test.apk
+            android/android-test-build.json
+            android/apk-signature.txt
+            android/apk-manifest.txt
             android/app/build/reports/tests/
             android/app/build/reports/lint-results-debug.html
           if-no-files-found: warn

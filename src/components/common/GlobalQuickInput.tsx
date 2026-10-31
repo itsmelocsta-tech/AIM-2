@@ -1,3 +1,4 @@
+import { VoiceTextarea } from './VoiceTextField';
 import React, { useState } from 'react';
 import {
   Sparkles,
@@ -73,6 +74,7 @@ export const GlobalQuickInput: React.FC<GlobalQuickInputProps> = ({
             <h3 className="text-sm font-bold text-white">AIM Quick Capture</h3>
           </div>
           <button
+            aria-label="Close Quick Capture"
             onClick={onClose}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
@@ -112,7 +114,7 @@ export const GlobalQuickInput: React.FC<GlobalQuickInputProps> = ({
           </div>
 
           <div>
-            <textarea
+            <VoiceTextarea
               rows={3}
               required
               autoFocus
@@ -126,6 +128,8 @@ export const GlobalQuickInput: React.FC<GlobalQuickInputProps> = ({
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
+
+
 
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">

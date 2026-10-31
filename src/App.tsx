@@ -58,6 +58,7 @@ import { scheduleRepository } from './services/repositories/scheduleRepository';
 import { AuthModal } from './components/auth/AuthModal';
 import { getTodayDateString } from './utils/dateTimeUtils';
 import { voiceEngine } from './services/voiceService';
+import { ReportAiResponse } from './components/common/ReportAiResponse';
 
 export default function App() {
   const { user, loading: isAuthLoading } = useAuth();
@@ -725,6 +726,14 @@ export default function App() {
           />
         )}
       </main>
+
+      <footer className="max-w-6xl mx-auto px-4 py-5 flex flex-wrap gap-x-5 gap-y-3 text-xs text-slate-400" aria-label="AIM help and privacy">
+        <a href="/privacy">Privacy policy</a>
+        <a href="/terms">Terms of use</a>
+        <a href="/delete-account">Delete account</a>
+        <a href="mailto:franciscohilburn04@gmail.com">Support</a>
+        {user && <ReportAiResponse feature={currentTab} />}
+      </footer>
 
       {/* Modals */}
       <DriveSyncModal

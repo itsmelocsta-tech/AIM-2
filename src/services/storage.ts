@@ -286,7 +286,9 @@ export const storageService = {
         if (typeof localStorage.length === 'number' && typeof localStorage.key === 'function') {
           for (let i = localStorage.length - 1; i >= 0; i--) {
             const k = localStorage.key(i);
-            if (k && (k.startsWith('aim_') || k.startsWith('coach_'))) {
+            // Consent belongs to a specific account, not the replaceable workspace cache.
+            // Account deletion removes that account's consent explicitly.
+            if (k && !k.startsWith('aim_ai_consent_v1:') && (k.startsWith('aim_') || k.startsWith('coach_'))) {
               safeStorage.removeItem(k);
             }
           }

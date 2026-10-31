@@ -32,7 +32,7 @@ test('material edits, cavity and periodic comparison recalculate real curves', a
   const original = await page.getByTestId('fibonacci-curve').getAttribute('d');
   await page.getByLabel('Material preset').selectOption('contrast');
   await expect(page.getByRole('status')).toHaveText('Settings changed. Run comparison to calculate the new spectrum.');
-  await page.getByLabel('Air cavity (nm; 0 = off)').fill('200');
+  await page.getByRole('spinbutton', { name: 'Air cavity (nm; 0 = off)', exact: true }).fill('200');
   await page.getByLabel('Compare Fibonacci with').selectOption('periodic');
   const response = page.waitForResponse(r => r.url().endsWith('/api/optics/compare') && r.request().method() === 'POST');
   await page.getByRole('button', { name: 'Run comparison' }).click();

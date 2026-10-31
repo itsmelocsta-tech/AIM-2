@@ -7,6 +7,7 @@ interface AimSpeakerButtonProps {
   onClick: () => void;
   className?: string;
   id?: string;
+  iconOnly?: boolean;
 }
 
 export const AimSpeakerButton: React.FC<AimSpeakerButtonProps> = ({
@@ -14,6 +15,7 @@ export const AimSpeakerButton: React.FC<AimSpeakerButtonProps> = ({
   onClick,
   className = '',
   id = 'aim-speaker-control-btn',
+  iconOnly = false,
 }) => {
   const getButtonConfig = () => {
     switch (state) {
@@ -69,12 +71,11 @@ export const AimSpeakerButton: React.FC<AimSpeakerButtonProps> = ({
       id={id}
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 active:scale-95 cursor-pointer select-none ${config.style} ${className}`}
+      aria-label={iconOnly ? config.label : undefined}
+      className={iconOnly ? `inline-flex items-center justify-center w-11 h-11 text-indigo-300 hover:text-indigo-100 focus-visible:outline-2 focus-visible:outline-indigo-300 ${className}` : `inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 active:scale-95 cursor-pointer select-none ${config.style} ${className}`}
       title={state === 'playing' ? 'Click to pause' : state === 'paused' ? 'Click to resume' : state === 'finished' ? 'Click to replay' : 'Click to listen'}
     >
-      {config.indicator}
-      {config.icon}
-      <span>{config.label}</span>
+      {iconOnly ? <span className="[&>svg]:w-6 [&>svg]:h-6">{config.icon}</span> : <>{config.indicator}{config.icon}<span>{config.label}</span></>}
     </button>
   );
 };

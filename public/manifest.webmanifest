@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "AIM \u2014 Before I Am",
+  "short_name": "AIM",
+  "description": "Awareness. Intention. Motion. Turn your goals and changing circumstances into a practical plan.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "/brand/aim-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/aim-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

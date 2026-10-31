@@ -5,7 +5,7 @@ import { observeAudio, audioState } from '../helpers/sound-observer.mjs';
 test.beforeEach(async ({ page }) => { await observeAudio(page); await page.goto('/qa/harness/soundscapes.html'); });
 
 test('real fractal and ambient output, volume, silence and persisted settings', async ({ page }, testInfo) => {
-  const panel = page.getByRole('region', { name: 'Fractal Soundscapes' });
+  const panel = page.getByRole('region', { name: 'Soundscapes' });
   await expect(panel.getByLabel('Sound mode')).toHaveValue('fractal');
   await expect(panel.getByLabel('Soundscape volume')).toHaveValue('25');
   await expect(panel.getByLabel('Session length')).toHaveValue('25');
@@ -34,7 +34,7 @@ test('real fractal and ambient output, volume, silence and persisted settings', 
 });
 
 test('silence, cancellation and leaving Settings invalidate pending resume', async ({ page }) => {
-  const panel = page.getByRole('region', { name: 'Fractal Soundscapes' });
+  const panel = page.getByRole('region', { name: 'Soundscapes' });
   for (const action of ['silence', 'cancel', 'unmount']) {
     await page.evaluate(() => { window.__soundQA.delayResume = true; });
     await panel.getByLabel('Sound mode').selectOption('fractal');
@@ -51,7 +51,7 @@ test('silence, cancellation and leaving Settings invalidate pending resume', asy
 });
 
 test('25 minute timer and pagehide stop output without auto-restart', async ({ page }) => {
-  const panel = page.getByRole('region', { name: 'Fractal Soundscapes' });
+  const panel = page.getByRole('region', { name: 'Soundscapes' });
   await page.clock.install();
   await panel.getByRole('button', { name: 'Play soundscape', exact: true }).click();
   await expect(panel.getByRole('status')).toHaveText('Soundscape is playing.');

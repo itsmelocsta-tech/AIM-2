@@ -39,6 +39,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["aimWebHost"] = webUri.host
+        manifestPlaceholders["aimAppLabel"] = "AIM"
         buildConfigField("String", "AIM_WEB_ORIGIN", "\"$webOrigin\"")
         buildConfigField("String", "PLAY_SUBSCRIPTION_PRODUCT_ID", "\"${launchOffer["subscriptionProductId"]}\"")
         buildConfigField("String", "PLAY_BASE_PLAN_ID", "\"${launchOffer["basePlanId"]}\"")
@@ -73,6 +74,7 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
+            manifestPlaceholders["aimAppLabel"] = "AIM Test"
             isDebuggable = true
         }
     }

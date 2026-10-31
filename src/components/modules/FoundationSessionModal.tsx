@@ -1,3 +1,4 @@
+import { VoiceInput, VoiceTextarea } from '../common/VoiceTextField';
 import React, { useState } from 'react';
 import {
   Sparkles,
@@ -106,7 +107,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">Your Name</label>
-              <input
+              <VoiceInput
                 type="text"
                 required
                 value={name || ''}
@@ -119,7 +120,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
               <label className="block text-xs font-medium text-slate-300 mb-1">
                 How much you want to earn each month ($)
               </label>
-              <input
+              <VoiceInput
                 type="number"
                 required
                 value={targetMonthlyIncome ?? 15000}
@@ -133,7 +134,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
             <label className="block text-xs font-medium text-slate-300 mb-1">
               Who do you want to become? *
             </label>
-            <input
+            <VoiceInput
               type="text"
               required
               value={desiredIdentity || ''}
@@ -147,7 +148,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
             <label className="block text-xs font-medium text-slate-300 mb-1">
               What matters most to you? *
             </label>
-            <textarea
+            <VoiceTextarea
               rows={2}
               required
               value={coreMission || ''}
@@ -161,7 +162,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
             <label className="block text-xs font-medium text-slate-300 mb-1">
               What is getting in your way right now?
             </label>
-            <textarea
+            <VoiceTextarea
               rows={2}
               value={primaryObstacle || ''}
               onChange={(e) => setPrimaryObstacle(e.target.value)}
@@ -175,7 +176,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
               <label className="block text-xs font-medium text-slate-300 mb-1">
                 Skills you could earn money from (separate with commas)
               </label>
-              <input
+              <VoiceInput
                 type="text"
                 value={topSkills || ''}
                 onChange={(e) => setTopSkills(e.target.value)}
@@ -188,7 +189,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
               <label className="block text-xs font-medium text-slate-300 mb-1">
                 Core Values (comma separated)
               </label>
-              <input
+              <VoiceInput
                 type="text"
                 value={coreValues || ''}
                 onChange={(e) => setCoreValues(e.target.value)}
@@ -202,7 +203,7 @@ export const FoundationSessionModal: React.FC<FoundationSessionModalProps> = ({
             <label className="block text-xs font-medium text-slate-300 mb-1">
               Your goal for the next three months
             </label>
-            <input
+            <VoiceInput
               type="text"
               value={ninetyDayTrajectory || ''}
               onChange={(e) => setNinetyDayTrajectory(e.target.value)}

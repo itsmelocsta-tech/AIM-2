@@ -1,3 +1,4 @@
+import { VoiceInput, VoiceTextarea } from '../common/VoiceTextField';
 import React, { useState } from 'react';
 import {
   Brain,
@@ -136,7 +137,7 @@ export const MemoryCategorizerModule: React.FC<MemoryCategorizerProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-slate-300 mb-1">Title / Key Concept *</label>
-                <input
+                <VoiceInput
                   type="text"
                   required
                   value={newTitle || ''}
@@ -164,7 +165,7 @@ export const MemoryCategorizerModule: React.FC<MemoryCategorizerProps> = ({
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">Content / Framework / Notes *</label>
-              <textarea
+              <VoiceTextarea
                 rows={4}
                 required
                 value={newContent || ''}
@@ -177,7 +178,7 @@ export const MemoryCategorizerModule: React.FC<MemoryCategorizerProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">Tags (comma separated)</label>
-                <input
+                <VoiceInput
                   type="text"
                   value={newTags || ''}
                   onChange={(e) => setNewTags(e.target.value)}
@@ -223,7 +224,7 @@ export const MemoryCategorizerModule: React.FC<MemoryCategorizerProps> = ({
       <div className="space-y-3">
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
+          <VoiceInput
             type="text"
             value={searchQuery || ''}
             onChange={(e) => setSearchQuery(e.target.value)}
