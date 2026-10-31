@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
+  page.on('pageerror', error => { throw error; });
   // Fictional recognition events only; no recording, account, or paid AI request.
   await page.route('**/api/aim/**', route => route.fulfill({ status: 503, json: { error: 'isolated voice regression' } }));
   await page.addInitScript(() => {
