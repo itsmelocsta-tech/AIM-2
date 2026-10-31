@@ -43,3 +43,10 @@ Also fixed Life Update's independently confirmed callback append: it appended ev
 Added actual onboarding and Life Update component browser harnesses. These use fictional speech/provider fixtures, not physical recording, and must not be represented as a real-device PASS.
 No screen layout, navigation, branding, or permission behavior changed. Existing Figma design context remains quota-blocked; no paid upgrade.
 The next preview is a candidate for device verification, not a verified Samsung fix. Existing duplicated saved text is user content; do not silently delete or rewrite it.
+
+## Installed Android candidate preparation — 2026-10-31
+Samsung browser microphone: user-reported PASS for web commit 9b2d4b8d17e3413a514196fbcefbdb16e58f19c0.
+Preparing a separate AIM Test debug APK pinned to that immutable web preview, rather than the older production origin. Test metadata records the native source commit, web commit, package identity and APK checksum. Signature/unit/lint/package checks must pass before handoff.
+The preview is protected. The owner enters a private access link into a debug-only native dialog; no access code is placed in source or compiled into the APK. Release launch behavior and production access protection are unchanged.
+Native installation, voice, file picker, keyboard/insets and navigation remain unverified until a physical Samsung test.
+Native background alarms remain a distinct gap: current Android manifest has neither notification nor exact-alarm permissions. Do not infer native alarm support from browser functionality.

@@ -5,6 +5,10 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.text.InputType
+import android.view.View
+import android.widget.EditText
+import androidx.appcompat.app.AlertDialog
 import android.webkit.ValueCallback
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
@@ -96,7 +100,40 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        webView.loadUrl(BuildConfig.AIM_WEB_ORIGIN)
+        if (BuildConfig.DEBUG) showTestAccessDialog()
+        else webView.loadUrl(BuildConfig.AIM_WEB_ORIGIN)
+    }
+
+    // Debug builds only: the owner supplies the private access link at runtime.
+    // Never compile a share code, owner credential, or protection bypass into an APK.
+    private fun showTestAccessDialog() {
+        val input = EditText(this).apply {
+            hint = "Paste your AIM test link"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            setSingleLine(true)
+            isSaveEnabled = false
+            importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Open AIM Test")
+            .setMessage("Paste the private test link provided with this build. The link is not saved by this test screen.")
+            .setView(input)
+            .setPositiveButton("Open AIM", null)
+            .setNegativeButton("Cancel") { _, _ -> finish() }
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val link = input.text.toString().trim()
+                if (TestAccessLink.matches(link, BuildConfig.AIM_WEB_ORIGIN)) {
+                    webView.loadUrl(link)
+                    input.text.clear()
+                    dialog.dismiss()
+                } else {
+                    input.error = "Use the AIM test link provided with this build."
+                }
+            }
+        }
+        dialog.show()
     }
 
     override fun onPause() {

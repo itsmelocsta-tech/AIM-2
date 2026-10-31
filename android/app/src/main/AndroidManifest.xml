@@ -10,7 +10,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="AIM"
+        android:label="${aimAppLabel}"
         android:icon="@drawable/aim_icon"
         android:roundIcon="@drawable/aim_icon"
         android:supportsRtl="true"
