@@ -114,3 +114,21 @@ test('unsupported browser keeps microphone visible and typing available', async 
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByLabel('Saved captures')).toHaveText('["Typed fallback"]');
 });
+
+test('Android cumulative speech and overlapping restart results do not echo', async ({ page }) => {
+  await mic(page).click();
+  await page.evaluate(() => window.emitSpeech('right now I am testing', true));
+  await page.evaluate(() => window.recognizers.at(-1).onend());
+  await expect.poll(() => page.evaluate(() => window.recognizers.at(-1).starts)).toBe(2);
+  await page.evaluate(() => window.emitSpeech('right now I am testing the microphone', false));
+  await expect(note(page)).toHaveValue('right now I am testing the microphone');
+  await page.evaluate(() => window.emitSpeech('right now I am testing the microphone', true));
+  await expect(note(page)).toHaveValue('right now I am testing the microphone');
+  await page.evaluate(() => window.recognizers.at(-1).onend());
+  await expect.poll(() => page.evaluate(() => window.recognizers.at(-1).starts)).toBe(3);
+  await page.evaluate(() => window.emitSpeech('the microphone works', true));
+  await expect(note(page)).toHaveValue('right now I am testing the microphone works');
+  await page.getByRole('button', { name: /Stop dictation for Capture/ }).click();
+  await page.evaluate(() => window.emitSpeech('late repeated words', true));
+  await expect(note(page)).toHaveValue('right now I am testing the microphone works');
+});

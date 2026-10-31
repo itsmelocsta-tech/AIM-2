@@ -174,7 +174,7 @@ export class VoiceEngine {
     const left = previous.trim(), right = incoming.trim();
     if (!left) return right;
     if (!right) return left;
-    const a = left.split(/\\s+/), b = right.split(/\\s+/);
+    const a = left.split(/\s+/), b = right.split(/\s+/);
     let overlap = 0;
     for (let n = Math.min(a.length, b.length); n > 0; n--) {
       if (a.slice(-n).join(' ').toLowerCase() === b.slice(0, n).join(' ').toLowerCase()) { overlap = n; break; }
