@@ -123,8 +123,7 @@ export class VoiceEngine {
             else interim += phrase;
           }
           this.currentRecognitionSessionText = [finalized.trim(), interim.trim()].filter(Boolean).join(' ');
-          const transcript = [this.recognitionFinalText, finalized.trim(), interim.trim()]
-            .filter(Boolean).join(' ').trim();
+          const transcript = this.appendRecognitionText(this.recognitionFinalText, this.currentRecognitionSessionText);
           if (transcript) this.onResultCallback?.(transcript);
           this.setVoiceState('listening');
         };
@@ -134,7 +133,7 @@ export class VoiceEngine {
             // Preserve the last visible words, including interim speech if a mobile
             // browser ends without a final event, before restarting after silence.
             if (this.currentRecognitionSessionText) {
-              this.recognitionFinalText = [this.recognitionFinalText, this.currentRecognitionSessionText].filter(Boolean).join(' ');
+              this.recognitionFinalText = this.appendRecognitionText(this.recognitionFinalText, this.currentRecognitionSessionText);
               this.currentRecognitionSessionText = '';
             }
             this.recognitionRestartTimer = setTimeout(() => {
@@ -167,6 +166,20 @@ export class VoiceEngine {
         };
       }
     }
+  }
+
+  // Android may replay the previous phrase when speech recognition restarts.
+  // Remove only the overlapping boundary, not repeated words elsewhere.
+  private appendRecognitionText(previous: string, incoming: string): string {
+    const left = previous.trim(), right = incoming.trim();
+    if (!left) return right;
+    if (!right) return left;
+    const a = left.split(/\\s+/), b = right.split(/\\s+/);
+    let overlap = 0;
+    for (let n = Math.min(a.length, b.length); n > 0; n--) {
+      if (a.slice(-n).join(' ').toLowerCase() === b.slice(0, n).join(' ').toLowerCase()) { overlap = n; break; }
+    }
+    return [left, ...b.slice(overlap)].join(' ').trim();
   }
 
   private loadPreferences(): void {
