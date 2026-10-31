@@ -105,3 +105,27 @@ it('hands microphone ownership to another field and reports denied permission', 
   expect(error).toHaveBeenCalledWith(expect.stringContaining('Allow microphone access'));
   first.stopListening(); second.stopListening();
 });
+
+it('does not duplicate Android speech replayed after silence restart', async () => {
+  vi.useFakeTimers();
+  const instances: any[] = [];
+  vi.stubGlobal('window', { SpeechRecognition: class {
+    onstart: any; onend: any; onresult: any; start = vi.fn(); stop = vi.fn();
+    constructor() { instances.push(this); }
+  } });
+  const engine = new VoiceEngine(), result = vi.fn();
+  const emit = (text: string, final = true) => {
+    const segment: any = [{ transcript: text }]; segment.isFinal = final;
+    instances[0].onresult({ results: [segment] });
+  };
+  try {
+    engine.startListening(result);
+    emit('right now I am testing');
+    instances[0].onend(); await vi.advanceTimersByTimeAsync(250);
+    emit('right now I am testing the microphone');
+    expect(result).toHaveBeenLastCalledWith('right now I am testing the microphone');
+    instances[0].onend(); await vi.advanceTimersByTimeAsync(250);
+    emit('the microphone works');
+    expect(result).toHaveBeenLastCalledWith('right now I am testing the microphone works');
+  } finally { engine.stopListening(); vi.useRealTimers(); }
+});
