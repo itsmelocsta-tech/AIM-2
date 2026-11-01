@@ -22,7 +22,7 @@ export const FirstRunGuide: React.FC<FirstRunGuideProps> = ({ step, profile, dai
       message: profile.desiredIdentity
         ? `You said you want to become: ${profile.desiredIdentity}`
         : 'We can build from what you shared, one step at a time.',
-      detail: firstTask ? `A first step for today: ${firstTask}` : 'Next, we’ll look at your plan for today.',
+      detail: null,
       action: 'Show me today’s plan',
     },
     planner: {
@@ -54,7 +54,7 @@ export const FirstRunGuide: React.FC<FirstRunGuideProps> = ({ step, profile, dai
       </div>
       <h1 id="aim-first-run-heading" className="text-xl sm:text-2xl font-bold text-white">{content.heading}</h1>
       <p className="mt-3 text-sm sm:text-base leading-relaxed text-slate-200 break-words">{content.message}</p>
-      <p className="mt-2 text-sm text-slate-400 break-words">{content.detail}</p>
+      {content.detail && <p className="mt-2 text-sm text-slate-400 break-words">{content.detail}</p>}
       <button
         id={`aim-first-run-next-${step}`}
         type="button"

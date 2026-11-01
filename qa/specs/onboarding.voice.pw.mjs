@@ -141,3 +141,17 @@ test('page three uses goal copy and icons; Back preserves drafts and stops dicta
   await page.locator('#aim-back-to-changes').click();
   await expect(page.locator('#aim-changes-wanted-textarea')).toHaveValue('My change');
 });
+
+
+test('starting-point intro stays brief and opens the next guide step', async ({ page }, testInfo) => {
+  await page.goto('/qa/onboarding-voice-harness/?guide');
+  await expect(page.getByRole('heading', { name: 'Your starting point is ready.', exact: true })).toBeVisible();
+  await expect(page.getByText('You said you want to become: An artist with a finished book', { exact: true })).toBeVisible();
+  await expect(page.getByText(/A first step for today:/)).toHaveCount(0);
+  const next = page.getByRole('button', { name: 'Show me today’s plan', exact: true });
+  await expect(next).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('approved-brief-starting-point.png'), fullPage: true });
+  await next.click();
+  await expect(page.getByRole('heading', { name: 'Here’s your plan for today.', exact: true })).toBeVisible();
+  await expect(page.getByText('You can change a task here as your day changes.', { exact: true })).toBeVisible();
+});

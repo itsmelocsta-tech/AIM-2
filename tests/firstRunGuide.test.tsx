@@ -35,7 +35,7 @@ describe('guided first run', () => {
     const checkIn = renderToStaticMarkup(<FirstRunGuide step="check-in" profile={profile} dailyPlan={plan} onNext={() => {}} />);
 
     expect(intro).toContain('A certified technician');
-    expect(intro).toContain('Call the training center');
+    expect(intro).not.toContain('Call the training center');
     expect(intro).toContain('Getting started · 1 of 3');
     expect(planner).toContain('Call the training center');
     expect(planner).toContain('Getting started · 2 of 3');
