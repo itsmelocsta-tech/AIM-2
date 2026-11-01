@@ -8,4 +8,4 @@ Page 2: heading “What do you want to change?”; no subtitle; answer-card labe
 
 Back must return to the prior question and preserve every draft even if voice cleanup throws. Cleanup failure regression uses an isolated test harness; it is not evidence of the exact owner-device cause. Physical Chromebook retest remains unknown.
 
-Page 3 is presented for the next design review; its copy is not approved for replacement yet. This record does not authorize a production promotion or store submission.
+Page 3: heading “What’s your goal in the end?”; preserve the explanatory paragraph below it. Use the same microphone/speaker icons without visible pill boxes/text as page 2, with accessible names and 44px targets. Preserve the answer box, placeholder, helper and plan-building action. Back to What You Want to Change returns to page 2, keeps both answers and stops active dictation; late recognition events must not overwrite the previous answer. Owner approved these specific changes in the continuing page-by-page review. Physical-device verification and store submission readiness remain separate.

@@ -78,7 +78,7 @@ const STEP_2_GUIDANCE =
   "And what would you like to change about your situation?";
 
 const STEP_3_GUIDANCE =
-  "And where do you want to be, or who do you want to be when this is all said and done?";
+  "What’s your goal in the end?";
 
 export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> = ({
   userId,
@@ -718,7 +718,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             {isChangeQuestion ? 'Step 2 of 3 · What you want to change' : 'Step 3 of 3 · Where you want to be'}
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            {isChangeQuestion ? 'What do you want to change?' : 'Who do you want to be when this is all said and done?'}
+            {isChangeQuestion ? 'What do you want to change?' : 'What’s your goal in the end?'}
           </h1>
           {!isChangeQuestion && <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed">
             Describe the life you’re working toward: money, relationships, health, or anything else that matters to you.
@@ -766,17 +766,14 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             aria-label={isListening ? 'Listening… dictating live' : 'Dictate with Voice'}
             aria-pressed={isListening}
             title={isListening ? 'Stop dictation' : 'Dictate with Voice'}
-            className={isChangeQuestion
-              ? 'inline-flex items-center justify-center w-11 h-11 text-emerald-400 hover:text-emerald-200 focus-visible:outline-2 focus-visible:outline-emerald-300'
-              : `inline-flex items-center gap-2 px-4 min-h-11 py-2 rounded-full text-xs font-medium border cursor-pointer ${micState.colorClass}`}
+            className="inline-flex items-center justify-center w-11 h-11 text-emerald-400 hover:text-emerald-200 focus-visible:outline-2 focus-visible:outline-emerald-300"
           >
-            {!isChangeQuestion && <span>{isListening ? 'Listening… dictating live' : 'Dictate with Voice'}</span>}
-            {isListening ? <MicOff className={isChangeQuestion ? 'w-6 h-6' : 'w-3.5 h-3.5'} /> : <Mic className={isChangeQuestion ? 'w-6 h-6' : 'w-3.5 h-3.5'} />}
+            {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
           </button>
 
           <AimSpeakerButton
             id={isChangeQuestion ? 'aim-step-2-speaker-btn' : 'aim-step-3-speaker-btn'}
-            iconOnly={isChangeQuestion}
+            iconOnly
             className="min-h-11"
             state={speakerState}
             onClick={onSpeakerClick}

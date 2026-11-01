@@ -111,3 +111,33 @@ test('approved brief copy, icon controls, and Back survives audio cleanup failur
   await page.locator('#aim-back-to-current-state').click();
   await expect(page.locator('#aim-current-state-textarea')).toHaveValue('My saved situation');
 });
+
+
+test('page three uses goal copy and icons; Back preserves drafts and stops dictation', async ({ page }, testInfo) => {
+  await page.goto('/qa/onboarding-voice-harness/');
+  await page.locator('#aim-current-state-textarea').fill('My situation');
+  await page.getByRole('button', { name: 'Next: What you want to change' }).click();
+  await page.locator('#aim-changes-wanted-textarea').fill('My change');
+  await page.getByRole('button', { name: 'Next: Who you want to be' }).click();
+  await expect(page.getByRole('heading', { name: 'What’s your goal in the end?', exact: true })).toBeVisible();
+  await expect(page.getByText('Describe the life you’re working toward: money, relationships, health, or anything else that matters to you.', { exact: true })).toBeVisible();
+  const controls = page.getByTestId('answer-voice-controls');
+  await expect(controls).toHaveText('');
+  await expect(controls.getByRole('button')).toHaveCount(2);
+  const goal = page.locator('#aim-desired-state-textarea');
+  await goal.fill('My goal');
+  await controls.getByRole('button', { name: 'Dictate with Voice', exact: true }).click();
+  await page.evaluate(() => window.emitResultList([['is achievable', false]]));
+  await expect(goal).toHaveValue('My goal is achievable');
+  await page.locator('#aim-back-to-changes').click();
+  await expect(page.locator('#aim-changes-wanted-textarea')).toHaveValue('My change');
+  await page.evaluate(() => window.emitResultList([['late wrong-field result', true]]));
+  await expect(page.locator('#aim-changes-wanted-textarea')).toHaveValue('My change');
+  await page.getByRole('button', { name: 'Next: Who you want to be' }).click();
+  await expect(goal).toHaveValue('My goal is achievable');
+  await expect(page.getByRole('button', { name: 'Build my starting plan', exact: true })).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath('approved-page-3.png'), fullPage: true });
+  await page.evaluate(() => window.failVoiceCleanup());
+  await page.locator('#aim-back-to-changes').click();
+  await expect(page.locator('#aim-changes-wanted-textarea')).toHaveValue('My change');
+});
