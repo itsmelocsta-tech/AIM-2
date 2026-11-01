@@ -92,7 +92,7 @@ describe('onboarding draft isolation', () => {
     const final = renderOnboarding('new-draft');
     expect(final).toContain('aim-onboarding-step-3');
     expect(final).toContain('aim-desired-state-textarea');
-    expect(final).toContain('Who do you want to be');
+    expect(final).toContain('What’s your goal in the end?');
   });
 
   it('resumes the current account without exposing the previous account’s answers', () => {
