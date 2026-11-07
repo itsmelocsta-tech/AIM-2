@@ -53,3 +53,28 @@ test('deployed API is healthy and rejects unauthenticated Premium operations', a
     expect(response.status(), `${route} must require Firebase authentication`).toBe(401);
   }
 });
+
+for (const [name, viewport] of [['phone', { width: 390, height: 844 }], ['desktop', { width: 1366, height: 768 }]]) {
+  test(`duplicate-email signup gives usable recovery on ${name}`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    // Exercise the actual Firebase client and auth UI with an isolated server
+    // error; do not create an account or disclose whether a real email exists.
+    await page.route('https://identitytoolkit.googleapis.com/v1/accounts:signUp*', route => route.fulfill({
+      status: 400,
+      json: { error: { code: 400, message: 'EMAIL_EXISTS', errors: [{ message: 'EMAIL_EXISTS', domain: 'global', reason: 'invalid' }] } },
+    }));
+    await requireAim(page);
+    await page.getByRole('button', { name: 'Get started', exact: true }).click();
+    await page.getByRole('button', { name: 'Create Account', exact: true }).click();
+    await page.locator('input[type="email"]').fill('fictional-duplicate@example.com');
+    await page.locator('input[type="password"]').fill('Fictional-test-only-9!');
+    await page.getByRole('button', { name: 'Create Isolated Account', exact: true }).click();
+    const error = page.getByText('This email already has an AIM account. Choose Sign In to continue.', { exact: true });
+    await expect(error).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await testInfo.attach(`signup-recovery-${name}`, { body: await error.screenshot(), contentType: 'image/png' });
+    await page.getByRole('button', { name: 'Sign In', exact: true }).first().click();
+    await expect(page.locator('input[type="email"]')).toHaveValue('fictional-duplicate@example.com');
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true }).last()).toBeEnabled();
+  });
+}
