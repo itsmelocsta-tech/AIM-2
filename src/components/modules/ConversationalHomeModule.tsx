@@ -339,6 +339,10 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             voiceReplySubmittedRef.current = true;
             void handleProcessActiveOSInput(activeVoiceTranscriptRef.current.trim());
           }
+        },
+        (message) => {
+          setErrorMessage(message);
+          setIsListening(false);
         }
       );
 
