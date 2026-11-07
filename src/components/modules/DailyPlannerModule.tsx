@@ -517,10 +517,10 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Zap className="w-4 h-4 text-emerald-400" />
-                  <span>What matters most today</span>
+                  <span>Here’s what we’re doing today</span>
                 </h3>
                 <span className="text-xs text-emerald-400 font-semibold">
-                  {completedTasksCount} / {dailyPlan.priorityTasks.length} Done
+                  {completedTasksCount} of {dailyPlan.priorityTasks.length} finished
                 </span>
               </div>
 
@@ -545,17 +545,16 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
                         : `bg-slate-950 border-slate-800 hover:border-indigo-500/50 ${finisherTask?.id === t.id ? 'ring-1 ring-emerald-500/50' : ''}`
                     }`}
                   >
-                    <div className="mt-0.5">
-                      <CheckCircle2
-                        className={`w-4 h-4 ${t.completed ? 'text-emerald-400' : 'text-slate-600'}`}
-                      />
+                    <div className={`mt-0.5 shrink-0 rounded-lg border px-2.5 py-2 flex items-center gap-1.5 text-xs font-semibold ${t.completed ? 'border-emerald-600 text-emerald-300' : 'border-slate-600 text-white'}`}>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{t.completed ? 'Done' : 'Mark done'}</span>
                     </div>
                     <div className="flex-1 text-xs">
                       <div className={`font-semibold ${t.completed ? 'line-through text-slate-400' : 'text-white'}`}>
                         {t.task}
-                        {finisherTask?.id === t.id && <span className="ml-2 text-[10px] text-emerald-300">Next to finish</span>}
+                        {finisherTask?.id === t.id && <span className="block mt-1 text-xs text-emerald-300">Start here. One step at a time.</span>}
                       </div>
-                      <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-400">
+                      <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-400 flex-wrap">
                         <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
                           {t.category}
                         </span>
