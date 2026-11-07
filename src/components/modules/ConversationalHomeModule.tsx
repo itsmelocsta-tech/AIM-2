@@ -147,6 +147,8 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [liveTranscript, setLiveTranscript] = useState('');
   const voiceDraftBaseRef = useRef('');
+  const activeVoiceTranscriptRef = useRef('');
+  const voiceReplySubmittedRef = useRef(false);
   const [isVoiceMuted, setIsVoiceMuted] = useState(false);
 
   // Speaker Button States for the three onboarding questions
@@ -301,7 +303,13 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     if (isListening) {
       voiceEngine.stopListening();
       setIsListening(false);
+      if (currentStep === 'active_os' && !voiceReplySubmittedRef.current && activeVoiceTranscriptRef.current.trim()) {
+        voiceReplySubmittedRef.current = true;
+        void handleProcessActiveOSInput(activeVoiceTranscriptRef.current.trim());
+      }
     } else {
+      activeVoiceTranscriptRef.current = '';
+      voiceReplySubmittedRef.current = false;
       setLiveTranscript('');
       voiceDraftBaseRef.current = currentStep === 'tell_about_yourself' ? currentStateText.trim() :
         currentStep === 'what_would_you_change' ? changesWantedText.trim() :
@@ -310,6 +318,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       const started = voiceEngine.startListening(
         (text) => {
           setLiveTranscript(text);
+          if (currentStep === 'active_os') activeVoiceTranscriptRef.current = text;
 
           // Interim results replace the current utterance instead of repeating it.
           const answer = [voiceDraftBaseRef.current, text].filter(Boolean).join(' ');
@@ -326,13 +335,9 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         },
         (listening) => {
           setIsListening(listening);
-          if (!listening) {
-            setLiveTranscript((currentTranscript) => {
-              if (currentStep === 'active_os' && currentTranscript.trim()) {
-                handleProcessActiveOSInput(currentTranscript.trim());
-              }
-              return currentTranscript;
-            });
+          if (!listening && currentStep === 'active_os' && !voiceReplySubmittedRef.current && activeVoiceTranscriptRef.current.trim()) {
+            voiceReplySubmittedRef.current = true;
+            void handleProcessActiveOSInput(activeVoiceTranscriptRef.current.trim());
           }
         }
       );
@@ -562,7 +567,8 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         userProfile,
       });
 
-      const aimReply = response.reply || 'I am with you. Let us take this one step at a time.';
+      const aimReply = response.reply;
+      if (!aimReply?.trim()) throw new Error('AIM returned an empty reply');
 
       const aimMessage: ChatMessage = {
         id: 'msg-aim-' + Date.now(),
@@ -581,7 +587,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
         });
       }
     } catch (err) {
-      setErrorMessage('I didn’t catch that. Try again.');
+      setErrorMessage('I’m having trouble responding right now. Your message is still here. Please try again.');
       setIsSpeaking(false);
     } finally {
       setIsThinking(false);
@@ -1131,7 +1137,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
             How do you want today to go?
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 font-normal">
-            Talk to AIM about what’s on your mind.
+            Tell me what’s going on. I’m here with you.
           </p>
         </div>
 
@@ -1152,7 +1158,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
                 <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1.5 font-medium">
                   <span className="flex items-center gap-1.5 text-indigo-300">
                     <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>AIM Reflection</span>
+                    <span>AIM</span>
                   </span>
                   <button
                     onClick={() => {
@@ -1193,7 +1199,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               {isListening ? (
                 <>
                   <MicOff className="w-4 h-4" />
-                  <span>Stop Listening</span>
+                  <span>Finish speaking</span>
                 </>
               ) : (
                 <>
@@ -1209,7 +1215,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               className="w-full sm:w-auto px-5 py-3 rounded-2xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-all flex items-center justify-center gap-2"
             >
               <Keyboard className="w-4 h-4 text-slate-400" />
-              <span>Type instead</span>
+              <span>Write to AIM</span>
             </button>
 
             <button
@@ -1218,7 +1224,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               className="w-full sm:w-auto px-5 py-3 rounded-2xl text-xs font-medium text-indigo-300 hover:text-white bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-800/60 transition-all flex items-center justify-center gap-2"
             >
               <RefreshCw className="w-4 h-4 text-indigo-400" />
-              <span>What changed?</span>
+              <span>Update my situation</span>
             </button>
           </div>
         ) : (
@@ -1266,9 +1272,7 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               onClick={() => setIsLearnedDrawerOpen(!isLearnedDrawerOpen)}
               className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors py-1 px-3 rounded-full hover:bg-slate-900"
             >
-              <span>
-                AIM has organized {memories.length + goals.length + dailyPlan.priorityTasks.length + wellnessLogs.length} items for you
-              </span>
+              <span>See my plan and progress</span>
               {isLearnedDrawerOpen ? (
                 <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
               ) : (
