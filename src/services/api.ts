@@ -100,9 +100,7 @@ export const api = {
     } catch (error) {
       if (error instanceof AuthenticationError) throw error;
       console.error('API chatWithAIM error:', error);
-      return {
-        reply: `AIM thinking partner note: ${params.message}. Let's break this down into clear action steps and momentum for today.`,
-      };
+      throw error;
     }
   },
 
@@ -172,8 +170,8 @@ export const api = {
       return await response.json();
     } catch (error) {
       if (error instanceof AuthenticationError) throw error;
-      console.warn('API generateDailyPlan fallback engaged:', error);
-      return { source: 'fallback' };
+      console.warn('API generateDailyPlan unavailable:', error);
+      throw error;
     }
   },
 
