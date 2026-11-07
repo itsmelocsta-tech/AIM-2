@@ -3,7 +3,7 @@ export type Specialist = 'planner' | 'wellness' | 'finance' | 'relationships' | 
 const rules: Record<Specialist, RegExp> = {
   planner: /\b(schedule|calendar|remind|deadline|appointment|plan my day|to.do list|prioriti[sz]e)\b/i,
   wellness: /\b(sleep|stress|anxious|exercise|workout|nutrition|burnout|exhausted)\b/i,
-  finance: /\b(budget|bill|debt|income|money|job|employment|rent|savings)\b/i,
+  finance: /\b(budget|bills?|debt|income|money|job|employment|rent|savings)\b/i,
   relationships: /\b(partner|relationship|argument|friendship|family conflict|boundar(?:y|ies))\b/i,
   growth: /\b(procrastinat|habit|motivat|confidence|self.improv|personal growth)\b/i,
 };
