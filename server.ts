@@ -297,16 +297,7 @@ app.post('/api/aim/chat', async (req: Request, res: Response) => {
       currentSchedule,
     });
 
-    if (!ai) {
-      return res.json({
-        reply: `I hear you clearly on "${message}". Looking at your focus for today, your primary next priority is: ${coachContext.priorityAssessment.immediateActionForNow}. How can we make tangible progress on this right now?`,
-        extractedCategory: contextCategory || 'General Guidance',
-        suggestedActions: [
-          { title: 'Define immediate next milestone', type: 'task' },
-          { title: 'Log key insight in AIM memory', type: 'memory' }
-        ]
-      });
-    }
+    if (!ai) return res.status(503).json({ error: 'AIM AI is not configured. Please try again later.', code: 'AI_UNAVAILABLE' });
 
     const systemPrompt = `${AIM_SYSTEM_INSTRUCTION}
 
@@ -339,22 +330,16 @@ Remember: Give a real, genuine, articulate, empathetic answer specifically addre
       }
     });
 
-    const replyText = response.text || `I hear you clearly on "${message}". Let's align on your next practical step.`;
+    const replyText = response.text?.trim();
+    if (!replyText) throw new Error('AI_EMPTY_RESPONSE');
 
     res.json({
       reply: replyText,
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    console.warn('Chat endpoint resilient fallback:', error?.message);
-    res.json({
-      reply: `I heard you clearly: "${message}". Let's keep your focus anchored and take the next practical step toward your goals today.`,
-      extractedCategory: contextCategory || 'General Guidance',
-      timestamp: new Date().toISOString(),
-      suggestedActions: [
-        { title: 'Focus on primary today priority', type: 'task' }
-      ]
-    });
+    console.warn('Chat generation unavailable:', error?.message);
+    res.status(503).json({ error: 'AIM could not generate a response right now. Please retry.', code: 'AI_UNAVAILABLE' });
   }
 });
 
@@ -447,7 +432,7 @@ app.post('/api/aim/plan', async (req: Request, res: Response) => {
     dayNotes,
   });
 
-  const fallbackPlan = { source: 'fallback' };
+  
 
   try {
     const ai = getGenAI();
@@ -488,7 +473,7 @@ Return JSON with:
 }`;
 
     if (!ai) {
-      return res.json(fallbackPlan);
+      return res.status(503).json({ error: 'AIM AI is not configured. Please try again later.', code: 'AI_UNAVAILABLE' });
     }
 
     const response = await generateWithFallback(ai, {
@@ -500,10 +485,11 @@ Return JSON with:
     });
 
     const parsed = JSON.parse(response.text || '{}');
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray(isMorning ? parsed.topThreePriorityTasks : parsed.winsAcknowledged) || !Array.isArray(isMorning ? parsed.timeBlocks : parsed.adjustmentsForTomorrow)) throw new Error('AI_INVALID_PLAN_SCHEMA');
     res.json(parsed);
   } catch (error: any) {
-    console.warn('Planner endpoint resilient fallback:', error?.message);
-    res.json(fallbackPlan);
+    console.warn('Planner generation unavailable:', error?.message);
+    res.status(503).json({ error: 'AIM could not generate your plan right now. Please retry.', code: 'AI_UNAVAILABLE' });
   }
 });
 
