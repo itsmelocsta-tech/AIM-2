@@ -14,6 +14,7 @@ import { requireAuth } from './server/firebaseAdmin';
 import { readEntitlement, requirePremium } from './server/entitlementService';
 import { compareCrystalLayers } from './server/crystalOptics';
 import { generateWithFallback } from './server/generateWithFallback';
+import { specialistInstruction } from './server/specialistRouter';
 import { deleteAccount } from './server/accountDeletion';
 import { reportAiContent } from './server/aiContentReports';
 import {
@@ -314,6 +315,7 @@ ${userSavedContext}
 ==============================================
 
 Current Focus Category: ${contextCategory || 'General Guidance'}
+${specialistInstruction(message)}
 ${coachContext.systemPromptAddendum}
 
 Remember: Give a real, genuine, articulate, empathetic answer specifically addressing what the user said in light of their saved information above. DO NOT give generic quotes.`;
