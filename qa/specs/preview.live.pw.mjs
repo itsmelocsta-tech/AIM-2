@@ -73,8 +73,9 @@ for (const [name, viewport] of [['phone', { width: 390, height: 844 }], ['deskto
     await expect(error).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     await testInfo.attach(`signup-recovery-${name}`, { body: await error.screenshot(), contentType: 'image/png' });
-    await page.getByRole('button', { name: 'Sign In', exact: true }).first().click();
+    const accountWindow = page.locator('.max-w-md').filter({ has: page.getByRole('heading', { name: 'AIM Account & Security', exact: true }) });
+    await accountWindow.getByRole('button', { name: 'Sign In', exact: true }).first().click();
     await expect(page.locator('input[type="email"]')).toHaveValue('fictional-duplicate@example.com');
-    await expect(page.getByRole('button', { name: 'Sign In', exact: true }).last()).toBeEnabled();
+    await expect(accountWindow.getByRole('button', { name: 'Sign In', exact: true }).last()).toBeEnabled();
   });
 }
