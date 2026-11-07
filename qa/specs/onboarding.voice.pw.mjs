@@ -24,7 +24,7 @@ for (const final of [false, true]) {
     await page.goto('/qa/onboarding-voice-harness/');
     const answer = page.locator('#aim-current-state-textarea');
     await answer.fill('My situation:');
-    await page.getByRole('button', { name: 'Dictate with Voice', exact: true }).click();
+    await page.getByRole('button', { name: 'Start dictation', exact: true }).click();
     const fragments = ["I'm", "I'm testing", "I'm testing the", "I'm testing the mic", "I'm testing the mic to see"];
     for (let n = 1; n <= fragments.length; n++) {
       await page.evaluate(({ fragments, n, final }) => window.emitResultList(fragments.slice(0, n).map(text => [text, final]), n - 1), { fragments, n, final });
@@ -38,7 +38,7 @@ for (const final of [false, true]) {
     await expect.poll(() => page.evaluate(() => window.recognizers[0].starts)).toBe(2);
     await page.evaluate(() => window.emitResultList([["I'm testing the mic to see if it repeats", true], ['without an echo', false]]));
     await expect(answer).toHaveValue("My situation: I'm testing the mic to see if it repeats without an echo");
-    await page.getByRole('button', { name: /Listening.*dictating live/ }).click();
+    await page.getByRole('button', { name: 'Stop dictation', exact: true }).click();
     await page.evaluate(() => window.emitResultList([['late duplicate', true]]));
     await expect(answer).toHaveValue("My situation: I'm testing the mic to see if it repeats without an echo");
     await answer.fill('My corrected answer, reviewed before continuing.');
@@ -154,4 +154,40 @@ test('starting-point intro stays brief and opens the next guide step', async ({ 
   await next.click();
   await expect(page.getByRole('heading', { name: 'Here’s your plan for today.', exact: true })).toBeVisible();
   await expect(page.getByText('You can change a task here as your day changes.', { exact: true })).toBeVisible();
+});
+
+
+test('page-one mic and speaker stay icon-only in the bottom-right answer corner', async ({ page }, testInfo) => {
+  await page.goto('/qa/onboarding-voice-harness/');
+  const answer = page.locator('#aim-current-state-textarea');
+  const card = answer.locator('..');
+  const controls = page.getByTestId('current-state-voice-controls');
+  await expect(controls).toHaveText('');
+  await expect(controls.getByRole('button')).toHaveCount(2);
+  const mic = controls.getByRole('button', { name: 'Start dictation', exact: true });
+  await expect(mic).toHaveAttribute('aria-pressed', 'false');
+  await expect(controls.getByRole('button', { name: 'Listen', exact: true })).toBeVisible();
+  const cardBox = await card.boundingBox();
+  const controlsBox = await controls.boundingBox();
+  expect(cardBox.x + cardBox.width - controlsBox.x - controlsBox.width).toBeGreaterThanOrEqual(0);
+  expect(cardBox.x + cardBox.width - controlsBox.x - controlsBox.width).toBeLessThanOrEqual(20);
+  expect(cardBox.y + cardBox.height - controlsBox.y - controlsBox.height).toBeGreaterThanOrEqual(0);
+  expect(cardBox.y + cardBox.height - controlsBox.y - controlsBox.height).toBeLessThanOrEqual(20);
+  for (const button of await controls.getByRole('button').all()) {
+    const box = await button.boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+  expect(await answer.evaluate(el => parseFloat(getComputedStyle(el).paddingBottom))).toBeGreaterThanOrEqual(controlsBox.height + 12);
+  await answer.fill('My editable answer');
+  await mic.click();
+  await expect(controls.getByRole('button', { name: 'Stop dictation', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.evaluate(() => window.emitResultList([['stays here', false]]));
+  await expect(answer).toHaveValue('My editable answer stays here');
+  await controls.getByRole('button', { name: 'Stop dictation', exact: true }).click();
+  await expect(mic).toHaveAttribute('aria-pressed', 'false');
+  await page.evaluate(() => window.emitResultList([['late unwanted text', true]]));
+  await expect(answer).toHaveValue('My editable answer stays here');
+  await expect(controls).toHaveText('');
+  await page.screenshot({ path: testInfo.outputPath('page-one-answer-voice-controls.png'), fullPage: true });
 });
