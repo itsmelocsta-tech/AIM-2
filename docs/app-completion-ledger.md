@@ -3,7 +3,7 @@
 ## Example request and scope
 “Check AIM: Before I Am for web and Google Play testing, preserve approved wording and microphone placement, fix confirmed release blockers where possible, and distinguish Android from iOS submission readiness. Keep spending and billing disabled.”
 
-This review inspects main at c8856a58a3eb339164964e536dd9e18fb543513b (merged PR #42). Historical entries below do not establish current readiness. Documentation-only update: no screen, provider, payment or native identity changes.
+This review inspects main at c8856a58a3eb339164964e536dd9e18fb543513b (merged PR #42). Historical entries below do not establish current readiness. Evidence and regression-test update: no screen, provider, payment or native identity changes.
 
 ## Current evidence
 - Main Quality Gate verified successful: https://github.com/itsmelocsta-tech/AIM-2/actions/runs/42406365672 . Inspected job steps and logs: TypeScript, 187 tests across 36 files, production build and release-output check passed.
@@ -43,7 +43,7 @@ Unknown is recorded explicitly within blocked/not-started rows; it never counts 
 - Health-account classification, Data safety/App Privacy, content rights, age rating, export compliance, provider retention and factual legal declarations remain unverified; do not invent answers or treat this discovery as complete console clearance.
 
 ## Work completed and remaining
-Recovered current source and release records; verified current build evidence and deployment identity; diagnosed skipped live checks; corrected stale readiness reporting while retaining history. New branch verification is tracked in its PR; never count running checks as passed.
+Recovered current source and release records; verified current build evidence and deployment identity; diagnosed skipped live checks; corrected stale readiness reporting while retaining history. Fixed the first-page Samsung regression's stale accessible-name selectors (Start/Stop dictation); other pages retain their existing names. Added phone/desktop assertions for two icon-only 44px controls inside the answer corner, reserved text padding, idle/active state and rejection of late speech after Stop. Application behavior is unchanged. New branch verification is tracked in PR #43; never count running checks as passed.
 No billing, paid generation, key replacement, production promotion or store submission performed.
 Product: partially verified. Android: not submission-ready. iOS: not implemented. Actual store submission/approval: unverified.
 Resume with exact-source live browser verification before repinning the Android tester. Continue code work only from confirmed failures and preserve approved product behavior.
