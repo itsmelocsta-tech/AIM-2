@@ -23,6 +23,20 @@ describe('guided first run', () => {
     expect(html).not.toContain('Today (Life OS)');
   });
 
+  it('puts icon-only microphone and speaker controls inside the first answer box', () => {
+    const html = renderOnboarding('voice-control-layout-user');
+    expect(html).toContain('data-testid="current-state-voice-controls"');
+    expect(html).toContain('aria-label="Start dictation"');
+    expect(html).toContain('aim-step-1-speaker-btn');
+    expect(html).not.toContain('Dictate with Voice');
+    const textareaAt = html.indexOf('id="aim-current-state-textarea"');
+    const controlsAt = html.indexOf('data-testid="current-state-voice-controls"');
+    const nextAt = html.indexOf('id="submit-step-1-btn"');
+    expect(textareaAt).toBeGreaterThan(-1);
+    expect(controlsAt).toBeGreaterThan(textareaAt);
+    expect(nextAt).toBeGreaterThan(controlsAt);
+  });
+
   it('shows one next action on each page and uses the user’s saved task', () => {
     const plan = { ...DEFAULT_DAILY_PLAN, priorityTasks: [{
       id: 'first', task: 'Call the training center', category: 'Career' as const,
