@@ -631,28 +631,6 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
           </h1>
         </div>
 
-        {/* Controls Row: Microphone State Pill + Visible Speaker Button */}
-        <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
-          <button
-            onClick={handleToggleVoice}
-            className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium border transition-all duration-300 cursor-pointer ${micState.colorClass}`}
-          >
-            <span className={`w-2 h-2 rounded-full ${micState.dotClass}`} />
-            <span>{isListening ? 'Listening… dictating live' : 'Dictate with Voice'}</span>
-            {isListening ? (
-              <MicOff className="w-3.5 h-3.5 ml-0.5 text-blue-300" />
-            ) : (
-              <Mic className="w-3.5 h-3.5 ml-0.5 text-indigo-400" />
-            )}
-          </button>
-
-          <AimSpeakerButton
-            id="aim-step-1-speaker-btn"
-            state={speakerStateStep1}
-            onClick={handleSpeakerClickStep1}
-          />
-        </div>
-
         {/* Unlimited Character Space Text Area */}
         <form onSubmit={handleProceedToChanges} className="w-full mt-5 text-left space-y-3">
           <div className="relative bg-slate-900/90 border border-slate-800 focus-within:border-indigo-500/80 rounded-2xl p-4 shadow-xl transition-all">
@@ -673,8 +651,28 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
               onChange={(e) => { setCurrentStateText(e.target.value); setCrossReferenceData(null); }}
               rows={5}
               placeholder="For example: I'm looking for steady work and I feel overwhelmed by everything I need to do."
-              className="w-full bg-transparent text-sm sm:text-base text-slate-100 placeholder-slate-500 focus:outline-none resize-y leading-relaxed font-sans scrollbar-thin"
+              className="w-full bg-transparent pb-16 text-sm sm:text-base text-slate-100 placeholder-slate-500 focus:outline-none resize-y leading-relaxed font-sans scrollbar-thin"
             />
+            <div data-testid="current-state-voice-controls" className="absolute bottom-3 right-3 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleToggleVoice}
+                aria-label={isListening ? 'Stop dictation' : 'Start dictation'}
+                aria-pressed={isListening}
+                title={isListening ? 'Stop dictation' : 'Speak your answer'}
+                className="inline-flex items-center justify-center w-11 h-11 rounded-lg text-indigo-300 hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-300"
+              >
+                {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+              </button>
+              <AimSpeakerButton
+                id="aim-step-1-speaker-btn"
+                iconOnly
+                className="min-h-11"
+                state={speakerStateStep1}
+                onClick={handleSpeakerClickStep1}
+              />
+            </div>
+
 
           </div>
 
