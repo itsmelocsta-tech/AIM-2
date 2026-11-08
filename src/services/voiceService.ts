@@ -495,23 +495,31 @@ export class VoiceEngine {
       this.setSpeakerState('speaking');
       if (normalizedOptions?.onStart) normalizedOptions.onStart();
 
-      const response = await authenticatedFetch('/api/aim/voice/speak', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: formattedText,
-          voiceProfileId: profile.id,
-          gender,
-          accentStyle,
-          emotion,
-          speakingRate,
-          pitch,
-          formatForSpeech: false,
-        }),
-        signal,
-      });
+      // Gemini TTS can intermittently return a transient server error.
+      // Retry once without changing the user's selected natural voice.
+      let response: Response | undefined;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        response = await authenticatedFetch('/api/aim/voice/speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: formattedText,
+            voiceProfileId: profile.id,
+            gender,
+            accentStyle,
+            emotion,
+            speakingRate,
+            pitch,
+            formatForSpeech: false,
+          }),
+          signal,
+        });
+        if (signal.aborted) return;
+        if (response.ok || (response.status < 500 && response.status !== 429) || attempt === 1) break;
+        await new Promise<void>((resolve) => setTimeout(resolve, 600));
+        if (signal.aborted) return;
+      }
+      if (!response) throw new Error('No voice response');
 
       if (signal.aborted) return;
       if (!response.ok) {
