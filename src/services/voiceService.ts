@@ -570,55 +570,12 @@ export class VoiceEngine {
       throw new Error('Natural voice is temporarily unavailable. Your written response is still available. Please try again.');
     } catch (err: any) {
       if (signal.aborted || err?.name === 'AbortError') return;
-      // Report the neural voice outage and keep the conversation audible.
-      this.onErrorNotification?.('Natural voice is temporarily unavailable. Using your device voice for this reply.', true);
-      this.speakWithBrowserFallback(formattedText, normalizedOptions);
-    }
-  }
-
-  // Keep AIM audible when the remote neural voice provider fails.
-  // The browser voice is a temporary fallback, not a change to the user's preference.
-  private speakWithBrowserFallback(text: string, options: SpeakOptions | null): void {
-    if (typeof window === 'undefined' || !window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+      // Never replace the selected warm neural voice with a robotic device voice.
       this.setSpeakerState('error');
       this.setVoiceState('idle');
-      options?.onError?.(new Error('Voice playback is unavailable on this device.'));
-      options?.onEnd?.();
-      return;
-    }
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = Math.min(1.15, Math.max(0.8, this.userPrefs.rate || 1));
-      utterance.pitch = this.userPrefs.pitch || 1;
-      const voices = window.speechSynthesis.getVoices();
-      const selected = voices.find((voice) => voice.name === this.userPrefs.voiceName)
-        || voices.find((voice) => voice.lang.startsWith('en-US') && /female|samantha|zira|aria|google us english/i.test(voice.name))
-        || voices.find((voice) => voice.lang.startsWith('en-US'));
-      if (selected) utterance.voice = selected;
-      utterance.onstart = () => {
-        this.setVoiceState('speaking');
-        this.setSpeakerState('playing');
-      };
-      utterance.onend = () => {
-        this.setVoiceState('idle');
-        this.setSpeakerState('finished');
-        options?.onEnd?.();
-      };
-      utterance.onerror = (event) => {
-        this.setVoiceState('idle');
-        this.setSpeakerState('error');
-        options?.onError?.(event);
-        options?.onEnd?.();
-      };
-      this.setSpeakerState('speaking');
-      window.speechSynthesis.speak(utterance);
-    } catch (error) {
-      this.setVoiceState('idle');
-      this.setSpeakerState('error');
-      options?.onError?.(error);
-      options?.onEnd?.();
+      this.onErrorNotification?.('My natural voice is temporarily unavailable. You can still read my reply and retry the speaker.', true);
+      normalizedOptions?.onError?.(err);
+      normalizedOptions?.onEnd?.();
     }
   }
 
@@ -660,7 +617,10 @@ export class VoiceEngine {
       this.setSpeakerState('ready');
       this.setVoiceState('idle');
       this.currentAudioElement = null;
-      this.speakWithBrowserFallback(this.currentSpokenText, options);
+      this.setSpeakerState('error');
+      this.onErrorNotification?.('My natural voice could not play. Please retry the speaker.', true);
+      options?.onError?.(new Error('Natural audio playback failed.'));
+      options?.onEnd?.();
     };
 
     audio.play().catch((err) => {
@@ -674,7 +634,10 @@ export class VoiceEngine {
         this.onErrorNotification?.('Your browser blocked audio playback. Tap the orb again to allow sound.', true);
         options?.onError?.(err);
       } else {
-        this.speakWithBrowserFallback(this.currentSpokenText, options);
+        this.setSpeakerState('error');
+        this.onErrorNotification?.('My natural voice could not play. Please retry the speaker.', true);
+        options?.onError?.(err);
+        options?.onEnd?.();
       }
     });
   }
