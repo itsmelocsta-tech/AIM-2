@@ -570,14 +570,55 @@ export class VoiceEngine {
       throw new Error('Natural voice is temporarily unavailable. Your written response is still available. Please try again.');
     } catch (err: any) {
       if (signal.aborted || err?.name === 'AbortError') return;
-      // Preserve the chosen natural voice identity. Device TTS is never an implicit fallback.
-      const error = new Error('Natural voice is temporarily unavailable. Your written response is still available. Please try again.');
+      // Report the neural voice outage and keep the conversation audible.
+      this.onErrorNotification?.('Natural voice is temporarily unavailable. Using your device voice for this reply.', true);
+      this.speakWithBrowserFallback(formattedText, normalizedOptions);
+    }
+  }
+
+  // Keep AIM audible when the remote neural voice provider fails.
+  // The browser voice is a temporary fallback, not a change to the user's preference.
+  private speakWithBrowserFallback(text: string, options: SpeakOptions | null): void {
+    if (typeof window === 'undefined' || !window.speechSynthesis || !window.SpeechSynthesisUtterance) {
       this.setSpeakerState('error');
       this.setVoiceState('idle');
-      this.onErrorNotification?.(error.message, true);
-      normalizedOptions?.onError?.(error);
-      // Legacy callers use onEnd to release their speaking indicator.
-      normalizedOptions?.onEnd?.();
+      options?.onError?.(new Error('Voice playback is unavailable on this device.'));
+      options?.onEnd?.();
+      return;
+    }
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      utterance.rate = Math.min(1.15, Math.max(0.8, this.userPrefs.rate || 1));
+      utterance.pitch = this.userPrefs.pitch || 1;
+      const voices = window.speechSynthesis.getVoices();
+      const selected = voices.find((voice) => voice.name === this.userPrefs.voiceName)
+        || voices.find((voice) => voice.lang.startsWith('en-US') && /female|samantha|zira|aria|google us english/i.test(voice.name))
+        || voices.find((voice) => voice.lang.startsWith('en-US'));
+      if (selected) utterance.voice = selected;
+      utterance.onstart = () => {
+        this.setVoiceState('speaking');
+        this.setSpeakerState('playing');
+      };
+      utterance.onend = () => {
+        this.setVoiceState('idle');
+        this.setSpeakerState('finished');
+        options?.onEnd?.();
+      };
+      utterance.onerror = (event) => {
+        this.setVoiceState('idle');
+        this.setSpeakerState('error');
+        options?.onError?.(event);
+        options?.onEnd?.();
+      };
+      this.setSpeakerState('speaking');
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      this.setVoiceState('idle');
+      this.setSpeakerState('error');
+      options?.onError?.(error);
+      options?.onEnd?.();
     }
   }
 
@@ -619,7 +660,7 @@ export class VoiceEngine {
       this.setSpeakerState('ready');
       this.setVoiceState('idle');
       this.currentAudioElement = null;
-      if (options?.onError) options.onError(e);
+      this.speakWithBrowserFallback(this.currentSpokenText, options);
     };
 
     audio.play().catch((err) => {
@@ -629,7 +670,12 @@ export class VoiceEngine {
       if (err?.name !== 'NotAllowedError') {
         console.warn('[VoiceEngine] Audio play notice:', err?.message || err);
       }
-      if (options?.onError) options.onError(err);
+      if (err?.name === 'NotAllowedError') {
+        this.onErrorNotification?.('Your browser blocked audio playback. Tap the orb again to allow sound.', true);
+        options?.onError?.(err);
+      } else {
+        this.speakWithBrowserFallback(this.currentSpokenText, options);
+      }
     });
   }
 
