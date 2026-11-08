@@ -32,7 +32,7 @@ export interface VoiceSynthesisResponse {
   modelUsed?: string;
 }
 
-const TTS_MODELS = ['gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts'];
+const TTS_MODELS = ['gemini-2.5-flash-preview-tts', 'gemini-3.1-flash-tts-preview'];
 
 export class AIMVoiceService {
   private static instance: AIMVoiceService;
@@ -318,7 +318,7 @@ export class AIMVoiceService {
             },
           ],
           config: {
-            httpOptions: { timeout: 15000 },
+            httpOptions: { timeout: 8000 },
             responseModalities: ['AUDIO'],
             speechConfig: {
               voiceConfig: {
