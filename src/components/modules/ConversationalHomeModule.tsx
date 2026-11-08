@@ -593,12 +593,17 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
       if (!isVoiceMuted && aimReply) {
         setIsSpeaking(true);
         const spokenText = (aimReply || '').replace(/[*#_`]/g, '');
-        voiceEngine.speak(spokenText, () => {
-          setIsSpeaking(false);
+        void voiceEngine.speak(spokenText, {
+          onStart: () => setIsSpeaking(true),
+          onEnd: () => setIsSpeaking(false),
+          onError: () => {
+            setIsSpeaking(false);
+            setErrorMessage('I replied, but my voice could not play. Check your sound and try the speaker again.');
+          },
         });
       }
     } catch (err) {
-      setErrorMessage('I’m having trouble responding right now. Your message is still here. Please try again.');
+      setErrorMessage('I couldn’t get a reply right now. Please try again.');
       setIsSpeaking(false);
     } finally {
       setIsThinking(false);
