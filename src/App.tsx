@@ -473,6 +473,13 @@ export default function App() {
     : undefined;
   const currentTab = guideStep === 'planner' ? 'planner' : guideStep === 'check-in' ? 'check-in' : guideStep === 'intro' ? 'home' : activeTab;
 
+  // Every section change starts at the top, including the first-run guide.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [currentTab, guideStep]);
+
   const advanceGuide = () => {
     if (!guideStep) return;
     const next = guideStep === 'intro' ? 'planner' : guideStep === 'planner' ? 'check-in' : 'done';
