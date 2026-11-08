@@ -184,6 +184,13 @@ export const ConversationalHomeModule: React.FC<ConversationalHomeModuleProps> =
     }
   }, [currentStep]);
 
+  // A new onboarding question should never inherit the previous page's scroll position.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [currentStep]);
+
   // Auto-focus input / textarea when step changes
   useEffect(() => {
     if (currentStep === 'tell_about_yourself' || currentStep === 'what_would_you_change' ||
