@@ -1200,7 +1200,14 @@ app.post('/api/aim/voice/speak', async (req: Request, res: Response) => {
     });
     res.set('Cache-Control', 'no-store').json(result);
   } catch (err: any) {
-    console.warn('[VoiceAPI] Natural speech unavailable');
+    // Log only a safe failure category, never provider messages, prompts, or credentials.
+    const status = Number(err?.status || err?.code);
+    const category = [400, 401, 403, 404, 408, 429, 500, 502, 503, 504].includes(status)
+      ? `provider_http_${status}`
+      : err?.name === 'AbortError' || err?.name === 'TimeoutError'
+        ? 'provider_timeout'
+        : 'provider_unknown';
+    console.warn('[VoiceAPI] Natural speech unavailable', { category });
     res.status(503).json({ error: 'Natural voice is temporarily unavailable. Your written response is still available. Please try again.', code: 'natural_voice_unavailable' });
   }
 });
