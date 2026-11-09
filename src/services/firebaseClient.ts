@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
+import { authErrorMessage } from './authErrorMessage';
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
@@ -27,7 +28,7 @@ export async function signInWithGoogle() {
     const result = await signInWithPopup(auth, googleProvider);
     return { user: result.user, error: null };
   } catch (error: any) {
-    return { user: null, error: error.message || 'Failed to sign in with Google' };
+    return { user: null, error: authErrorMessage(error, 'Google sign-in couldn’t finish. Please try again.') };
   }
 }
 
@@ -36,7 +37,7 @@ export async function signInWithEmail(email: string, pass: string) {
     const result = await signInWithEmailAndPassword(auth, email, pass);
     return { user: result.user, error: null };
   } catch (error: any) {
-    return { user: null, error: error.message || 'Failed to sign in' };
+    return { user: null, error: authErrorMessage(error, 'AIM couldn’t sign you in. Please try again.') };
   }
 }
 
@@ -45,7 +46,7 @@ export async function signUpWithEmail(email: string, pass: string) {
     const result = await createUserWithEmailAndPassword(auth, email, pass);
     return { user: result.user, error: null };
   } catch (error: any) {
-    return { user: null, error: error.message || 'Failed to create account' };
+    return { user: null, error: authErrorMessage(error, 'AIM couldn’t create your account. Please try again.') };
   }
 }
 
@@ -54,7 +55,7 @@ export async function signInAsGuest() {
     const result = await signInAnonymously(auth);
     return { user: result.user, error: null };
   } catch (error: any) {
-    return { user: null, error: error.message || 'Failed to initialize private guest session' };
+    return { user: null, error: authErrorMessage(error, 'AIM couldn’t start a guest session. Please try again.') };
   }
 }
 
@@ -63,7 +64,7 @@ export async function logOut() {
     await signOut(auth);
     return { error: null };
   } catch (error: any) {
-    return { error: error.message || 'Failed to sign out' };
+    return { error: authErrorMessage(error, 'AIM couldn’t sign you out. Please try again.') };
   }
 }
 
