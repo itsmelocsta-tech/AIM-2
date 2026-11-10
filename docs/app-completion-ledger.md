@@ -1,3 +1,56 @@
+# AIM completion ledger — current review 2026-11-07
+
+## Example request and scope
+“Check AIM: Before I Am for web and Google Play testing, preserve approved wording and microphone placement, fix confirmed release blockers where possible, and distinguish Android from iOS submission readiness. Keep spending and billing disabled.”
+
+This review inspects main at c8856a58a3eb339164964e536dd9e18fb543513b (merged PR #42). Historical entries below do not establish current readiness. Evidence and regression-test update: no screen, provider, payment or native identity changes.
+
+## Current evidence
+- Main Quality Gate verified successful: https://github.com/itsmelocsta-tech/AIM-2/actions/runs/42406365672 . Inspected job steps and logs: TypeScript, 187 tests across 36 files, production build and release-output check passed.
+- Matching Vercel deployment: dpl_3bfY5cyWStKQ3fUNFuT7NjnEswpV, READY, production target, source SHA exactly c8856a58a3eb339164964e536dd9e18fb543513b. URL: https://aim-2-342ib6vkc-itsmelocsta-5904.vercel.app . READY is deployment evidence, not a full-journey pass. This review did not promote or publish it.
+- PR #42 head f7fed489fe68e0d38c196feab7f73e77f3c32b21 has successful Premium component, dashboard harness, Android build, rules, opportunity and plain-language jobs. These are head-specific results, not automatic merge-commit proof.
+- Browser QA https://github.com/itsmelocsta-tech/AIM-2/actions/runs/42406355564 and dashboard https://github.com/itsmelocsta-tech/AIM-2/actions/runs/42406355515 failed their deployed-preview resolver: PR closed before verification. Downstream deployed UI, account and full journey steps were skipped. This is a release verification gap, not evidence of a broken app journey. Preserve the stale-PR safeguard.
+- Workflow Evidence https://github.com/itsmelocsta-tech/AIM-2/actions/runs/42406355699 failed; merged PR #42 description lacks current completion evidence. Do not describe that merge as a full browser QA pass.
+- Natural Voice Browser QA https://github.com/itsmelocsta-tech/AIM-2/actions/runs/42406355552 was in progress at inspection; not counted as passed.
+
+## Completion and release matrix
+Unknown is recorded explicitly within blocked/not-started rows; it never counts as a pass.
+
+| Requirement / expected behavior | Observed gap and severity | Status | Next action / owner | Evidence |
+| --- | --- | --- | --- | --- |
+| Web source compiles, unit checks and production output pass | No failure in inspected main quality run | verified | Reuse for this source revision / agent | Main Quality Gate above |
+| Deployed signup, consent, onboarding, plan, reload, reroute, sign-out/deletion work | Current merged-source live journeys not established; release blocker | blocked | Obtain matching deployment QA, inspect all results / agent | PR live steps skipped above |
+| Voice, keyboard, permission recovery and readable mobile layout | Physical-device behavior unknown for current version; high | blocked | Current candidate browser checks, then Samsung/Chromebook/iPhone tests / agent and device owner | Historical device reports are revision-specific |
+| Android tester shows current web behavior | android/test-target.json remains pinned to 9b2d4b8d17e3413a514196fbcefbdb16e58f19c0; high | blocked | Select a browser-verified immutable candidate, update pin and rebuild debug app / agent | android/test-target.json |
+| Native scheduled start/end alarms work while app is backgrounded | No alarm scheduler source or notification/exact-alarm declarations found; high | not started | Implement native scheduling with permissions/lifecycle handling and device tests / agent | Android source and manifest |
+| Android release candidate signed, installed and launched | Signed AAB and actual device evidence unknown; release blocker | blocked | Verify secure signing configuration and reviewed public origin; signed build and device install / agent + owner credentials | .github/workflows/android-release.yml; docs/android-release.md |
+| Android target API meets current published floor | Source targets API 36; console acceptance still unverified | verified | Recheck final bundle and Play pre-launch report / agent | android/app/build.gradle.kts; official target API page |
+| Google login succeeds in intended environments | Website authorized OAuth not retested; native embedded OAuth unsupported; high | blocked | Authorized website test and native supported auth design / agent + account owner | store/google-play/release-status.md |
+| AI processing, privacy, retention and account deletion match declarations | Exact deployed key/project and final data handling unverified; release blocker | blocked | Inspect authorized deployment/provider settings without exposing secrets; verify deletion and document real data flows / agent + owner | Existing release-status record; no settings changed here |
+| Purchases stay disabled; future entitlement lifecycle genuine | Payments disabled by policy; real purchase/restore/renew/revoke unknown | blocked | Keep disabled; require legitimate sandbox evidence before enabling / agent + Play owner | play-launch-offer.json and release workflow |
+| Play account, app access, declarations and production access complete | Current console not inspected; registration/signing/identity/declarations unknown | blocked | Owner account access; verify actual account gates and health/wellness classification / owner + agent | Prior console evidence is historical only |
+| Listing/legal links and reviewer access usable publicly | Existing materials are preparation only; current public access, screenshots and reviewer credentials unknown | blocked | Verify public legal origin; final factual declarations and dedicated reviewer access / agent + owner | store/google-play |
+| iOS client exists | No iOS/Xcode/Info.plist/StoreKit source in inspected tree; release blocker | not started | Separate iOS implementation and native verification; do not infer from web/Android / agent | Repository tree; store/apple-app-store/readiness.md |
+| iOS archive, signing, TestFlight and App Privacy complete | No native build or current console evidence; release blocker | blocked | macOS/Xcode, Apple signing/account roles, final SDK inventory and device tests / owner + agent | Apple readiness document |
+| Store submission/approval proven | Neither established in this review | blocked | Resolve release gates before submission; store owns approval / owner and stores | No submission performed |
+
+## Official policy verification — accessed 2026-11-07
+- Google target API: https://support.google.com/googleplay/android-developer/answer/11926878 — new standard Android apps/updates require API 36 from August 31, 2026. Source target 36 matches this floor; this is not Play acceptance.
+- Google personal-account testing: https://support.google.com/googleplay/android-developer/answer/14151465 — applicable new personal accounts require at least 12 continuously opted-in closed testers for 14 days before applying for production access. Account applicability and completion require console evidence.
+- Apple review: https://developer.apple.com/app-store/review/guidelines/ — completeness, functionality, authentication and privacy must be assessed against the eventual native app.
+- Apple account deletion: https://developer.apple.com/help/app-review/guideline-reference/5-1-1-account-deletion/ — apps offering account creation must let users initiate account deletion in-app.
+- Apple build/submission guidance: https://developer.apple.com/app-store/submitting/ — verify current SDK requirements against a real native archive; none exists here.
+- Health-account classification, Data safety/App Privacy, content rights, age rating, export compliance, provider retention and factual legal declarations remain unverified; do not invent answers or treat this discovery as complete console clearance.
+
+## Work completed and remaining
+Recovered current source and release records; verified current build evidence and deployment identity; diagnosed skipped live checks; corrected stale readiness reporting while retaining history. Fixed the first-page Samsung regression's stale accessible-name selectors (Start/Stop dictation); other pages retain their existing names. Added phone/desktop assertions for two icon-only 44px controls inside the answer corner, reserved text padding, idle/active state and rejection of late speech after Stop. Application behavior is unchanged. New branch verification is tracked in PR #43; never count running checks as passed.
+No billing, paid generation, key replacement, production promotion or store submission performed.
+Product: partially verified. Android: not submission-ready. iOS: not implemented. Actual store submission/approval: unverified.
+Resume with exact-source live browser verification before repinning the Android tester. Continue code work only from confirmed failures and preserve approved product behavior.
+
+---
+
+## Historical record (revision-specific)
 # AIM completion ledger — 2026-10-31
 Scope: AIM web, Android and Apple App Store readiness. Base inspected: f168ebae69ed0b923a239ff6c30f3147af7f2ac0, release/google-play-web-ready, PR #37. Preserve payments disabled.
 

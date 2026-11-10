@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Mic,
   MicOff,
@@ -49,6 +49,15 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const draftRef = useRef('');
+  const listeningRef = useRef(false);
+  const captureRef = useRef(0);
+  const requestRef = useRef(0);
+  const busyRef = useRef(false);
+  const finishCaptureRef = useRef<() => void>(() => {});
+  const openRef = useRef(isOpen);
+  openRef.current = isOpen;
+
   const [visibleHeight, setVisibleHeight] = useState<number>();
   useEffect(() => {
     if (!isOpen) return;
@@ -69,21 +78,28 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
   );
 
   useEffect(() => {
-    if (!isOpen) {
+    const reset = () => {
+      // Invalidate callbacks before stopping the shared recognizer: stopping can
+      // synchronously emit another end event.
+      captureRef.current++;
+      requestRef.current++;
+      listeningRef.current = false;
+      busyRef.current = false;
+      draftRef.current = '';
       voiceEngine.stopListening();
       voiceEngine.stopSpeaking();
-      setIsListening(false);
-      setIsSpeaking(false);
-      setIsPreviewing(false);
-      setIsThinking(false);
-    } else {
-      setLastAIMReply(
-        userProfile?.name
-          ? `I'm here with you, ${userProfile.name}. What is on your mind or in front of you today?`
-          : `I'm listening. What is on your mind or in front of you today?`
-      );
-    }
-  }, [isOpen, userProfile?.name]);
+    };
+    reset();
+    setTranscript('');
+    setIsListening(false);
+    setIsSpeaking(false);
+    setIsPreviewing(false);
+    setIsThinking(false);
+    if (isOpen) setLastAIMReply(userProfile?.name
+      ? `I'm here with you, ${userProfile.name}. What is on your mind or in front of you today?`
+      : `I'm listening. What is on your mind or in front of you today?`);
+    return reset;
+  }, [isOpen, userProfile?.id, userProfile?.name]);
 
   if (!isOpen) return null;
 
@@ -96,6 +112,8 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
     }
 
     if (isListening) {
+      captureRef.current++;
+      listeningRef.current = false;
       voiceEngine.stopListening();
       setIsListening(false);
     }
@@ -121,39 +139,62 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
   };
 
   const toggleListening = () => {
-    if (isPreviewing) {
+    if (busyRef.current) return;
+    if (isPreviewing || isSpeaking) {
       voiceEngine.stopSpeaking(true);
       setIsPreviewing(false);
       setIsSpeaking(false);
     }
-
-    if (isListening) {
+    if (listeningRef.current) {
       voiceEngine.stopListening();
+      finishCaptureRef.current();
+      return;
+    }
+    const capture = ++captureRef.current;
+    draftRef.current = '';
+    setTranscript('');
+    listeningRef.current = true;
+    const finish = () => {
+      if (capture !== captureRef.current || !listeningRef.current) return;
+      listeningRef.current = false;
       setIsListening(false);
-    } else {
-      voiceEngine.stopSpeaking();
-      setIsSpeaking(false);
-      const started = voiceEngine.startListening(
-        (text) => {
-          setTranscript(text);
-        },
-        (listening) => {
-          setIsListening(listening);
-          if (!listening && transcript.trim()) {
-            handleProcessVoiceInput(transcript.trim());
-          }
-        }
-      );
-
-      if (!started) {
-        onToast('Microphone not available in this browser. You can type below!');
+      const text = draftRef.current.trim();
+      if (text) void handleProcessVoiceInput(text);
+    };
+    finishCaptureRef.current = finish;
+    const started = voiceEngine.startListening(
+      text => {
+        if (capture !== captureRef.current || !listeningRef.current) return;
+        draftRef.current = text;
+        setTranscript(text);
+      },
+      listening => {
+        if (capture !== captureRef.current) return;
+        setIsListening(listening);
+        if (!listening) finish();
+      },
+      message => {
+        if (capture !== captureRef.current) return;
+        captureRef.current++;
+        listeningRef.current = false;
+        setIsListening(false);
+        onToast(message);
       }
+    );
+    if (!started) {
+      listeningRef.current = false;
+      setIsListening(false);
+      onToast('Microphone not available in this browser. You can type below!');
     }
   };
 
   const handleProcessVoiceInput = async (userInput: string) => {
-    if (!userInput.trim()) return;
-
+    if (!userInput.trim() || busyRef.current || !openRef.current) return;
+    busyRef.current = true;
+    const request = ++requestRef.current;
+    captureRef.current++;
+    listeningRef.current = false;
+    voiceEngine.stopListening();
     setIsListening(false);
     setIsThinking(true);
 
@@ -182,6 +223,8 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
         lifeUpdates,
       });
 
+      if (request !== requestRef.current || !openRef.current) return;
+      if (typeof response.reply !== 'string' || !response.reply.trim()) throw new Error('Empty reply');
       setLastAIMReply(response.reply);
       const aimMsg: ChatMessage = {
         id: 'voice-aim-' + Date.now(),
@@ -191,16 +234,23 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
       };
       onAddChatMessage(aimMsg);
 
+      draftRef.current = '';
+      setTranscript('');
+
       // Speak back the response
       setIsSpeaking(true);
       voiceEngine.speak(response.reply, () => {
         setIsSpeaking(false);
       });
     } catch (e) {
-      onToast('Error processing voice query');
+      if (request === requestRef.current && openRef.current) {
+        onToast('AIM couldn’t reply right now. Your message is still here—try again.');
+      }
     } finally {
-      setIsThinking(false);
-      setTranscript('');
+      if (request === requestRef.current) {
+        busyRef.current = false;
+        setIsThinking(false);
+      }
     }
   };
 
@@ -335,7 +385,7 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
             <input
               type="text"
               value={transcript || ''}
-              onChange={(e) => setTranscript(e.target.value)}
+              onChange={(e) => { draftRef.current = e.target.value; setTranscript(e.target.value); }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleProcessVoiceInput(transcript);
               }}
