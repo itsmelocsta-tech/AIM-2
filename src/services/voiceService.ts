@@ -430,7 +430,7 @@ export class VoiceEngine {
 
   /**
    * Primary Production Text-to-Speech Execution:
-   * Uses real Google Gemini TTS (gemini-3.1-flash-tts-preview) via server-side endpoint /api/aim/voice/speak.
+   * Uses Google Gemini TTS via the server-side endpoint /api/aim/voice/speak.
    * Stops previous audio, never repeats user transcript, handles errors explicitly without silent robotic fallback.
    */
   public async speak(
