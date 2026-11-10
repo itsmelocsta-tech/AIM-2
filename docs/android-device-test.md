@@ -1,7 +1,7 @@
 # AIM installed Android test
 This debug build opens the immutable corrected web preview:
-https://aim-2-ojx3pueb5-itsmelocsta-5904.vercel.app
-Web source: 9b2d4b8d17e3413a514196fbcefbdb16e58f19c0.
+https://aim-2-n9173fxx0-itsmelocsta-5904.vercel.app
+Web source: ef80b8af42d164c9eb17209ea1211bc8eb6e4c87.
 
 The app is labelled **AIM Test** and uses package **app.aim.lifeos.debug**. It is not the signed Google Play release. Purchases remain disabled. The workflow checks native unit tests, lint, APK signature, package identity and embedded web origin and provides a SHA-256 report. None of these establish physical-device success.
 
