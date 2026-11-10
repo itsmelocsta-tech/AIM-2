@@ -28,7 +28,7 @@ for (const modal of [false, true]) {
     expect(metrics.fullHeight).toBe(true); // No tiny independently clipped response window.
     await region.scrollIntoViewIfNeeded();
     await page.screenshot({ path: info.outputPath('readable-response.png') });
-    if (!modal) await page.getByRole('button', { name: 'Type instead', exact: true }).click();
+    if (!modal) await page.getByRole('button', { name: 'Write to AIM', exact: true }).click();
     const input = modal ? page.getByPlaceholder('Or type here...') : page.locator('#aim-home-text-input');
     // A reduced viewport checks the keyboard-space layout, not a physical iPhone keyboard.
     await page.setViewportSize({ width: page.viewportSize().width, height: 360 });

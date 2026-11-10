@@ -8,10 +8,12 @@ const reply = ('Here is a clear, practical response you can read at your own pac
   'Long text also wraps: ' + 'ExampleLongWord'.repeat(18) + '\n\nEND OF REPLY';
 const profile = { ...DEFAULT_PROFILE, id: 'fictional-readability', name: 'Test reader', onboardingCompleted: true };
 function Harness() {
+  const [open, setOpen] = useState(true);
+  const [toast, setToast] = useState('');
   const [messages, setMessages] = useState([{ id: 'fixture', role: 'aim', content: reply, timestamp: '2026-10-31T12:00:00Z' }]);
   return <main className="min-h-screen bg-slate-950 text-white">
     {location.search === '?modal'
-      ? <VoiceModal isOpen onClose={() => {}} userProfile={profile} onAddChatMessage={message => setMessages(all => [...all, message])} onToast={() => {}} />
+      ? <><button onClick={() => setOpen(true)}>Open voice conversation</button><output role="status">{toast}</output><VoiceModal isOpen={open} onClose={() => setOpen(false)} userProfile={profile} chatMessages={messages} onAddChatMessage={message => setMessages(all => [...all, message])} onToast={setToast} /></>
       : <ConversationalHomeModule userId={profile.id} userProfile={profile} dailyPlan={DEFAULT_DAILY_PLAN}
           goals={[]} memories={[]} wellnessLogs={[]} chatMessages={messages} onUpdateChat={setMessages}
           onCommitOnboarding={async () => {}} onNavigateToTab={() => {}} onToast={() => {}} />}

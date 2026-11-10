@@ -33,7 +33,7 @@ describe('natural speech generation', () => {
   it('tries the second neural model after unavailable audio and wraps PCM at its real sample rate', async () => {
     const generate = vi.fn().mockRejectedValueOnce({ status: 503 }).mockResolvedValueOnce(audio);
     const result = await service.synthesizeSpeech(client(generate), { text: 'Let us find a comfortable pace for this test.', gender: 'feminine', accentStyle: 'southern' });
-    expect(generate.mock.calls.map(([request]) => request.model)).toEqual(['gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts']);
+    expect(generate.mock.calls.map(([request]) => request.model)).toEqual(['gemini-2.5-flash-preview-tts', 'gemini-3.1-flash-tts-preview']);
     expect(result.provider).toBe('gemini-tts');
     expect(result.voiceNameUsed).toBe('Zephyr');
     expect(Buffer.from(result.audioBase64, 'base64').readUInt32LE(24)).toBe(22050);

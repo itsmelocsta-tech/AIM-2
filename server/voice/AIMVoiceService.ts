@@ -261,7 +261,7 @@ export class AIMVoiceService {
   }
 
   /**
-   * Synthesize natural conversational speech using Gemini TTS (gemini-3.1-flash-tts-preview)
+   * Synthesize natural conversational speech using the ordered Gemini TTS model list.
    */
   public async synthesizeSpeech(
     ai: GoogleGenAI,

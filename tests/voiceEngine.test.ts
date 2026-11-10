@@ -21,7 +21,7 @@ it.each(['http-error', 'legacy-fallback', 'network-error'])('shows retry rather 
   expect(deviceSpeak).not.toHaveBeenCalled();
   expect(audioPlay).not.toHaveBeenCalled();
   expect(onError).toHaveBeenCalledOnce();
-  expect(notification).toHaveBeenCalledWith(expect.stringContaining('Please try again'), true);
+  expect(notification).toHaveBeenCalledWith(expect.stringContaining('retry the speaker'), true);
 });
 it('does not play audio after the user stops while generation is pending', async () => {
   let resolve: (r: Response) => void = () => {};
