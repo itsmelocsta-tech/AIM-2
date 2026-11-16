@@ -395,6 +395,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
     ? lifeUpdates.filter((u) => u.isPrivate)
     : lifeUpdates;
 
+  let previewError: string | null = null;
   let previewChanges: string[] = [];
   let previewRemoved: string[] = [];
   if (currentAnalysis && flowState === 'confirming' && currentAnalysis.planImpact !== 'none') {
@@ -416,8 +417,8 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
       if (typeof newObstacle === 'string' && newObstacle.trim() && newObstacle.trim() !== userProfile.primaryObstacle) {
         previewChanges.push(`Updated obstacle: ${newObstacle.trim()}`);
       }
-    } catch {
-      // Keep the current plan intact when the proposal is incomplete.
+    } catch (error) {
+      previewError = error instanceof Error ? error.message : 'AIM could not verify these changes. Your plan was not changed.';
     }
   }
 
@@ -598,7 +599,7 @@ export const LifeUpdateModule: React.FC<LifeUpdateModuleProps> = ({
                   <ul className="space-y-1 text-xs sm:text-sm text-slate-300">
                     {[...previewChanges, ...previewRemoved].map((change, index) => <li key={index}>• {change}</li>)}
                   </ul>
-                ) : <p className="text-xs sm:text-sm text-slate-300">No concrete changes to your plan were proposed. You can save this update without changing your plan.</p>}
+                ) : <p className="text-xs sm:text-sm text-slate-300">{previewError || 'No concrete changes to your plan were proposed. You can save this update without changing your plan.'}</p>}
               </div>
 
               {/* 3 Required Action Buttons */}

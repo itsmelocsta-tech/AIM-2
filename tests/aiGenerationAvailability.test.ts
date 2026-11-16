@@ -12,7 +12,7 @@ it('never disguises unavailable Gemini chat or plan generation as success', asyn
  await new Promise<void>(resolve => server.once('listening',resolve));
  const address = server.address() as {port:number};
  try {
-   for (const [path,body] of [['chat',{message:'Help me plan tomorrow',userProfile:{}}],['plan',{type:'morning',goals:['Prepare for interview'],energyLevel:7,availableHours:4}] ] as const) {
+   for (const [path,body] of [['chat',{message:'Help me plan tomorrow',userProfile:{}}],['plan',{type:'morning',goals:['Prepare for interview'],energyLevel:7,availableHours:4}],['monetize',{skills:'Writing',targetNiche:'Local businesses'}] ] as const) {
      const response = await fetch('http://127.0.0.1:'+address.port+'/api/aim/'+path,{method:'POST',headers:{Authorization:'Bearer test-token','Content-Type':'application/json'},body:JSON.stringify(body)});
      expect(response.status).toBe(503);
      expect((await response.json()).code).toBe('AI_UNAVAILABLE');

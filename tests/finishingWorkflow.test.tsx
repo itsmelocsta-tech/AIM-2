@@ -91,3 +91,11 @@ describe('Drifter → Finisher → Architect', () => {
     expect(home).toContain('Your finishing setup: Write at 9am with notifications off');
   });
 });
+
+
+it('rejects generated time blocks that collide with retained manual commitments', () => {
+  const retained = { id: 'manual', time: '12:00 - 13:00', title: 'Appointment', details: 'Retained', completed: false };
+  const generated = { id: 'new', time: '12:30 - 13:30', title: 'Draft', details: 'New work', completed: false };
+  expect(() => reconcileTimeBlocks([retained], [generated], 4)).toThrow(/overlap/);
+  expect(retained.time).toBe('12:00 - 13:00');
+});

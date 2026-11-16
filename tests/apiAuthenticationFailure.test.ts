@@ -38,3 +38,12 @@ it('sends all three onboarding answers to the authenticated analysis endpoint', 
     vi.unstubAllGlobals();
   }
 });
+
+
+it('does not replace failed offer generation with invented prices and sales claims', async () => {
+  getToken.mockResolvedValueOnce('valid-token');
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"error":"unavailable"}', { status: 503 })));
+  try {
+    await expect(api.generateMonetizationOffer({ skills: 'Writing', targetNiche: 'Local businesses', pricePoint: '', offerType: '' })).rejects.toThrow('503');
+  } finally { vi.unstubAllGlobals(); }
+});

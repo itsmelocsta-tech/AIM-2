@@ -151,7 +151,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
           energyLevel,
           availableHours,
           priorityTasks: reconcilePriorityTasks(dailyPlan.priorityTasks, generatedTasks),
-          timeBlocks: reconcileTimeBlocks(dailyPlan.timeBlocks, generatedBlocks),
+          timeBlocks: reconcileTimeBlocks(dailyPlan.timeBlocks, generatedBlocks, availableHours),
           mindsetReminder: hasNewPlan ? planData.mindsetReminder || dailyPlan.mindsetReminder : dailyPlan.mindsetReminder,
           notes: morningNotes || dailyPlan.notes,
           eveningReflection: dailyPlan.eveningReflection,
@@ -163,12 +163,13 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
         onToast(planData.source === 'fallback'
           ? 'AIM could not generate a new plan. Your existing tasks were kept; you can add one below.'
           : hasNewPlan ? 'Today’s plan is ready. Start with one task you can finish.'
-            : 'No concrete task was generated. Add one priority below to begin.');
+            : availableHours === 0 ? 'No new work was added. Your existing plan is still saved.'
+              : 'No concrete task was generated. Add one priority below to begin.');
       } else {
         onToast('AIM could not generate a plan. Add one priority below to begin.');
       }
     } catch (e) {
-      onToast('Error generating morning plan');
+      onToast(e instanceof Error ? e.message : 'AIM could not update your plan. Your existing work is safe.');
     } finally {
       setIsGenerating(false);
     }
@@ -319,8 +320,10 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
               </label>
               <input
                 type="range"
-                min="2"
+                aria-label="Available productive hours"
+                min="0"
                 max="14"
+                step="0.25"
                 value={availableHours ?? 8}
                 onChange={(e) => setAvailableHours(Number(e.target.value))}
                 className="w-full accent-indigo-500"

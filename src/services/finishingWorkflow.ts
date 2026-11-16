@@ -1,3 +1,4 @@
+import { assertFeasibleTimeBlocks } from '../utils/planningSafety';
 import { DailyPlan, PriorityTask, TimeBlock } from '../types';
 
 export const nextFinisherTask = (plan: DailyPlan): PriorityTask | undefined =>
@@ -23,7 +24,7 @@ export const reconcilePriorityTasks = (existing: PriorityTask[], generated: Prio
   return [...merged, ...existing.filter((task) => !seen.has(task.task.trim().toLocaleLowerCase()))];
 };
 
-export const reconcileTimeBlocks = (existing: TimeBlock[], generated: TimeBlock[]): TimeBlock[] => {
+export const reconcileTimeBlocks = (existing: TimeBlock[], generated: TimeBlock[], availableHours?: number): TimeBlock[] => {
   const key = (block: TimeBlock) => `${block.time}|${block.title.trim().toLocaleLowerCase()}`;
   const bySlot = new Map(existing.map((block) => [key(block), block]));
   const seen = new Set<string>();
@@ -33,7 +34,9 @@ export const reconcileTimeBlocks = (existing: TimeBlock[], generated: TimeBlock[
     const previous = bySlot.get(slot);
     return previous ? { ...block, id: previous.id, completed: previous.completed } : block;
   });
-  return [...merged, ...existing.filter((block) => !seen.has(key(block)))];
+  const candidate = [...merged, ...existing.filter((block) => !seen.has(key(block)))];
+  if (generated.length && availableHours !== undefined) assertFeasibleTimeBlocks(candidate, availableHours);
+  return candidate;
 };
 
 export const groundedEveningReflection = (
