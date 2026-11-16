@@ -164,6 +164,34 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       note('Firebase plan reload and first-run guide persistence');
     });
 
+    await test.step('Verify real zero-time check-in and cloud persistence without another model call', async () => {
+      await page.getByRole('button', { name: 'Morning check-in', exact: true }).click();
+      const slider = page.getByRole('slider', { name: 'Available productive hours' });
+      await expect(slider).toHaveAttribute('min', '0');
+      await expect(slider).toHaveAttribute('step', '0.25');
+      await slider.press('Home');
+      for (const [name, viewport] of [['phone', { width: 390, height: 844 }], ['desktop', { width: 1280, height: 900 }]]) {
+        await page.setViewportSize(viewport);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await testInfo.attach(`fictional-zero-time-${name}`, {
+          body: await page.locator('#daily-planner-module').screenshot({ style: '#aim-main-header, #aim-primary-nav { visibility: hidden !important; }' }),
+          contentType: 'image/png',
+        });
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      const reply = page.waitForResponse(r => r.url().endsWith('/api/aim/plan'));
+      await page.getByRole('button', { name: 'Make my daily plan', exact: true }).click();
+      const response = await reply;
+      expect(response.status()).toBe(200);
+      expect(await response.json()).toMatchObject({ topThreePriorityTasks: [], timeBlocks: [] });
+      await expect.poll(async () => (await readDocument(`daily_plans/${savedPlan.date}`))?.availableHours, { timeout: 20000 }).toBe(0);
+      const after = await readDocument(`daily_plans/${savedPlan.date}`);
+      expect(after.priorityTasks).toEqual(savedPlan.priorityTasks);
+      expect(after.timeBlocks).toEqual(savedPlan.timeBlocks);
+      savedPlan = after;
+      note('Real zero-time server response, existing work preservation, Firebase save and phone/desktop control bounds');
+    });
+
     await test.step('Dictate and save Quick Capture on the deployed app', async () => {
       // A simulated recognizer verifies deployed UI/state integration only.
       // It does not establish physical audio capture or native permission UI.
