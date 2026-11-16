@@ -3,6 +3,7 @@
 ## Change and reason
 
 - Morning check-in accepts 0–14 productive hours in 15-minute steps using the existing slider. Zero no longer becomes eight hours. A zero-time check-in adds no work and preserves the saved plan.
+- Fixed an undefined optional evening-reflection field in morning-plan saves, discovered by the real deployed zero-time/Firebase check. New morning plans omit that field when no reflection exists.
 - Server validation rejects invalid capacity, missing action instructions, more than three generated priorities, unmeasurable estimates, overlapping time ranges, and work exceeding the supplied time. Tasks and their corresponding calendar blocks are budgeted separately, not added together.
 - Morning-plan reconciliation and life-update rerouting validate the combined schedule, including retained commitments. Unsafe changes are rejected before save; completed and unrelated work stay intact. The existing preview explains the rejection and retains the save-without-changing option.
 - AI planning instructions use the locked Awareness, Intention, Motion name and actual time/resource constraints. Removed the job-loss/outreach example that could bias unrelated life updates.

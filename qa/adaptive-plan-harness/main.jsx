@@ -9,7 +9,9 @@ const initial = { ...DEFAULT_DAILY_PLAN, availableHours: 2, priorityTasks: [{ id
 function Harness() {
   const [plan, setPlan] = useState(() => JSON.parse(localStorage.getItem('fictional-safe-plan') || 'null') || initial);
   const [toast, setToast] = useState('');
-  const save = next => { localStorage.setItem('fictional-safe-plan', JSON.stringify(next)); setPlan(next); };
+  const save = next => {
+    if (Object.values(next).some(value => value === undefined)) throw new Error('Undefined plan fields cannot be saved to Firestore.');
+    localStorage.setItem('fictional-safe-plan', JSON.stringify(next)); setPlan(next); };
   const reroute = new URLSearchParams(location.search).has('reroute');
   return <main className="bg-slate-950 text-white min-h-screen p-3">
     <p>Fictional local persistence; real production components. AI and authentication are fixtures.</p>

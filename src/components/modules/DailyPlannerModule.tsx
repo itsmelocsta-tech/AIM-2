@@ -154,7 +154,7 @@ export const DailyPlannerModule: React.FC<DailyPlannerProps> = ({
           timeBlocks: reconcileTimeBlocks(dailyPlan.timeBlocks, generatedBlocks, availableHours),
           mindsetReminder: hasNewPlan ? planData.mindsetReminder || dailyPlan.mindsetReminder : dailyPlan.mindsetReminder,
           notes: morningNotes || dailyPlan.notes,
-          eveningReflection: dailyPlan.eveningReflection,
+          ...(dailyPlan.eveningReflection ? { eveningReflection: dailyPlan.eveningReflection } : {}),
         };
 
         onUpdatePlan(newPlan);
