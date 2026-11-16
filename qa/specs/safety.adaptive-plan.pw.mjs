@@ -9,7 +9,7 @@ test('zero-time generation keeps existing work and uses the supplied budget', as
   await page.getByRole('button', { name: 'Morning check-in', exact: true }).click();
   const slider = page.getByRole('slider', { name: 'Available productive hours' });
   await expect(slider).toHaveAttribute('min', '0'); await expect(slider).toHaveAttribute('step', '0.25');
-  await slider.fill('0');
+  await slider.press('Home');
   await page.getByRole('button', { name: 'Make my daily plan', exact: true }).click();
   await expect(page.getByLabel('Plan notification')).toContainText('No new work was added');
   await expect(page.getByLabel('Saved plan state')).toContainText('Send the draft');
