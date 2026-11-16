@@ -8,7 +8,7 @@
 - Morning-plan reconciliation and life-update rerouting validate the combined schedule, including retained commitments. Unsafe changes are rejected before save; completed and unrelated work stay intact. The existing preview explains the rejection and retains the save-without-changing option.
 - AI planning instructions use the locked Awareness, Intention, Motion name and actual time/resource constraints. Removed the job-loss/outreach example that could bias unrelated life updates.
 - Removed canned service-offer success responses from both API layers and fixed-price/high-pressure examples from the prompt. Missing skills/audience return 400; unavailable or malformed AI returns 503 instead of a fictional offer.
-- Updated four stale voice-test expectations to the neural-model order and retry text already present on main. No voice runtime behavior changed.
+- Updated stale voice-test expectations to the neural-model order, retry text, current onboarding labels and bounded retry requests already present on main. No voice runtime behavior changed.
 
 ## Preserved and deferred
 
@@ -35,4 +35,4 @@ Automated checks: `npm run check`; `cd qa && npx playwright test --config adapti
 
 ## Limits
 
-Safety checks reject rather than silently repair model output. Scheduling uses same-day 24-hour time ranges; changed legacy/unparseable blocks must be corrected before rescheduling. Resource and energy instructions guide generation but do not establish real-world feasibility or medical suitability. This change does not prove improved retention or app-store readiness.
+Safety checks reject rather than silently repair model output. Scheduling uses same-day 24-hour time ranges (00:00–23:59, matching the canonical schedule); changed legacy/unparseable blocks must be corrected before rescheduling. Resource and energy instructions guide generation but do not establish real-world feasibility or medical suitability. This change does not prove improved retention or app-store readiness.

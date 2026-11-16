@@ -23,7 +23,7 @@ describe('realistic planning safety', () => {
   });
   it('rejects missing instructions, unknown durations, and unusable times', () => {
     expect(() => assertUsableMorningPlan({ ...plan(), topThreePriorityTasks: [{ task: 'Write', timeEstimate: 'soon' }] }, 1)).toThrow();
-    for (const time of ['25:00 - 26:00', '12:30 - 12:00', '23:00 - 24:15', 'tomorrow', '10:00']) expect(timeRangeMinutes(time)).toBeNull();
-    expect(timeRangeMinutes('23:30 – 24:00')).toEqual([1410, 1440]);
+    for (const time of ['25:00 - 26:00', '12:30 - 12:00', '23:00 - 24:15', '23:30 - 24:00', 'tomorrow', '10:00']) expect(timeRangeMinutes(time)).toBeNull();
+    expect(timeRangeMinutes('23:30 – 23:59')).toEqual([1410, 1439]);
   });
 });

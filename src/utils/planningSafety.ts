@@ -16,7 +16,7 @@ export function timeRangeMinutes(value: unknown): [number, number] | null {
   const [, sh, sm, eh, em] = match.map(Number);
   const start = sh * 60 + sm;
   const end = eh * 60 + em;
-  if (sh > 23 || eh > 24 || (eh === 24 && em !== 0) || end <= start) return null;
+  if (sh > 23 || eh > 23 || end <= start) return null;
   return [start, end];
 }
 

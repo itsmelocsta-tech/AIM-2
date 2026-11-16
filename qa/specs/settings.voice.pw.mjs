@@ -27,8 +27,8 @@ test('selection sends the selected voice identity and recovers for another previ
   await expect(page.getByText(/Natural voice is temporarily unavailable/)).toBeVisible();
   await page.locator('#aim-voice-accent-midwestern').click();
   await page.locator('#aim-voice-preview-toggle-btn').click();
-  await expect.poll(() => requests.length).toBe(2);
-  expect(requests.map(x => x.voiceProfileId)).toEqual(['feminine_southern', 'feminine_midwestern']);
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests.map(x => x.voiceProfileId)).toEqual(['feminine_southern', 'feminine_southern', 'feminine_midwestern', 'feminine_midwestern']);
   expect(await page.evaluate(() => window.deviceVoiceCalls)).toBe(0);
 });
 for (const legacy of [false, true]) {
