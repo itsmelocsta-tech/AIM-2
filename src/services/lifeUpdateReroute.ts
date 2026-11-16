@@ -1,3 +1,4 @@
+import { assertFeasibleTimeBlocks } from '../utils/planningSafety';
 import { DailyPlan, LifeUpdateAnalysisResult, PriorityTask, TimeBlock } from '../types';
 
 /** Apply only explicitly affected changes while protecting completed and unrelated work. */
@@ -45,6 +46,14 @@ export function buildReroutedDailyPlan(plan: DailyPlan, analysis: LifeUpdateAnal
     timeBlocks.push({ ...item, completed: false } as TimeBlock);
     currentBlockIds.add(item.id);
   }
+
+  // Check the combined proposal, including retained blocks, before any save.
+  // Unchanged legacy schedules remain readable; new scheduling must be verifiable.
+  const timesChanged = timeBlocks.some(block => {
+    const before = plan.timeBlocks.find(previous => previous.id === block.id);
+    return !before || before.time !== block.time;
+  });
+  if (timesChanged) assertFeasibleTimeBlocks(timeBlocks, plan.availableHours);
 
   return {
     ...plan,

@@ -24,7 +24,7 @@ for (const final of [false, true]) {
     await page.goto('/qa/onboarding-voice-harness/');
     const answer = page.locator('#aim-current-state-textarea');
     await answer.fill('My situation:');
-    await page.getByRole('button', { name: 'Dictate with Voice', exact: true }).click();
+    await page.getByRole('button', { name: 'Start dictation', exact: true }).click();
     const fragments = ["I'm", "I'm testing", "I'm testing the", "I'm testing the mic", "I'm testing the mic to see"];
     for (let n = 1; n <= fragments.length; n++) {
       await page.evaluate(({ fragments, n, final }) => window.emitResultList(fragments.slice(0, n).map(text => [text, final]), n - 1), { fragments, n, final });
@@ -38,7 +38,7 @@ for (const final of [false, true]) {
     await expect.poll(() => page.evaluate(() => window.recognizers[0].starts)).toBe(2);
     await page.evaluate(() => window.emitResultList([["I'm testing the mic to see if it repeats", true], ['without an echo', false]]));
     await expect(answer).toHaveValue("My situation: I'm testing the mic to see if it repeats without an echo");
-    await page.getByRole('button', { name: /Listening.*dictating live/ }).click();
+    await page.getByRole('button', { name: 'Stop dictation', exact: true }).click();
     await page.evaluate(() => window.emitResultList([['late duplicate', true]]));
     await expect(answer).toHaveValue("My situation: I'm testing the mic to see if it repeats without an echo");
     await answer.fill('My corrected answer, reviewed before continuing.');

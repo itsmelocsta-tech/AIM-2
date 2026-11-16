@@ -9,6 +9,7 @@ import { AIMMomentumEngine } from './server/momentum/AIMMomentumEngine';
 import { AIMSharedIntelligenceService } from './server/intelligence/AIMSharedIntelligenceService';
 import { AIMVoiceService } from './server/voice/AIMVoiceService';
 import { PLAIN_LANGUAGE_INSTRUCTION } from './server/plainLanguage';
+import { planningCapacity, assertUsableMorningPlan } from './src/utils/planningSafety';
 import { AIMOsService } from './server/aimOsService';
 import { requireAuth } from './server/firebaseAdmin';
 import { readEntitlement, requirePremium } from './server/entitlementService';
@@ -65,7 +66,7 @@ function getGenAI(): GoogleGenAI | null {
   return genAIClient;
 }
 
-const AIM_SYSTEM_INSTRUCTION = `You are AIM (Artificial Intelligence for Manifestation), an AI-powered personal Life Operating System and thinking partner.
+const AIM_SYSTEM_INSTRUCTION = `You are AIM (Awareness, Intention, Motion), an AI-powered personal Life Operating System and thinking partner.
 Your purpose is not simply to answer questions. Your purpose is to help the user organize their thoughts, understand their patterns, solve real-world problems, and take meaningful action toward the person they want to become.
 
 CRITICAL CONVERSATIONAL DIRECTIVES:
@@ -349,90 +350,97 @@ Remember: Give a real, genuine, articulate, empathetic answer specifically addre
   }
 });
 
-// Monetization & Fast-Cash Sprint Generator
+// Grounded service-offer drafts (never a substitute for a successful AI response).
 app.post('/api/aim/monetize', requirePremium, async (req: Request, res: Response) => {
-  const { skills, targetNiche, pricePoint, offerType, userProfile } = req.body;
-  const fallbackOffer = {
-    offerTitle: "A Simple Service Offer",
-    oneSentenceHook: `I will review your needs and make useful ${targetNiche || 'business'} materials within two days.`,
-    deliverables: ["Review how people find and buy your service", "A simple plan to improve your service", "Ready-to-use work made for you"],
-    pricingTiers: [
-      { name: "Starter Sprint", price: pricePoint || "$500", description: "A review and a simple plan" },
-      { name: "Full Implementation", price: "$1,500", description: "End-to-end delivery in 3 days" },
-      { name: "Growth Retainer", price: "$3,000/mo", description: "Weekly help and ready-to-use work" }
-    ],
-    coldOutreachScript: `Hey [Name], saw what you're building with [Project]. Noticed one quick area where you might be leaving margin on the table. I put together a quick 3-point fix—mind if I send over a 2-minute breakdown?`,
-    followUpScript: "Hey [Name], just checking in on this! Happy to share the blueprint for free if it helps you guys hit your targets this quarter.",
-    qualificationQuestions: ["What is currently the single biggest constraint slowing your revenue?", "If this was solved in 7 days, what would that be worth to your business?", "Are you in a position to start this week if the fit is right?"],
-    todayActionChecklist: [
-      "List 10 people who might need your service",
-      "Send each person a short, personal message",
-      "Share one helpful tip and offer a free review"
-    ],
-    urgencyStrategy: "Offer a $200 fast-action incentive for agreements confirmed today."
-  };
+  const { skills, targetNiche, pricePoint, offerType } = req.body;
+  if (typeof skills !== 'string' || !skills.trim() || typeof targetNiche !== 'string' || !targetNiche.trim()) {
+    return res.status(400).json({ error: 'Add your skills and who you want to help before creating an offer.' });
+  }
 
   try {
     const ai = getGenAI();
 
     const prompt = `Act as AIM's Chief Revenue & Monetization Strategist.
-Create an actionable, high-ticket "Make Money Today" Sprint Plan based on:
-- User Skills / Assets: ${skills || 'Consulting, Design, Marketing, Strategy, Problem Solving, Tech'}
-- Target Niche / Client: ${targetNiche || 'Small business owners, founders, busy executives, creators'}
-- Target Price: ${pricePoint || '$500 - $2,500'}
-- Offer Type: ${offerType || 'Done-For-You Sprint or 1-on-1 High-Impact Strategy'}
+Create one realistic service-offer draft based only on the supplied skills and audience.
+Do not promise income, invent prospects, claim measured results, or manufacture urgency.
+Prices are proposed drafts, not verified market rates; use the user's price when supplied.
+Use a feasible delivery scope and concrete steps. If important details are missing, say what needs checking.
+Based on:
+- User Skills / Assets: ${skills}
+- Target Niche / Client: ${targetNiche}
+- Target Price: ${pricePoint || 'Not supplied; label any proposed price as an estimate'}
+- Offer Type: ${offerType || 'A small service the user can actually deliver'}
 
 Return a structured JSON object strictly with the following schema:
 {
-  "offerTitle": "Short catchy name for the irresistible offer",
-  "oneSentenceHook": "The bold promise solving an urgent pain point",
+  "offerTitle": "Short descriptive service name",
+  "oneSentenceHook": "An honest description of the service and intended benefit",
   "deliverables": ["Specific deliverable 1", "Specific deliverable 2", "Specific deliverable 3"],
   "pricingTiers": [
-    {"name": "Fast Action Tier", "price": "$500", "description": "Quick 48-hour turnaround deliverable"},
-    {"name": "Complete Growth Solution", "price": "$1,500", "description": "Full end-to-end implementation"},
-    {"name": "VIP Retainer", "price": "$3,500/mo", "description": "Ongoing dedicated partnership"}
+    {"name": "Small starting scope", "price": "User-supplied price or clearly labeled estimate", "description": "A feasible deliverable using the supplied skills"}
   ],
-  "coldOutreachScript": "Word-for-word DM / email script to send to 10 prospects right now",
+  "coldOutreachScript": "Optional honest draft for an audience the user actually identified",
   "followUpScript": "Follow-up message for prospects who don't reply in 24h",
   "qualificationQuestions": ["Question 1 to ask on sales call", "Question 2", "Question 3"],
   "todayActionChecklist": [
-    "Identify 10 specific prospects matching criteria",
+    "Identify one real potential customer matching the supplied audience",
     "Send personalized outreach script",
-    "Follow up with 3 warm contacts from past network"
+    "Review scope and price before sending anything"
   ],
-  "urgencyStrategy": "How to close the deal before the day ends"
+  "urgencyStrategy": "A practical next step without invented deadlines, scarcity, or guarantees"
 }`;
 
     if (!ai) {
-      return res.json(fallbackOffer);
+      return res.status(503).json({ error: 'AIM could not create your offer right now. Please retry.', code: 'AI_UNAVAILABLE' });
     }
 
     const response = await generateWithFallback(ai, {
       contents: prompt,
       config: {
-        systemInstruction: "You are an elite business monetizer and offer architect. Output strictly valid JSON.",
+        systemInstruction: "You help people draft realistic service offers without income guarantees or fabricated facts. Output strictly valid JSON.",
         responseMimeType: "application/json"
       }
     });
 
     const parsed = JSON.parse(response.text || '{}');
+    if (typeof parsed?.offerTitle !== 'string' || !parsed.offerTitle.trim() ||
+        typeof parsed?.oneSentenceHook !== 'string' || !parsed.oneSentenceHook.trim() ||
+        !Array.isArray(parsed?.deliverables) || !parsed.deliverables.length ||
+        !Array.isArray(parsed?.todayActionChecklist) || !parsed.todayActionChecklist.length) {
+      throw new Error('AI_INVALID_OFFER_SCHEMA');
+    }
     res.json(parsed);
   } catch (error: any) {
-    console.warn('Monetization endpoint resilient fallback:', error?.message);
-    res.json(fallbackOffer);
+    console.warn('Offer generation unavailable:', error?.message);
+    res.status(503).json({ error: 'AIM could not create your offer right now. Please retry.', code: 'AI_UNAVAILABLE' });
   }
 });
 
 // Daily Planning & Reflection Endpoint
 app.post('/api/aim/plan', async (req: Request, res: Response) => {
-  const { type, energyLevel, availableHours, goals, dayNotes, userProfile } = req.body;
+  const { type, goals, dayNotes, userProfile } = req.body;
+  let capacity: ReturnType<typeof planningCapacity>;
+  try {
+    capacity = planningCapacity(req.body.energyLevel, req.body.availableHours);
+    if (!['morning', 'evening'].includes(type) ||
+        (goals != null && (!Array.isArray(goals) || goals.some((goal: unknown) => typeof goal !== 'string')))) {
+      throw new Error('Choose a morning or evening check-in and supply your own goal titles.');
+    }
+  } catch (error) {
+    return res.status(400).json({ error: (error as Error).message });
+  }
+  const { energyLevel, availableHours } = capacity;
+  if (type === 'morning' && availableHours === 0) {
+    return res.json({ theme: 'No new work scheduled', topThreePriorityTasks: [], timeBlocks: [],
+      mindsetReminder: 'There is no need to add more work today.' });
+  }
   const isMorning = type === 'morning';
 
   // Query Shared Intelligence Planner Scaffolding
   const sharedIntel = AIMSharedIntelligenceService.getInstance();
   const plannerContext = sharedIntel.preparePlannerContext({
-    energyLevel: energyLevel || 8,
-    availableHours: availableHours || 8,
+    energyLevel,
+    availableHours,
     activeGoals: goals || [],
     userProfile,
     dayNotes,
@@ -444,10 +452,10 @@ app.post('/api/aim/plan', async (req: Request, res: Response) => {
     const ai = getGenAI();
 
     const prompt = isMorning
-      ? `Generate an Ideal Daily Master Plan for AIM Life OS.
+      ? `Generate a realistic daily plan for AIM (Awareness, Intention, Motion).
 ${plannerContext.plannerSystemDirective}
-Energy level: ${energyLevel || 'High (8/10)'}
-Available productive hours: ${availableHours || 8}
+Energy level: ${energyLevel}/10
+Available productive hours: ${availableHours}
 Long-term Goals: ${JSON.stringify(goals || [])}
 Notes/intent for today: ${dayNotes || 'None provided.'}
 Build around the user's actual goals and notes. Do not invent clients, deadlines, projects, or completed work. If there is no usable goal or intent, return empty task and time-block arrays so the user can add a priority.
@@ -462,10 +470,12 @@ Every block in "timeBlocks" MUST have a detailed "details" field explaining the 
 
 Return strictly valid JSON with "theme" (short), "topThreePriorityTasks" (array), "timeBlocks" (array), and "mindsetReminder" (short).
 Each priority task needs a specific "task" title, numbered "description" with a verifiable finish line, "category", "timeEstimate", and "impact" (High, Medium, or Low).
-Each time block needs "time", "title", and numbered "details". Use the person's available hours and their own repeatable setup when provided. Return empty arrays if no real priority was supplied.`
+Each time block needs "time" in 24-hour HH:mm - HH:mm format, "title", and numbered "details".
+Schedule at most three priorities. Total priority estimates and total time-block durations must each fit within ${availableHours} hours; leave breathing room rather than filling every minute. Use estimates like "15m" or "1h 30m".
+Never overlap time blocks or invent parallel attention. Background processing may run while the person does something else, but schedule only the person's active effort. Keep sleep, recovery, appointments, transport, money, and access constraints from the supplied notes. Do not introduce paid tools, a car, or resources the person has not said they have. Use the person's available hours and their own repeatable setup when provided. Return empty arrays if no real priority was supplied.`
       : `Analyze the user's Evening Day Review for AIM Life OS.
 Day notes / completed tasks: ${dayNotes || 'No tasks or reflection provided.'}
-Energy / Mood: ${energyLevel || '7/10'}
+Energy / Mood: ${energyLevel}/10
 ${plannerContext.plannerSystemDirective}
 Only list wins from confirmed completed tasks in the notes. If none were completed, return an empty winsAcknowledged array. Do not invent progress or identify a pattern without evidence. Keep adjustments grounded in the person's own setup and circumstances.
 
@@ -492,6 +502,7 @@ Return JSON with:
 
     const parsed = JSON.parse(response.text || '{}');
     if (!parsed || typeof parsed !== 'object' || !Array.isArray(isMorning ? parsed.topThreePriorityTasks : parsed.winsAcknowledged) || !Array.isArray(isMorning ? parsed.timeBlocks : parsed.adjustmentsForTomorrow)) throw new Error('AI_INVALID_PLAN_SCHEMA');
+    if (isMorning) assertUsableMorningPlan(parsed, availableHours);
     res.json(parsed);
   } catch (error: any) {
     console.warn('Planner generation unavailable:', error?.message);
@@ -521,7 +532,7 @@ app.post('/api/aim/life-update-analyze', requirePremium, async (req: Request, re
       ? currentDailyPlan.timeBlocks.map((b: any) => `[ID: ${b.id}] "${b.time}: ${b.title}" (Done: ${b.completed})`).join('\n')
       : 'No time blocks';
 
-    const prompt = `Act as AIM (Artificial Intelligence for Manifestation) - an AI-powered Life Operating System GPS.
+    const prompt = `Act as AIM (Awareness, Intention, Motion) - an AI-powered Life Operating System GPS.
 The user has submitted a Life Update sharing a new event, change of circumstance, obstacle, breakthrough, or shift in their reality.
 
 USER UPDATE:
@@ -538,8 +549,8 @@ ${goalsSummary}
 ${tasksSummary}
 - Today's Time Blocks:
 ${scheduleSummary}
-- Energy Level: ${currentDailyPlan?.energyLevel || 8}/10
-- Available Hours: ${currentDailyPlan?.availableHours || 8} hrs
+- Energy Level: ${currentDailyPlan?.energyLevel ?? 8}/10
+- Available Hours: ${currentDailyPlan?.availableHours ?? 8} hrs
 
 YOUR MISSION:
 1. Identify the core life change, facts, and emotional/logistical implications.
@@ -551,6 +562,9 @@ YOUR MISSION:
    - To remove an unfinished item, put its ID in removedTaskIds or removedTimeBlockIds and in the affected IDs.
    - Do not claim a job lead, action, or schedule block exists unless it is present in the supplied state.
    - PRESERVE COMPLETED TASKS AND EXISTING WINS COMPLETELY.
+   - Respect the user's time, money, transport, access and energy constraints. Never prescribe purchases or travel that their circumstances rule out.
+   - New or changed time blocks must use 24-hour HH:mm - HH:mm format, fit the available hours, and not overlap retained blocks.
+   - Do not invent a new employer, prospect or opportunity to fill a gap. Ask one short question if a workable next step depends on missing facts.
    - Do NOT use guilt-based language or shame. Recalculate calmly with encouraging, pragmatic steps.
    - If the update is purely informational or positive reflection with no plan changes needed, set planImpact="none" and explain that nothing needs to change yet.
    - Never predict or display lifespan, death date, or estimated time of death.
@@ -572,11 +586,11 @@ Return strictly valid JSON matching this schema:
   "conflictsOrUncertainty": null,
   "planImpact": "none" | "minor" | "major",
   "proposedReroute": {
-    "explanation": "Got it. That job is no longer part of the plan. I reopened your income goal, removed tasks that depended on that position, and moved your next strongest job opportunity into today’s plan.",
-    "whatChanged": ["Reopened immediate income generation pipeline", "De-prioritized onboarding prep for previous offer"],
-    "whatWasRemovedOrPaused": ["Removed 'Sign employment contract' task", "Paused onboarding schedule blocks"],
-    "newTopPriority": "Outreach to top 3 warm client prospects and alternative opportunities",
-    "nextSpecificAction": "Send personalized outreach script to 5 high-priority contacts before 2:00 PM",
+    "explanation": "Explain the proposed change in plain language. Nothing has been applied yet.",
+    "whatChanged": ["Only changes supported by the supplied update and plan"],
+    "whatWasRemovedOrPaused": ["Only existing unfinished items explicitly affected by the update"],
+    "newTopPriority": "One feasible priority based on this person's actual goals",
+    "nextSpecificAction": "A concrete next action using resources this person has confirmed",
     "suggestedPriorityTasks": [
       {
         "id": "pt-rerouted-1",
@@ -593,8 +607,8 @@ Return strictly valid JSON matching this schema:
       {
         "id": "tb-rerouted-1",
         "time": "09:00 - 10:30",
-        "title": "Deep Work: Alternative Opportunity Sprint",
-        "details": "Direct client outreach & proposal delivery",
+        "title": "Specific action based on the update",
+        "details": "Concrete steps and a clear finish line",
         "completed": false
       }
     ],
@@ -902,7 +916,7 @@ WHEN USER DISCUSSES RELATIONSHIPS OR CONFLICTS:
 
     const specificInstruction = coachInstructions[coachId] || coachInstructions.guidance;
 
-    const systemPrompt = `You are a specialized coach inside AIM (Artificial Intelligence for Manifestation).
+    const systemPrompt = `You are a specialized coach inside AIM (Awareness, Intention, Motion).
 ${specificInstruction}
 
 === USER'S SAVED INFORMATION & LIVING CONTEXT ===

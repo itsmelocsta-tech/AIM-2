@@ -64,3 +64,21 @@ describe('confirmed life update reroute', () => {
     expect(result.timeBlocks).toEqual(currentPlan.timeBlocks);
   });
 });
+
+describe('reroute feasibility before saving', () => {
+  it('rejects a new block colliding with a retained commitment and leaves the original untouched', () => {
+    const before = JSON.stringify(currentPlan);
+    const proposal = analysis();
+    proposal.proposedReroute.suggestedTimeBlocks = [{ id: 'new', time: '16:30 - 17:30', title: 'Write a draft', details: 'Save a paragraph', completed: false }];
+    expect(() => buildReroutedDailyPlan(currentPlan, proposal)).toThrow(/overlap/);
+    expect(JSON.stringify(currentPlan)).toBe(before);
+  });
+  it('rejects work beyond capacity and accepts a non-conflicting change', () => {
+    const proposal = analysis();
+    proposal.proposedReroute.suggestedTimeBlocks = [{ id: 'new', time: '13:00 - 14:00', title: 'Write a draft', details: 'Save a paragraph', completed: false }];
+    expect(() => buildReroutedDailyPlan({ ...currentPlan, availableHours: 1 }, proposal)).toThrow(/available time/);
+    const next = buildReroutedDailyPlan(currentPlan, proposal);
+    expect(next.timeBlocks.find(block => block.id === 'done-block')).toEqual(currentPlan.timeBlocks[0]);
+    expect(next.timeBlocks.find(block => block.id === 'new')?.title).toBe('Write a draft');
+  });
+});
