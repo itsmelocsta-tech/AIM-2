@@ -145,8 +145,10 @@ function buildUserSavedInformationPrompt(params: {
   // Recent Life Updates
   if (Array.isArray(params.lifeUpdates) && params.lifeUpdates.length > 0) {
     const updateLines = params.lifeUpdates.slice(0, 5).map((u: any) => {
-      const cat = u.primaryCategory ? `[${u.primaryCategory}] ` : '';
-      return `- ${cat}${u.content || u.title || ''} (${new Date(u.createdAt || Date.now()).toLocaleDateString()})`;
+      const categories = Array.isArray(u.categories) && u.categories.length > 0 ? `[${u.categories.join(', ')}] ` : '';
+      const update = u.confirmedSummary || u.originalContent || u.content || u.title || '';
+      const reroute = u.rerouteStatus ? ` | Reroute: ${u.rerouteStatus}` : '';
+      return `- ${categories}${update} (${new Date(u.updatedAt || u.createdAt || Date.now()).toLocaleDateString()})${reroute}`;
     });
     sections.push(`RECENT LIFE UPDATES & CONTEXT:\n${updateLines.join('\n')}`);
   }

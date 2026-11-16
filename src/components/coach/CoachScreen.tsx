@@ -184,6 +184,8 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({
         userProfile,
         currentSchedule: todaySchedule,
         userMessage: cleanText,
+        dailyPlan,
+        lifeUpdates,
       });
       setLocalContext(currentCompactContext);
 

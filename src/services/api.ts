@@ -61,6 +61,8 @@ export const api = {
     coachId?: CoachId;
     userProfile?: UserProfile;
     energyLevel?: number;
+    dailyPlan?: DailyPlan;
+    lifeUpdates?: LifeUpdate[];
   }): Promise<WisdomSynthesisResultClient> {
     return intelligenceService.synthesizeWisdom(params);
   },
@@ -70,6 +72,8 @@ export const api = {
     userProfile?: UserProfile;
     currentSchedule?: ScheduleItem[];
     userMessage?: string;
+    dailyPlan?: DailyPlan;
+    lifeUpdates?: LifeUpdate[];
     forceRefresh?: boolean;
   }): Promise<CompactOrbContext> {
     return intelligenceService.getCompactOrbContext(params);

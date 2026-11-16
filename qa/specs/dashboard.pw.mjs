@@ -82,13 +82,31 @@ test('server rejects invalid settings while private AIM routes stay authenticate
   expect(privateRoute.status()).toBe(401);
 });
 
-test('My day renders supplied saved state, updates counts and preserves planner navigation', async ({ page }) => {
+test('My day renders supplied saved state, updates counts and preserves planner navigation', async ({ page }, testInfo) => {
   test.skip(Boolean(process.env.AIM_PREVIEW_URL), 'Component fixture is local only; no deployed account PASS is claimed.');
   await page.goto('/qa/dashboard-harness/');
   const summary = page.getByLabel('Your saved day');
+  const atmosphere = page.getByTestId('evolving-fractal-atmosphere');
+  const wisdom = page.getByTestId('aim-wisdom-guidance');
   await expect(summary).toContainText('1 / 2 complete');
+  await expect(atmosphere).toHaveAttribute('data-phase', 'motion');
+  await expect(atmosphere).toContainText('1 of 2 saved priorities complete');
+  await expect(wisdom.getByRole('heading', { name: 'Awareness' })).toBeVisible();
+  await expect(wisdom.getByRole('heading', { name: 'Intention' })).toBeVisible();
+  await expect(wisdom.getByRole('heading', { name: 'Motion' })).toBeVisible();
+  const motionRevision = await atmosphere.getAttribute('data-revision');
   await page.getByRole('button', { name: 'Complete fixture task' }).click();
   await expect(summary).toContainText('2 / 2 complete');
+  await expect(atmosphere).toHaveAttribute('data-phase', 'awareness');
+  await expect(atmosphere.getByRole('img')).toHaveAttribute('aria-label', /Awareness petals pattern/);
+  await expect(atmosphere).not.toHaveAttribute('data-revision', motionRevision);
+  const completedRevision = await atmosphere.getAttribute('data-revision');
+  await page.getByRole('button', { name: 'Apply fixture life change' }).click();
+  await expect(wisdom).toContainText('The work shift moved two hours earlier.');
+  await expect(wisdom).toContainText('holding the current plan steady');
+  await expect(atmosphere.getByRole('img')).toHaveAttribute('aria-label', /Awareness contours pattern/);
+  await expect(atmosphere).not.toHaveAttribute('data-revision', completedRevision);
+  await page.screenshot({ path: testInfo.outputPath('evolving-fractal-wisdom.png'), fullPage: true });
   await summary.getByRole('button', { name: 'Open today’s plan' }).click();
   await expect(page.getByLabel('Navigation destination')).toHaveText('planner');
   await page.getByRole('button', { name: 'Crystal Lab', exact: true }).click();

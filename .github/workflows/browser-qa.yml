@@ -117,7 +117,7 @@ jobs:
         if: always()
         run: |
           echo "Signed-in atmosphere scope: real email sessions with disposable fictional completed profiles; Settings navigation, calibration, local persistence, reset/delete and account isolation." >> "$GITHUB_STEP_SUMMARY"
-          echo "Separate unverified paths: real onboarding/AI plan generation, Premium execution, rerouting, opportunities and Google OAuth. Seeded profiles are test setup, not generated plans." >> "$GITHUB_STEP_SUMMARY"
+          echo "Separate full journey verifies real onboarding/AI plan generation and that its saved plan drives Awareness–Intention–Motion guidance plus the evolving fractal phase. Premium reroute execution and Google OAuth remain separate/blocked without authorized accounts." >> "$GITHUB_STEP_SUMMARY"
           echo "Protection preserved. No credentials, account screenshots, traces, video or authentication state uploaded; only cropped atmosphere panels." >> "$GITHUB_STEP_SUMMARY"
       - name: Run full disposable-email journey
         working-directory: qa

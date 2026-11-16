@@ -202,6 +202,25 @@ test('real Basic email account completes onboarding, persistence, opportunities 
       note('Deployed Quick Capture simulated dictation, manual review, Firebase save and phone/desktop microphone bounds');
     });
 
+    await test.step('Use the real saved plan in AIM wisdom and the evolving atmosphere', async () => {
+      await navigate('home');
+      const atmosphere = page.getByTestId('evolving-fractal-atmosphere');
+      const wisdom = page.getByTestId('aim-wisdom-guidance');
+      await expect(atmosphere).toBeVisible();
+      await expect(atmosphere).toHaveAttribute('data-phase', 'intention');
+      await expect(wisdom).toBeVisible();
+      await expect(wisdom.getByRole('heading', { name: 'Awareness' })).toBeVisible();
+      await expect(wisdom.getByRole('heading', { name: 'Intention' })).toBeVisible();
+      await expect(wisdom.getByRole('heading', { name: 'Motion' })).toBeVisible();
+      await expect(wisdom).toContainText(savedPlan.priorityTasks[0].task);
+      await expect(wisdom).toContainText(/minute first block/);
+      await testInfo.attach('fictional-aim-wisdom-atmosphere-phone', {
+        body: await page.locator('#aim-home-screen').screenshot({ style: '#aim-main-header, #aim-primary-nav, #aim-primary-nav * { visibility: hidden !important; }' }),
+        contentType: 'image/png',
+      });
+      note('Real generated plan drives Awareness–Intention–Motion guidance and atmosphere phase');
+    });
+
     await test.step('Save a personal opportunity target and reload without the local cache', async () => {
       await navigate('scanner');
       const setup = page.locator('#opportunity-scanner-setup');
