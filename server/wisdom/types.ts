@@ -60,6 +60,12 @@ export interface WisdomQueryContext {
   emotionalState?: string;
   currentObstacle?: string;
   currentPriorities?: string[];
+  currentCircumstances?: string[];
+  recentReflections?: string[];
+  observedPatterns?: string[];
+  activePlan?: string[];
+  latestLifeChange?: string;
+  availableHours?: number;
   recentFreeTalkSnippet?: string;
   requestingOrb?: 'guidance' | 'motivation' | 'spiritual' | 'health' | 'relationships' | 'planner' | 'general';
   categoryOfProblem?: string;
@@ -87,7 +93,13 @@ export interface WisdomSynthesisResult {
   guidanceSynthesis: {
     primaryShift: string;
     groundedActionAdvice: string;
+    actionableHabit: string;
     recommendedReflectionQuestion: string;
+    pitfallToAvoid: string;
+    awareness: string;
+    intention: string;
+    motion: string;
+    adaptation: string;
   };
 }
 

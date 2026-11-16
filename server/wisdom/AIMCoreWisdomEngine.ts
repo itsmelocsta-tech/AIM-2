@@ -52,7 +52,14 @@ export class AIMCoreWisdomEngine {
    */
   public synthesizeWisdom(context: WisdomQueryContext): WisdomSynthesisResult {
     const relevantSnippets: KnowledgeSnippet[] = [];
-    const query = `${context.userSituation} ${context.currentObstacle || ''} ${context.categoryOfProblem || ''} ${context.recentFreeTalkSnippet || ''}`;
+    const normalize = (value: unknown) => typeof value === 'string' ? value.trim().replace(/\s+/g, ' ').slice(0, 500) : '';
+    const facts = (values: string[] | undefined, limit = 4) => Array.from(new Set((values || []).map(normalize).filter(Boolean))).slice(0, limit);
+    const currentCircumstances = facts(context.currentCircumstances);
+    const recentReflections = facts(context.recentReflections);
+    const observedPatterns = facts(context.observedPatterns, 3);
+    const activePlan = facts(context.activePlan, 5);
+    const latestLifeChange = normalize(context.latestLifeChange);
+    const query = `${context.userSituation} ${context.currentObstacle || ''} ${context.categoryOfProblem || ''} ${context.recentFreeTalkSnippet || ''} ${currentCircumstances.join(' ')} ${latestLifeChange}`;
 
     // Query domain providers based on context keywords and orb specialty
     const domainScores: Record<WisdomDomain, number> = {
@@ -164,6 +171,9 @@ export class AIMCoreWisdomEngine {
     const riskFactors: string[] = [];
     const recommendedPrinciples: string[] = [];
 
+    observedPatterns.forEach((pattern) => behavioralPatterns.push(`User-confirmed reflection pattern: ${pattern}`));
+    recentReflections.forEach((reflection) => practicalImplications.push(`Recent user reflection to respect: ${reflection}`));
+
     // Biological baseline assessment
     if (context.userEnergyLevel !== undefined && context.userEnergyLevel <= 4) {
       biologicalFactors.push('Low physiological energy baseline (nervous system fatigue / prefrontal exhaustion)');
@@ -182,7 +192,7 @@ export class AIMCoreWisdomEngine {
         biologicalFactors.push(snippet.summary);
       } else if (snippet.domain === 'psychology_behavior') {
         psychologicalFactors.push(snippet.summary);
-        behavioralPatterns.push(`Pattern insight: ${snippet.topic}`);
+        behavioralPatterns.push(`Relevant behavioral concept: ${snippet.topic}`);
       } else if (snippet.domain === 'biblical_hebrew' || snippet.domain === 'ancient_mesopotamian') {
         historicalPatterns.push(`${snippet.topic}: ${snippet.summary}`);
       } else if (snippet.domain === 'spirituality_consciousness') {
@@ -204,15 +214,19 @@ export class AIMCoreWisdomEngine {
     }
 
     // Actionable human guidance extraction (Clear human guidance out)
-    const primaryShift =
-      recommendedPrinciples.length > 0
+    const primaryShift = activePlan[0]
+      ? `Keep the next decision anchored to the saved priority: ${activePlan[0]}`
+      : recommendedPrinciples.length > 0
         ? recommendedPrinciples[0]
         : 'Start with one small thing you can do.';
 
-    const groundedActionAdvice =
-      context.userEnergyLevel && context.userEnergyLevel <= 4
+    const groundedActionAdvice = activePlan[0]
+      ? context.userEnergyLevel && context.userEnergyLevel <= 4
+        ? `Use a 10 to 15 minute first block for: ${activePlan[0]}. Stop and reassess instead of forcing a full session.`
+        : `Begin the first concrete step of: ${activePlan[0]}. Use a focused 25-minute block, then record what changed.`
+      : context.userEnergyLevel && context.userEnergyLevel <= 4
         ? 'Rest before taking on work that needs focus.'
-        : 'Pick your most important task and work on it for 25 minutes.';
+        : 'Choose one useful task and work on its first concrete step for 25 minutes.';
 
     const recommendedReflectionQuestion =
       context.requestingOrb === 'spiritual'
@@ -220,6 +234,23 @@ export class AIMCoreWisdomEngine {
         : context.requestingOrb === 'relationships'
         ? 'What do you need to say to help things feel calmer?'
         : 'What is one thing you can do now to make the rest easier?';
+
+    const awareness = currentCircumstances[0]
+      || latestLifeChange
+      || normalize(context.currentObstacle)
+      || normalize(context.userSituation)
+      || 'There is not enough confirmed context yet; ask one focused question before advising.';
+    const intention = activePlan[0]
+      || normalize(context.coreMission)
+      || normalize(context.desiredIdentity)
+      || 'Choose one direction that fits the person’s real capacity and stated priorities.';
+    const motion = groundedActionAdvice;
+    const adaptation = latestLifeChange
+      ? `Recheck the plan against this latest life change and alter only affected commitments: ${latestLifeChange}`
+      : 'If circumstances change, return to Awareness, identify the changed assumption, and reroute only affected commitments.';
+    const pitfallToAvoid = observedPatterns[0]
+      ? `Do not repeat the confirmed pattern without changing the setup: ${observedPatterns[0]}`
+      : 'Do not claim a personal pattern without reflection or behavior evidence from the user.';
 
     return {
       relevantDomains: detectedDomains,
@@ -237,7 +268,13 @@ export class AIMCoreWisdomEngine {
       guidanceSynthesis: {
         primaryShift,
         groundedActionAdvice,
+        actionableHabit: groundedActionAdvice,
         recommendedReflectionQuestion,
+        pitfallToAvoid,
+        awareness,
+        intention,
+        motion,
+        adaptation,
       },
     };
   }

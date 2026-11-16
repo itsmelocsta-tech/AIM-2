@@ -586,6 +586,7 @@ export default function App() {
                 availableModules={unlockedModules}
                 userProfile={userProfile}
                 dailyPlan={dailyPlan}
+                lifeUpdates={lifeUpdates}
                 startingPoint={calibration?.currentState}
                 context={aimContext}
                 projects={aimProjects}

@@ -51,6 +51,15 @@ export class AIMSharedIntelligenceService {
     wellnessLogs?: any[];
     recentLifeUpdates?: any[];
   }): CoachPromptAugmentation {
+    const recentUpdates = Array.isArray(params.recentLifeUpdates) ? params.recentLifeUpdates : [];
+    const updateText = (update: any) => update?.confirmedSummary || update?.originalContent || update?.content || update?.title || '';
+    const latestUpdate = [...recentUpdates].sort((a: any, b: any) =>
+      Date.parse(b?.updatedAt || b?.createdAt || '') - Date.parse(a?.updatedAt || a?.createdAt || '')
+    )[0];
+    const reflection = params.dailyPlan?.eveningReflection;
+    const pendingPlan = Array.isArray(params.dailyPlan?.priorityTasks)
+      ? params.dailyPlan.priorityTasks.filter((task: any) => !task.completed).map((task: any) => task.task).filter(Boolean)
+      : [];
     const userLifeContext: UserLifeContext = {
       finances: {
         currentMonthlyIncome: params.userProfile?.currentMonthlyIncome,
@@ -82,8 +91,8 @@ export class AIMSharedIntelligenceService {
             priority: s.priority || 'medium',
           }))
         : undefined,
-      recentLifeUpdateNotes: Array.isArray(params.recentLifeUpdates) && params.recentLifeUpdates.length > 0
-        ? params.recentLifeUpdates.slice(0, 3).map((u: any) => u.content || u.title).join('; ')
+      recentLifeUpdateNotes: recentUpdates.length > 0
+        ? recentUpdates.slice(0, 3).map(updateText).filter(Boolean).join('; ')
         : undefined,
       confirmedProfileFacts: {
         desiredIdentity: params.userProfile?.desiredIdentity,
@@ -112,6 +121,16 @@ export class AIMSharedIntelligenceService {
       requestingOrb: params.coachId,
       userEnergyLevel: params.energyLevel ?? params.dailyPlan?.energyLevel ?? 7,
       categoryOfProblem: priorityAssessment.topRankedPriorities[0]?.category,
+      currentCircumstances: [
+        updateText(latestUpdate),
+        params.userProfile?.primaryObstacle || params.userProfile?.currentObstacle,
+        params.dailyPlan?.notes,
+      ].filter(Boolean),
+      recentReflections: [reflection?.userNotes, reflection?.summary].filter(Boolean),
+      observedPatterns: Array.isArray(reflection?.patternsIdentified) ? reflection.patternsIdentified : [],
+      activePlan: pendingPlan,
+      latestLifeChange: updateText(latestUpdate),
+      availableHours: params.dailyPlan?.availableHours,
       momentumHistory: {
         chronicResistanceArea: momentumAnalysis.chronicResistanceCategories[0],
       },
@@ -173,6 +192,17 @@ RELATIONSHIPS & CONNECTION ORB DIRECTIVES:
 [Recommended Human Shift]: ${wisdomSynthesis.guidanceSynthesis.primaryShift}
 [Life Priority Focus]: ${priorityAssessment.primaryAttentionFocus}
 [Immediate Recommended Micro-Win]: ${priorityAssessment.immediateActionForNow}
+[AWARENESS — confirmed circumstances/reflection]: ${wisdomSynthesis.guidanceSynthesis.awareness}
+[INTENTION — realistic direction]: ${wisdomSynthesis.guidanceSynthesis.intention}
+[MOTION — concrete next action]: ${wisdomSynthesis.guidanceSynthesis.motion}
+[ADAPTATION — life-change rule]: ${wisdomSynthesis.guidanceSynthesis.adaptation}
+[Pattern integrity]: ${wisdomSynthesis.guidanceSynthesis.pitfallToAvoid}
+
+AIM WISDOM RESPONSE DISCIPLINE:
+- Use Awareness → Intention → Motion when the user asks for guidance: name the real circumstance, connect it to a chosen direction, then give a feasible physical next step.
+- Treat only saved reflections or repeated recorded behavior as personal patterns. If evidence is absent, say so and ask a reflection question instead of inventing one.
+- Fit the plan to the person’s available time, energy, schedule, obligations, and stated priorities. Do not prescribe a fantasy routine.
+- When life changes, identify the changed assumption, preserve completed work and unaffected commitments, and reroute only the affected part.
 ${orbGuidanceDirectives}
 =============================================================================
 `;

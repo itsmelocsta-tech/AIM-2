@@ -22,15 +22,19 @@ import {
   PersonalOperatingContext,
   DailyActionRecommendation,
   DailyPlan,
+  LifeUpdate,
   UserProfile,
 } from '../../types';
 import { aimContextService } from '../../services/aimContextService';
+import { buildAIMWisdomGuidance } from '../../services/aimWisdomGuidance';
 import { FractalAtmosphere } from '../common/FractalAtmosphere';
+import { AIMWisdomGuidance } from './AIMWisdomGuidance';
 import type { AimModuleId } from '../../services/moduleAccessService';
 
 interface AimHomeModuleProps {
   userProfile: UserProfile;
   dailyPlan: DailyPlan;
+  lifeUpdates?: LifeUpdate[];
   startingPoint?: string;
   context: PersonalOperatingContext;
   projects: AIMProject[];
@@ -46,6 +50,7 @@ interface AimHomeModuleProps {
 export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
   userProfile,
   dailyPlan,
+  lifeUpdates = [],
   startingPoint,
   context,
   projects,
@@ -58,6 +63,7 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
   availableModules,
 }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const wisdomGuidance = buildAIMWisdomGuidance({ userProfile, dailyPlan, lifeUpdates });
 
   const activeProjects = projects.filter((p) => p.status === 'active');
   const blockedProjects = projects.filter((p) => p.status === 'blocked');
@@ -96,7 +102,8 @@ export const AimHomeModule: React.FC<AimHomeModuleProps> = ({
 
   return (
     <div id="aim-home-screen" className="space-y-6 animate-fadeIn pb-12">
-      <FractalAtmosphere />
+      <FractalAtmosphere guidance={wisdomGuidance} />
+      <AIMWisdomGuidance guidance={wisdomGuidance} />
       {/* Top Banner: Location, Vehicle Policy & Core Context */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3.5 mb-3.5">

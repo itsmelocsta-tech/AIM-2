@@ -1,5 +1,5 @@
 import { authenticatedFetch } from './authenticatedFetch';
-import { UserProfile, CoachId, ScheduleItem } from '../types';
+import { UserProfile, CoachId, ScheduleItem, DailyPlan, LifeUpdate } from '../types';
 
 export interface CompactOrbContext {
   coachId: CoachId;
@@ -11,6 +11,13 @@ export interface CompactOrbContext {
   burnoutRiskLevel: 'low' | 'moderate' | 'high' | 'critical';
   recommendedMicroAction: string;
   relevantDomains: string[];
+  aimGuidance?: {
+    awareness: string;
+    intention: string;
+    motion: string;
+    adaptation: string;
+    pitfallToAvoid: string;
+  };
   retrievedAt: string;
 }
 
@@ -47,6 +54,10 @@ export interface WisdomSynthesisResultClient {
     actionableHabit: string;
     recommendedReflectionQuestion: string;
     pitfallToAvoid: string;
+    awareness: string;
+    intention: string;
+    motion: string;
+    adaptation: string;
   };
   biologicalFactors: string[];
   psychologicalFactors: string[];
@@ -145,8 +156,15 @@ class IntelligenceService {
     coachId?: CoachId;
     userProfile?: UserProfile;
     energyLevel?: number;
+    dailyPlan?: DailyPlan;
+    lifeUpdates?: LifeUpdate[];
   }): Promise<WisdomSynthesisResultClient> {
     try {
+      const latestLifeUpdate = [...(params.lifeUpdates || [])].sort((a, b) => {
+        const bTimestamp = Date.parse(b.updatedAt || b.createdAt || '');
+        const aTimestamp = Date.parse(a.updatedAt || a.createdAt || '');
+        return (Number.isFinite(bTimestamp) ? bTimestamp : 0) - (Number.isFinite(aTimestamp) ? aTimestamp : 0);
+      })[0];
       const payload = {
         userSituation: params.userSituation,
         desiredIdentity: params.userProfile?.desiredIdentity,
@@ -154,6 +172,19 @@ class IntelligenceService {
         currentObstacle: params.userProfile?.primaryObstacle,
         requestingOrb: params.coachId || 'guidance',
         userEnergyLevel: params.energyLevel ?? 7,
+        currentCircumstances: [
+          latestLifeUpdate?.confirmedSummary || latestLifeUpdate?.originalContent,
+          params.userProfile?.primaryObstacle,
+          params.dailyPlan?.notes,
+        ].filter(Boolean),
+        recentReflections: [
+          params.dailyPlan?.eveningReflection?.userNotes,
+          params.dailyPlan?.eveningReflection?.summary,
+        ].filter(Boolean),
+        observedPatterns: params.dailyPlan?.eveningReflection?.patternsIdentified || [],
+        activePlan: params.dailyPlan?.priorityTasks.filter((task) => !task.completed).map((task) => task.task) || [],
+        latestLifeChange: latestLifeUpdate?.confirmedSummary || latestLifeUpdate?.originalContent,
+        availableHours: params.dailyPlan?.availableHours,
       };
 
       const res = await authenticatedFetch('/api/aim/intelligence/wisdom-synthesis', {
@@ -174,6 +205,10 @@ class IntelligenceService {
           actionableHabit: 'Try one small step for two minutes.',
           recommendedReflectionQuestion: 'What would the person I am becoming do right now in this exact moment?',
           pitfallToAvoid: 'Waiting until you feel ready to start.',
+          awareness: params.userProfile?.primaryObstacle || params.userSituation,
+          intention: params.dailyPlan?.priorityTasks.find((task) => !task.completed)?.task || params.userProfile?.coreMission || 'Choose one useful direction.',
+          motion: 'Begin one concrete step that fits the time and energy available.',
+          adaptation: 'If life changes, update only the affected part of the plan.',
         },
         biologicalFactors: ['Circadian rhythm pacing', 'Dopamine regulation through micro-wins'],
         psychologicalFactors: ['Building confidence one step at a time', 'Making it easier to get started'],
@@ -189,6 +224,8 @@ class IntelligenceService {
     userProfile?: UserProfile;
     currentSchedule?: ScheduleItem[];
     userMessage?: string;
+    dailyPlan?: DailyPlan;
+    lifeUpdates?: LifeUpdate[];
     forceRefresh?: boolean;
   }): Promise<CompactOrbContext> {
     const cacheKey = `${params.coachId}_${params.userProfile?.id || 'default'}`;
@@ -210,6 +247,8 @@ class IntelligenceService {
           userSituation: params.userMessage || `Calibrating active session for ${params.coachId} orb`,
           coachId: params.coachId,
           userProfile: params.userProfile,
+          dailyPlan: params.dailyPlan,
+          lifeUpdates: params.lifeUpdates,
         }),
       ]);
 
@@ -223,6 +262,13 @@ class IntelligenceService {
         burnoutRiskLevel: 'low',
         recommendedMicroAction: wisdomSynthesis.guidanceSynthesis.actionableHabit || 'Try one step for two minutes',
         relevantDomains: wisdomSynthesis.relevantDomains,
+        aimGuidance: {
+          awareness: wisdomSynthesis.guidanceSynthesis.awareness,
+          intention: wisdomSynthesis.guidanceSynthesis.intention,
+          motion: wisdomSynthesis.guidanceSynthesis.motion,
+          adaptation: wisdomSynthesis.guidanceSynthesis.adaptation,
+          pitfallToAvoid: wisdomSynthesis.guidanceSynthesis.pitfallToAvoid,
+        },
         retrievedAt: new Date().toISOString(),
       };
 
@@ -242,6 +288,13 @@ class IntelligenceService {
         burnoutRiskLevel: 'low',
         recommendedMicroAction: 'Start with two minutes',
         relevantDomains: ['psychology_behavior', 'human_biology'],
+        aimGuidance: {
+          awareness: params.userProfile?.primaryObstacle || params.userMessage || 'Name what is true right now.',
+          intention: params.dailyPlan?.priorityTasks.find((task) => !task.completed)?.task || params.userProfile?.coreMission || 'Choose one useful direction.',
+          motion: 'Take one concrete, time-bounded step.',
+          adaptation: 'If life changes, update only the affected part of the plan.',
+          pitfallToAvoid: 'Do not claim a pattern without reflection evidence.',
+        },
         retrievedAt: new Date().toISOString(),
       };
       return fallback;

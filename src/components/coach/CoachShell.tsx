@@ -63,6 +63,8 @@ export const CoachShell: React.FC<CoachShellProps> = ({
       const ctx = await intelligenceService.getCompactOrbContext({
         coachId: cId,
         userProfile,
+        dailyPlan,
+        lifeUpdates,
         forceRefresh: force,
       });
       setCompactContext(ctx);
@@ -75,7 +77,7 @@ export const CoachShell: React.FC<CoachShellProps> = ({
 
   useEffect(() => {
     loadOrbContext(activeCoachId);
-  }, [activeCoachId, userProfile.desiredIdentity, userProfile.primaryObstacle]);
+  }, [activeCoachId, userProfile.desiredIdentity, userProfile.primaryObstacle, dailyPlan, lifeUpdates]);
 
   return (
     <div id="aim-coach-shell" className="min-h-full flex flex-col">
@@ -154,6 +156,26 @@ export const CoachShell: React.FC<CoachShellProps> = ({
                   </p>
                 </div>
               </div>
+
+              {compactContext.aimGuidance && (
+                <div className="grid grid-cols-1 gap-2 border-t border-slate-800 pt-2 sm:grid-cols-3" data-testid="coach-aim-wisdom-loop">
+                  <div className="rounded-lg bg-slate-950/60 p-2">
+                    <span className="font-bold uppercase tracking-wide text-cyan-300">Awareness</span>
+                    <p className="mt-1 text-slate-300">{compactContext.aimGuidance.awareness}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-950/60 p-2">
+                    <span className="font-bold uppercase tracking-wide text-indigo-300">Intention</span>
+                    <p className="mt-1 text-slate-300">{compactContext.aimGuidance.intention}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-950/60 p-2">
+                    <span className="font-bold uppercase tracking-wide text-amber-300">Motion</span>
+                    <p className="mt-1 text-slate-300">{compactContext.aimGuidance.motion}</p>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-emerald-300 sm:col-span-3">
+                    When life changes: {compactContext.aimGuidance.adaptation}
+                  </p>
+                </div>
+              )}
 
               {compactContext.relevantDomains.length > 0 && (
                 <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
